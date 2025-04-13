@@ -1,0 +1,55 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}  <!-- ¡Añade esta línea al inicio! -->
+
+{% block title %}Mi Perfil | MatchJob{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Columna izquierda -->
+    <div class="col-lg-4 col-md-5 col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <img src="{% static 'gestionOfertas/img/japon.jpg' %}" class="rounded-circle mb-3" width="120" alt="Avatar">
+                <h4>Miguel Vargas</h4>
+                <p class="text-muted">Santiago, Chile</p>
+                <button class="btn btn-primary btn-sm w-100 d-lg-none">Editar Foto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna derecha -->
+    <div class="col-lg-8 col-md-7 col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="card-title">Mis Datos</h3>
+                <form>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombres</label>
+                            <input type="text" class="form-control" value="Miguel Angel">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Apellidos</label>
+                            <input type="text" class="form-control" value="Vargas Rodriguez">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Direccion</label>
+                            <input type="text" class="form-control" value="Al lado de mi veciono, Santiago">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" value="+56 9 1234 5678">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary float-end">Guardar</button>
+                        </div>
+                    </div>  <!-- ¡Faltaba cerrar este div! -->
+                </form>  <!-- ¡Faltaba cerrar el form! -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
