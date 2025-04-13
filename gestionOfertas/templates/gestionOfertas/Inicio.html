@@ -1,11 +1,30 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Inicio</title>
-</head>
-<body>
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Inicio | MatchJob{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
     <h1>Bienvenido a la página de inicio</h1>
-    <p>Esta es la vista de inicio de tu proyecto.</p>
-</body>
-</html>
+    
+    <!-- Puedes añadir más contenido genérico aquí -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">¨Postulacion 1</h5>
+                    <p class="card-text">Explora las oportunidades de trabajo disponibles.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Accede a tu perfil</h5>
+                    <p class="card-text">Completa tu información personal para postular a ofertas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

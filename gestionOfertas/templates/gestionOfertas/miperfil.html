@@ -1,5 +1,5 @@
 {% extends 'gestionOfertas/base.html' %}
-{% load static %}  <!-- ¡Añade esta línea al inicio! -->
+{% load static %}
 
 {% block title %}Mi Perfil | MatchJob{% endblock %}
 
@@ -10,8 +10,8 @@
         <div class="card shadow-sm">
             <div class="card-body text-center">
                 <img src="{% static 'gestionOfertas/img/japon.jpg' %}" class="rounded-circle mb-3" width="120" alt="Avatar">
-                <h4>Miguel Vargas</h4>
-                <p class="text-muted">Santiago, Chile</p>
+                <h4>{{ persona.nombres }} {{ persona.apellidos }}</h4>
+                <p class="text-muted">{{ persona.direccion }}</p>
                 <button class="btn btn-primary btn-sm w-100 d-lg-none">Editar Foto</button>
             </div>
         </div>
@@ -26,28 +26,25 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Nombres</label>
-                            <input type="text" class="form-control" value="Miguel Angel">
+                            <input type="text" class="form-control" value="{{ persona.nombres }}" readonly>
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" value="Vargas Rodriguez">
+                            <input type="text" class="form-control" value="{{ persona.apellidos }}" readonly>
                         </div>
 
                         <div class="col-md-6">
-                            <label class="form-label">Direccion</label>
-                            <input type="text" class="form-control" value="Al lado de mi veciono, Santiago">
+                            <label class="form-label">Dirección</label>
+                            <input type="text" class="form-control" value="{{ persona.direccion }}" readonly>
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Teléfono</label>
-                            <input type="tel" class="form-control" value="+56 9 1234 5678">
+                            <input type="tel" class="form-control" value="{{ persona.usuario.telefono }}" readonly>
                         </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary float-end">Guardar</button>
-                        </div>
-                    </div>  <!-- ¡Faltaba cerrar este div! -->
-                </form>  <!-- ¡Faltaba cerrar el form! -->
+                    </div>
+                </form>
             </div>
         </div>
     </div>
