@@ -82,7 +82,7 @@ DATABASES = {
         'USER': 'postgres',
         'PASSWORD': 'Aaron180323@', 
         'HOST' : '127.0.0.1',
-        'DATABASE_PORT' : '5432',  # Puerto por defecto de PostgreSQL
+        'PORT' : '5432',  # Puerto por defecto de PostgreSQL
     }
 }
 
