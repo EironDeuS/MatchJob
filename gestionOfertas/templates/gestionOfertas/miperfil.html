@@ -1,0 +1,52 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Mi Perfil | MatchJob{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Columna izquierda -->
+    <div class="col-lg-4 col-md-5 col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <img src="{% static 'gestionOfertas/img/japon.jpg' %}" class="rounded-circle mb-3" width="120" alt="Avatar">
+                <h4>{{ persona.nombres }} {{ persona.apellidos }}</h4>
+                <p class="text-muted">{{ persona.direccion }}</p>
+                <button class="btn btn-primary btn-sm w-100 d-lg-none">Editar Foto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna derecha -->
+    <div class="col-lg-8 col-md-7 col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h3 class="card-title">Mis Datos</h3>
+                <form>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nombres</label>
+                            <input type="text" class="form-control" value="{{ persona.nombres }}" readonly>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Apellidos</label>
+                            <input type="text" class="form-control" value="{{ persona.apellidos }}" readonly>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Dirección</label>
+                            <input type="text" class="form-control" value="{{ persona.direccion }}" readonly>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Teléfono</label>
+                            <input type="tel" class="form-control" value="{{ persona.usuario.telefono }}" readonly>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
