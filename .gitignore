@@ -17,3 +17,6 @@ venv/
 # Archivos de IDE
 .idea/
 .vscode/
+
+echo "__pycache__/" > .gitignore
+echo "*.pyc" >> .gitignore
