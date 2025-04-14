@@ -1,30 +1,68 @@
 {% extends 'gestionOfertas/base.html' %}
 {% load static %}
 
-{% block title %}Inicio | MatchJob{% endblock %}
-
 {% block content %}
-<div class="container mt-4">
-    <h1>Bienvenido a la página de inicio</h1>
-    
-    <!-- Puedes añadir más contenido genérico aquí -->
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
+<div class="container my-4">
+    <!-- Barra de búsqueda y filtros -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <form method="get" action="{% url 'inicio' %}">
+                <div class="input-group">
+                    <input type="text" 
+                           name="q" 
+                           class="form-control" 
+                           placeholder="Buscar ofertas..."
+                           value="{{ busqueda_actual }}">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-4">
+            <form method="get" action="{% url 'inicio' %}" id="categoriaForm">
+                <input type="hidden" name="q" value="{{ busqueda_actual }}">
+                <select name="categoria" 
+                        class="form-select" 
+                        onchange="document.getElementById('categoriaForm').submit()">
+                    <option value="">Todas las categorías</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat.id }}"
+                            {% if categoria_actual == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.nombre_categoria }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ofertas -->
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for oferta in ofertas %}
+        <div class="col">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{{ oferta.nombre }}</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">¨Postulacion 1</h5>
-                    <p class="card-text">Explora las oportunidades de trabajo disponibles.</p>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ oferta.empresa.nombre_empresa }}
+                    </h6>
+                    <p class="card-text">{{ oferta.descripcion|truncatewords:20 }}</p>
+                    <span class="badge bg-secondary">{{ oferta.categoria.nombre_categoria }}</span>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">Publicado: {{ oferta.fecha_oferta|date:"d/m/Y" }}</small>
+                    <a href="#" class="btn btn-sm btn-outline-primary float-end">Ver detalles</a>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Accede a tu perfil</h5>
-                    <p class="card-text">Completa tu información personal para postular a ofertas.</p>
-                </div>
-            </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-warning">No se encontraron ofertas</div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

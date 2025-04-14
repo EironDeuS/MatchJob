@@ -1,12 +1,35 @@
 from django.shortcuts import render
-from .models import PersonaNatural
-from .models import OfertaTrabajo, Categoria
-from django.db.models import Q
-from django.core.paginator import Paginator
+from .models import PersonaNatural, OfertaTrabajo, Categoria
+from django.db.models import Q  # Para búsquedas avanzadas
+
 
 # Vista para la página de inicio
 def inicio(request):
-    return render(request, 'gestionOfertas/inicio.html')
+    # Obtener parámetros de filtrado del request
+    busqueda = request.GET.get('q', '')
+    categoria_id = request.GET.get('categoria', '')
+    
+    # Consulta base - todas las ofertas activas
+    ofertas = OfertaTrabajo.objects.all()
+    
+    # Aplicar filtro de búsqueda si existe
+    if busqueda:
+        ofertas = ofertas.filter(
+            Q(nombre__icontains=busqueda) | 
+            Q(descripcion__icontains=busqueda)
+        )
+    
+    # Aplicar filtro por categoría si existe
+    if categoria_id:
+        ofertas = ofertas.filter(categoria_id=categoria_id)
+    
+    context = {
+        'ofertas': ofertas,
+        'categorias': Categoria.objects.all(),
+        'busqueda_actual': busqueda,
+        'categoria_actual': categoria_id if categoria_id else ''
+    }
+    return render(request, 'gestionOfertas/inicio.html', context)
 
 # Vista para la página Mis Datos
 def mi_perfil(request):
