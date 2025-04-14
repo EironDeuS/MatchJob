@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+
+# Django
+*.log
+*.pot
+*.sqlite3
+
+# Entornos virtuales
+venv/
+.env/
+
+# Archivos de IDE
+.idea/
+.vscode/
+
+echo "__pycache__/" > .gitignore
+echo "*.pyc" >> .gitignore
