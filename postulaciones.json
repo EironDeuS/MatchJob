@@ -1,0 +1,11 @@
+[
+  {
+    "model": "gestionOfertas.Postulacion",
+    "pk": 1,
+    "fields": {
+      "persona": 1,
+      "oferta": 1,
+      "fecha_postulacion": "2023-02-05"
+    }
+  }
+]

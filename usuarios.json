@@ -1,0 +1,36 @@
+[
+  {
+    "model": "gestionOfertas.Usuario",
+    "pk": 1,
+    "fields": {
+      "username": "12345678-9",
+      "correo": "persona@example.com",
+      "telefono": "+56912345678",
+      "tipo_usuario": "persona",
+      "is_active": true,
+      "is_staff": false,
+      "password": "pbkdf2_sha256$260000$HASH...",  
+      "last_login": null,
+      "is_superuser": false,
+      "groups": [],
+      "user_permissions": []
+    }
+  },
+  {
+    "model": "gestionOfertas.Usuario",
+    "pk": 2,
+    "fields": {
+      "username": "7654321-0",
+      "correo": "empresa@example.com",
+      "telefono": "+56987654321",
+      "tipo_usuario": "empresa",
+      "is_active": true,
+      "is_staff": true,
+      "password": "pbkdf2_sha256$260000$HASH...", 
+      "last_login": null,
+      "is_superuser": false,
+      "groups": [],
+      "user_permissions": []
+    }
+  }
+]

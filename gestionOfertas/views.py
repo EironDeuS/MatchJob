@@ -1,7 +1,31 @@
 from django.shortcuts import render
 from .models import PersonaNatural, OfertaTrabajo, Categoria
 from django.db.models import Q  # Para búsquedas avanzadas
+from .forms import LoginForm
+from django.contrib.auth import authenticate, login
+from django.shortcuts import redirect
 
+def iniciar_sesion(request):
+    error = None
+
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+
+        if form.is_valid():
+            rut = form.cleaned_data['rut']
+            password = form.cleaned_data['password']
+
+            user = authenticate(request, username=rut, password=password)
+
+            if user is not None:
+                login(request, user)
+                return redirect('inicio')
+            else:
+                error = "RUT o contraseña incorrectos."
+    else:
+        form = LoginForm()
+
+    return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form, 'error': error})
 
 # Vista para la página de inicio
 def inicio(request):

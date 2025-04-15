@@ -1,0 +1,35 @@
+[
+    {
+      "model": "gestionOfertas.OfertaTrabajo",
+      "pk": 1,
+      "fields": {
+        "empresa": 1,
+        "categoria": 1,
+        "nombre": "Desarrollador Django Senior",
+        "descripcion": "Buscamos desarrollador con experiencia en Django para liderar proyectos importantes",
+        "fecha_oferta": "2023-03-01"
+      }
+    },
+    {
+      "model": "gestionOfertas.OfertaTrabajo",
+      "pk": 2,
+      "fields": {
+        "empresa": 1,
+        "categoria": 1,
+        "nombre": "Desarrollador Frontend React",
+        "descripcion": "Desarrollo de interfaces de usuario con React para nuestros clientes",
+        "fecha_oferta": "2023-03-15"
+      }
+    },
+    {
+      "model": "gestionOfertas.OfertaTrabajo",
+      "pk": 3,
+      "fields": {
+        "empresa": 2,
+        "categoria": 2,
+        "nombre": "Especialista en Redes Sociales",
+        "descripcion": "Gestión de redes sociales y creación de contenido para marcas importantes",
+        "fecha_oferta": "2023-02-20"
+      }
+    }
+  ]

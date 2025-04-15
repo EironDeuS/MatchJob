@@ -1,0 +1,13 @@
+[
+  {
+    "model": "gestionOfertas.empresa",
+    "pk": 1,
+    "fields": {
+      "usuario": 2,
+      "rut_empresa": "9876543-2",
+      "nombre_empresa": "Tech Solutions SpA",
+      "razon_cial": "Tech Solutions Sociedad por Acciones",
+      "giro": "Desarrollo de software"
+    }
+  }
+]

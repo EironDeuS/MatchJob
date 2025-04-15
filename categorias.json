@@ -1,0 +1,16 @@
+[
+  {
+    "model": "gestionOfertas.Categoria",
+    "pk": 1,
+    "fields": {
+      "nombre_categoria": "Tecnología"
+    }
+  },
+  {
+    "model": "gestionOfertas.Categoria",
+    "pk": 2,
+    "fields": {
+      "nombre_categoria": "Marketing"
+    }
+  }
+]

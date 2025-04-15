@@ -1,0 +1,15 @@
+[
+  {
+    "model": "gestionOfertas.PersonaNatural",
+    "pk": 1,
+    "fields": {
+      "usuario": 1,
+      "rut": "12345678-9",
+      "nombres": "Juan Carlos",
+      "apellidos": "Pérez González",
+      "direccion": "Calle Falsa 123, Santiago",
+      "fecha_nacimiento": "1990-05-15",
+      "nacionalidad": "Chilena"
+    }
+  }
+]

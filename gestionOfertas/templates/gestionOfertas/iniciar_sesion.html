@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión</title>
+    <link rel="stylesheet" href="{% static 'css/1.css' %}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .formulario_login {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .formulario_login p {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+        }
+
+        .formulario_login label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .formulario_login input {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        .formulario_login button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .formulario_login button:hover {
+            background-color: #0056b3;
+        }
+
+        .field-error {
+            color: red;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Iniciar Sesión</h1>
+
+    <form method="POST" class="formulario_login">
+        {% csrf_token %}
+
+        <p>
+            {{ form.rut.label_tag }}
+            {{ form.rut }}
+            {% for error in form.rut.errors %}
+                <span class="field-error">{{ error }}</span>
+            {% endfor %}
+        </p>
+
+        <p>
+            {{ form.password.label_tag }}
+            {{ form.password }}
+            {% for error in form.password.errors %}
+                <span class="field-error">{{ error }}</span>
+            {% endfor %}
+        </p>
+
+        {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+                <p class="field-error" style="text-align: center;">{{ error }}</p>
+            {% endfor %}
+        {% endif %}
+
+        <button type="submit">Entrar</button>
+    </form>
+</body>
+</html>

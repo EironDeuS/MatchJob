@@ -1,0 +1,13 @@
+[
+  {
+    "model": "gestionOfertas.OfertaTrabajo",
+    "pk": 1,
+    "fields": {
+      "empresa": 1,
+      "categoria": 1,
+      "nombre": "Desarrollador Fullstack",
+      "descripcion": "Buscamos desarrollador con experiencia en React y Node.js",
+      "fecha_oferta": "2023-02-01"
+    }
+  }
+]

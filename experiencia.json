@@ -1,0 +1,14 @@
+[
+  {
+    "model": "gestionOfertas.ExperienciaLaboral",
+    "pk": 1,
+    "fields": {
+      "cv": 1,
+      "nombre_empresa": "Previous Tech",
+      "puesto": "Desarrollador Frontend",
+      "fecha_inicio": "2018-03-01",
+      "fecha_termino": "2021-12-15",
+      "descripcion": "Desarrollo de interfaces web con React"
+    }
+  }
+]

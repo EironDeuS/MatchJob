@@ -1,0 +1,14 @@
+[
+  {
+    "model": "gestionOfertas.CV",
+    "pk": 1,
+    "fields": {
+      "persona": 1,
+      "nombre": "CV Juan Pérez",
+      "correo": "persona1@example.com",
+      "archivo_url": "https://example.com/cv/juanperez.pdf",
+      "experiencia": "5 años como desarrollador fullstack",
+      "fecha_subida": "2023-01-10"
+    }
+  }
+]
