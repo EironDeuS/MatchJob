@@ -87,12 +87,15 @@ WSGI_APPLICATION = 'MatchJob.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',  # Cambia esto si usas otro motor de base de datos
-        'NAME': 'matchjob',
-        'USER': 'postgres',
-        'PASSWORD': 'Aaron180323@', 
-        'HOST' : '127.0.0.1',
-        'PORT' : '5432',  # Puerto por defecto de PostgreSQL
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'matchjobBD',
+        'USER': 'neondb_owner',
+        'PASSWORD': 'npg_lU8ucqsIiP6X',
+        'HOST': 'ep-weathered-sunset-ac0mxs0q-pooler.sa-east-1.aws.neon.tech',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
 
