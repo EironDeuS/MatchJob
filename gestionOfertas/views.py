@@ -4,10 +4,9 @@ from django.db.models import Q  # Para búsquedas avanzadas
 from .forms import LoginForm
 from django.contrib.auth import authenticate, login
 from django.shortcuts import redirect
+from django.contrib import messages
 
 def iniciar_sesion(request):
-    error = None
-
     if request.method == 'POST':
         form = LoginForm(request.POST)
 
@@ -19,13 +18,14 @@ def iniciar_sesion(request):
 
             if user is not None:
                 login(request, user)
-                return redirect('inicio')
+                messages.success(request, '¡Inicio de sesión exitoso!')
+                return redirect('inicio')  # Redirige a tu vista de inicio
             else:
-                error = "RUT o contraseña incorrectos."
+                messages.error(request, 'RUT o contraseña incorrectos.')
     else:
         form = LoginForm()
 
-    return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form, 'error': error})
+    return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form})
 
 # Vista para la página de inicio
 def inicio(request):

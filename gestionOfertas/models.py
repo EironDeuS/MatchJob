@@ -12,39 +12,38 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 # Gestor personalizado para el modelo Usuario
 class UsuarioManager(BaseUserManager):
     """
-    Este es el gestor personalizado para el modelo Usuario.
-    Proporciona métodos para crear usuarios y superusuarios de forma personalizada.
+    Gestor personalizado para el modelo Usuario.
+    Proporciona métodos para crear usuarios y superusuarios.
     """
     
     def create_user(self, username, correo, password=None, **extra_fields):
         """
-        Crea y guarda un usuario normal con RUT como username, correo y contraseña.
+        Crea y guarda un usuario con RUT como username, correo y contraseña.
         """
         if not username:
-            raise ValueError("El campo 'username' (RUT) es obligatorio")  # Aseguramos que el RUT esté presente
-        
-        # Normalizamos el correo (en minúsculas)
+            raise ValueError("El campo 'username' (RUT) es obligatorio")
+        if not correo:
+            raise ValueError("El campo 'correo' es obligatorio")
+
         email = self.normalize_email(correo)
-        
-        # Creamos el objeto usuario usando el modelo
         user = self.model(username=username, correo=email, **extra_fields)
-        
-        # Establecemos la contraseña encriptada
         user.set_password(password)
-        
-        # Guardamos el usuario en la base de datos
         user.save(using=self._db)
-        return user  # Devolvemos el usuario creado
+        return user
 
     def create_superuser(self, username, correo, password=None, **extra_fields):
         """
-        Crea y guarda un superusuario con permisos administrativos (is_staff, is_superuser).
+        Crea y guarda un superusuario con permisos administrativos.
         """
-        # Establecemos que el superusuario debe tener estos campos por defecto
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        
-        # Llamamos a `create_user` para crear el superusuario
+        extra_fields.setdefault('is_active', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError("El superusuario debe tener 'is_staff=True'")
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError("El superusuario debe tener 'is_superuser=True'")
+
         return self.create_user(username, correo, password, **extra_fields)
 
 
