@@ -1,13 +1,92 @@
 [
   {
-    "model": "gestionOfertas.OfertaTrabajo",
+    "model": "gestionOfertas.ofertatrabajo",
     "pk": 1,
     "fields": {
       "empresa": 1,
       "categoria": 1,
       "nombre": "Desarrollador Fullstack",
       "descripcion": "Buscamos desarrollador con experiencia en React y Node.js",
-      "fecha_oferta": "2023-02-01"
+      "requisitos": "3+ años de experiencia, conocimiento en Django y React",
+      "beneficios": "Horario flexible, trabajo remoto, bonos por desempeño",
+      "salario": "$2.000.000 - $2.800.000 líquidos",
+      "ubicacion": "Santiago (hibrido)",
+      "tipo_contrato": "Indefinido",
+      "fecha_publicacion": "2023-02-01",
+      "fecha_cierre": "2023-03-01",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.ofertatrabajo",
+    "pk": 2,
+    "fields": {
+      "empresa": 2,
+      "categoria": 2,
+      "nombre": "Especialista en Marketing Digital",
+      "descripcion": "Se requiere profesional con experiencia en campañas digitales",
+      "requisitos": "Experiencia en Google Ads y Facebook Ads",
+      "beneficios": "Capacitaciones pagadas, comisiones por campañas",
+      "salario": "$1.800.000 - $2.200.000 líquidos",
+      "ubicacion": "Remoto",
+      "tipo_contrato": "Indefinido",
+      "fecha_publicacion": "2023-02-05",
+      "fecha_cierre": "2023-03-05",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.ofertatrabajo",
+    "pk": 3,
+    "fields": {
+      "empresa": 3,
+      "categoria": 3,
+      "nombre": "Ingeniero Civil",
+      "descripcion": "Se busca ingeniero civil para supervisión de obras",
+      "requisitos": "Título de ingeniero civil, experiencia mínima 2 años",
+      "beneficios": "Movilización, seguro de salud",
+      "salario": "$2.500.000 - $3.000.000 líquidos",
+      "ubicacion": "Región Metropolitana",
+      "tipo_contrato": "Plazo fijo 1 año",
+      "fecha_publicacion": "2023-02-10",
+      "fecha_cierre": "2023-03-10",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.ofertatrabajo",
+    "pk": 4,
+    "fields": {
+      "empresa": 4,
+      "categoria": 4,
+      "nombre": "Contador Auditor",
+      "descripcion": "Se requiere contador para área financiera",
+      "requisitos": "Título de contador auditor, experiencia en SAP",
+      "beneficios": "Horario flexible, bonos semestrales",
+      "salario": "$1.900.000 - $2.300.000 líquidos",
+      "ubicacion": "Santiago (presencial)",
+      "tipo_contrato": "Indefinido",
+      "fecha_publicacion": "2023-02-15",
+      "fecha_cierre": "2023-03-15",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.ofertatrabajo",
+    "pk": 5,
+    "fields": {
+      "empresa": 5,
+      "categoria": 5,
+      "nombre": "Diseñador UX/UI",
+      "descripcion": "Buscamos diseñador para rediseño de plataforma web",
+      "requisitos": "Portafolio demostrable, experiencia en Figma",
+      "beneficios": "Trabajo remoto, equipo creativo",
+      "salario": "$1.700.000 - $2.100.000 líquidos",
+      "ubicacion": "Remoto",
+      "tipo_contrato": "Indefinido",
+      "fecha_publicacion": "2023-02-20",
+      "fecha_cierre": "2023-03-20",
+      "activa": true
     }
   }
 ]

@@ -1,36 +1,68 @@
 [
   {
-    "model": "gestionOfertas.Usuario",
+    "model": "gestionOfertas.usuario",
     "pk": 1,
     "fields": {
+      "password": "pbkdf2_sha256$870000$z8WpIUrgjQ8OngornbS5at$qylpstipnJYbOAR6LQ6V5UZMhIU12N+ugVgL+LlheoY=",
       "username": "12345678-9",
-      "correo": "persona@example.com",
+      "correo": "persona1@example.com",
       "telefono": "+56912345678",
       "tipo_usuario": "persona",
       "is_active": true,
-      "is_staff": false,
-      "password": "pbkdf2_sha256$260000$HASH...",  
-      "last_login": null,
-      "is_superuser": false,
-      "groups": [],
-      "user_permissions": []
+      "is_staff": false
+      
     }
   },
   {
-    "model": "gestionOfertas.Usuario",
+    "model": "gestionOfertas.usuario",
     "pk": 2,
     "fields": {
-      "username": "7654321-0",
-      "correo": "empresa@example.com",
+      "password": "pbkdf2_sha256$870000$Tmaf9oM7BIMhVtGD2L3O6S$QWTGoMnbBeOX+fP0fr0RobNNtBPrq+XXh7/YzPD5iho=",
+      "username": "9876543-2",
+      "correo": "empresa1@example.com",
       "telefono": "+56987654321",
       "tipo_usuario": "empresa",
       "is_active": true,
-      "is_staff": true,
-      "password": "pbkdf2_sha256$260000$HASH...", 
-      "last_login": null,
-      "is_superuser": false,
-      "groups": [],
-      "user_permissions": []
+      "is_staff": false
+    }
+  },
+  {
+    "model": "gestionOfertas.usuario",
+    "pk": 3,
+    "fields": {
+      "password": "pbkdf2_sha256$870000$3Jp75OTTXeFaSUlZ4tENsJ$IAJhEiFOs+rrrsX69+rj/cFYvTWp/BzKOixiVici9XI=",
+      "username": "8765432-1",
+      "correo": "persona2@example.com",
+      "telefono": "+56955555555",
+      "tipo_usuario": "persona",
+      "is_active": true,
+      "is_staff": false
+    }
+  },
+  {
+    "model": "gestionOfertas.usuario",
+    "pk": 4,
+    "fields": {
+      "password": "pbkdf2_sha256$870000$Gwk31fHRLPJKnQ1SAhOMoS$vkgXKfK3Nyte10N/yPOJxnuD7S+8UvEWwvZSUooH8As=",
+      "username": "7654321-0",
+      "correo": "empresa2@example.com",
+      "telefono": "+56944444444",
+      "tipo_usuario": "empresa",
+      "is_active": true,
+      "is_staff": false
+    }
+  },
+  {
+    "model": "gestionOfertas.usuario",
+    "pk": 5,
+    "fields": {
+      "password": "pbkdf2_sha256$870000$JrzzwRDlMRNjQu9AWBZ7kD$s2PPaGrwu8+iRbiiDLmL3aELu/+IdWlXKw+7DDhuybM=",
+      "username": "6543210-9",
+      "correo": "persona3@example.com",
+      "telefono": "+56933333333",
+      "tipo_usuario": "persona",
+      "is_active": true,
+      "is_staff": false
     }
   }
 ]

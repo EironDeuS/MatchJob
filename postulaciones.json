@@ -1,11 +1,15 @@
 [
   {
-    "model": "gestionOfertas.Postulacion",
+    "model": "gestionOfertas.postulacion",
     "pk": 1,
     "fields": {
       "persona": 1,
       "oferta": 1,
-      "fecha_postulacion": "2023-02-05"
+      "cv": 1,
+      "fecha_postulacion": "2023-02-05T10:00:00Z",
+      "mensaje": "Me interesa mucho esta oportunidad, tengo experiencia en las tecnologías requeridas",
+      "estado": "entrevista",
+      "feedback": "Cumple con los requisitos, programar entrevista técnica"
     }
   }
 ]

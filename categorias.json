@@ -1,16 +1,52 @@
 [
   {
-    "model": "gestionOfertas.Categoria",
+    "model": "gestionOfertas.categoria",
     "pk": 1,
     "fields": {
-      "nombre_categoria": "Tecnología"
+      "nombre_categoria": "Tecnología",
+      "descripcion": "Ofertas relacionadas con desarrollo de software y TI",
+      "icono": "fa-laptop-code",
+      "activa": true
     }
   },
   {
-    "model": "gestionOfertas.Categoria",
+    "model": "gestionOfertas.categoria",
     "pk": 2,
     "fields": {
-      "nombre_categoria": "Marketing"
+      "nombre_categoria": "Marketing",
+      "descripcion": "Ofertas en marketing digital y tradicional",
+      "icono": "fa-bullhorn",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.categoria",
+    "pk": 3,
+    "fields": {
+      "nombre_categoria": "Construcción",
+      "descripcion": "Ofertas en construcción e ingeniería civil",
+      "icono": "fa-hard-hat",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.categoria",
+    "pk": 4,
+    "fields": {
+      "nombre_categoria": "Finanzas",
+      "descripcion": "Ofertas en contabilidad y finanzas",
+      "icono": "fa-chart-line",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.categoria",
+    "pk": 5,
+    "fields": {
+      "nombre_categoria": "Diseño",
+      "descripcion": "Ofertas en diseño gráfico y UX/UI",
+      "icono": "fa-paint-brush",
+      "activa": true
     }
   }
 ]

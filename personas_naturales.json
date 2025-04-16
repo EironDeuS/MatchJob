@@ -1,14 +1,40 @@
 [
   {
-    "model": "gestionOfertas.PersonaNatural",
+    "model": "gestionOfertas.personanatural",
     "pk": 1,
     "fields": {
       "usuario": 1,
       "rut": "12345678-9",
-      "nombres": "Juan Carlos",
+      "nombres": "Juan",
       "apellidos": "Pérez González",
-      "direccion": "Calle Falsa 123, Santiago",
+      "direccion": "Av. Principal 123, Santiago",
       "fecha_nacimiento": "1990-05-15",
+      "nacionalidad": "Chilena"
+    }
+  },
+  {
+    "model": "gestionOfertas.personanatural",
+    "pk": 2,
+    "fields": {
+      "usuario": 3,
+      "rut": "8765432-1",
+      "nombres": "María",
+      "apellidos": "Gómez Sánchez",
+      "direccion": "Calle Secundaria 456, Valparaíso",
+      "fecha_nacimiento": "1985-08-22",
+      "nacionalidad": "Chilena"
+    }
+  },
+  {
+    "model": "gestionOfertas.personanatural",
+    "pk": 3,
+    "fields": {
+      "usuario": 5,
+      "rut": "6543210-9",
+      "nombres": "Pedro",
+      "apellidos": "Martínez López",
+      "direccion": "Pasaje 789, Concepción",
+      "fecha_nacimiento": "1995-03-10",
       "nacionalidad": "Chilena"
     }
   }

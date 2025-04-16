@@ -1,14 +1,41 @@
 [
   {
-    "model": "gestionOfertas.ExperienciaLaboral",
+    "model": "gestionOfertas.experiencialaboral",
     "pk": 1,
     "fields": {
       "cv": 1,
-      "nombre_empresa": "Previous Tech",
-      "puesto": "Desarrollador Frontend",
-      "fecha_inicio": "2018-03-01",
-      "fecha_termino": "2021-12-15",
-      "descripcion": "Desarrollo de interfaces web con React"
+      "nombre_empresa": "Tech Solutions",
+      "puesto": "Desarrollador Fullstack",
+      "fecha_inicio": "2020-01-15",
+      "fecha_termino": "2023-01-01",
+      "descripcion": "Desarrollo de aplicaciones web con Django y React",
+      "actualmente": false
+    }
+  },
+  {
+    "model": "gestionOfertas.experiencialaboral",
+    "pk": 2,
+    "fields": {
+      "cv": 1,
+      "nombre_empresa": "Software Corp",
+      "puesto": "Desarrollador Backend",
+      "fecha_inicio": "2018-03-10",
+      "fecha_termino": "2020-01-10",
+      "descripcion": "Desarrollo de APIs REST con Django REST Framework",
+      "actualmente": false
+    }
+  },
+  {
+    "model": "gestionOfertas.experiencialaboral",
+    "pk": 3,
+    "fields": {
+      "cv": 2,
+      "nombre_empresa": "Agencia Digital",
+      "puesto": "Especialista en SEO",
+      "fecha_inicio": "2019-05-10",
+      "fecha_termino": "2022-12-31",
+      "descripcion": "Optimización de sitios web para motores de búsqueda",
+      "actualmente": false
     }
   }
 ]

@@ -6,8 +6,21 @@
       "usuario": 2,
       "rut_empresa": "9876543-2",
       "nombre_empresa": "Tech Solutions SpA",
-      "razon_cial": "Tech Solutions Sociedad por Acciones",
-      "giro": "Desarrollo de software"
+      "razon_social": "Tech Solutions Sociedad por Acciones",
+      "giro": "Desarrollo de software",
+      "activa": true
+    }
+  },
+  {
+    "model": "gestionOfertas.empresa",
+    "pk": 2,
+    "fields": {
+      "usuario": 4,
+      "rut_empresa": "7654321-0",
+      "nombre_empresa": "Marketing Digital Ltda",
+      "razon_social": "Marketing Digital Limitada",
+      "giro": "Publicidad y marketing",
+      "activa": true
     }
   }
 ]
