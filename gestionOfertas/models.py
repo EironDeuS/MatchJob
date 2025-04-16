@@ -20,7 +20,7 @@ class UsuarioManager(BaseUserManager):
     Gestor personalizado para el modelo Usuario que reemplaza
     el gestor por defecto de Django.
     """
-    
+
     def create_user(self, username, correo, password=None, **extra_fields):
         """
         Crea y guarda un usuario con username (RUT), correo y contraseña.
@@ -33,7 +33,7 @@ class UsuarioManager(BaseUserManager):
 
         email = self.normalize_email(correo)
         user = self.model(username=username, correo=email, **extra_fields)
-        user.set_password(password)
+        user.set_password(password)  # Hashea la contraseña
         user.save(using=self._db)
         return user
 
@@ -62,7 +62,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     Modelo de usuario personalizado que reemplaza al modelo User por defecto de Django.
     Utiliza RUT como username y soporta múltiples tipos de usuarios.
     """
-    
+
     TIPO_USUARIO_CHOICES = [
         ('persona', _('Persona Natural')),
         ('empresa', _('Empresa')),
@@ -92,7 +92,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         choices=TIPO_USUARIO_CHOICES,
         default='persona'
     )
-    
+
     # Campos de estado y permisos
     is_active = models.BooleanField(
         _('Activo'),
@@ -102,7 +102,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         _('Acceso administrador'),
         default=False
     )
-    
+
     # Auditoría
     fecha_creacion = models.DateTimeField(
         _('Fecha de creación'),
@@ -133,19 +133,42 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.username} ({self.get_tipo_usuario_display()})"
 
+    def save(self, *args, **kwargs):
+        """
+        Sobrescribe el método save() para crear automáticamente
+        el perfil de PersonaNatural o Empresa al crear un Usuario.
+        """
+        is_new = not self.pk  # Verificar si el usuario es nuevo
+        super().save(*args, **kwargs)  # Guardar el Usuario
+
+        if is_new:  # Solo crear el perfil si es un nuevo usuario
+            if self.tipo_usuario == 'persona':
+                PersonaNatural.objects.create(
+                    usuario=self,
+                    rut=self.username,  # Inicializar con datos básicos
+                    nombres=getattr(self, 'nombres', None),
+                    apellidos=getattr(self, 'apellidos', None),
+                    direccion=getattr(self, 'direccion', None),
+                    fecha_nacimiento=getattr(self, 'fecha_nacimiento', None),
+                    nacionalidad=getattr(self, 'nacionalidad', None),
+                )
+            elif self.tipo_usuario == 'empresa':
+                Empresa.objects.create(
+                    usuario=self,
+                    rut_empresa=self.username,  # Inicializar con datos básicos
+                    nombre_empresa=getattr(self, 'nombre_empresa', None),
+                    razon_social=getattr(self, 'razon_social', None),
+                    giro=getattr(self, 'giro', None),
+                )
+
     def clean(self):
-        """Validaciones adicionales del modelo"""
+        """
+        Validaciones adicionales del modelo.
+        Ya no necesitamos validar la existencia del perfil aquí,
+        ya que se crea automáticamente en el save().
+        """
         super().clean()
-        
-        # Validar que el tipo de usuario coincida con su perfil
-        if self.tipo_usuario == 'empresa' and not hasattr(self, 'empresa'):
-            raise ValidationError(
-                _('Los usuarios de tipo empresa deben tener un perfil de empresa asociado')
-            )
-        elif self.tipo_usuario == 'persona' and not hasattr(self, 'personanatural'):
-            raise ValidationError(
-                _('Los usuarios de tipo persona deben tener un perfil de persona natural asociado')
-            )
+        # Puedes agregar otras validaciones específicas del Usuario aquí.
 
 
 # -----------------------------
@@ -238,7 +261,7 @@ class Empresa(models.Model):
     razon_social = models.CharField(
         _('Razón social'),
         max_length=100,
-         null=True
+        null=True
     )
     giro = models.CharField(
         _('Giro comercial'),
@@ -247,7 +270,7 @@ class Empresa(models.Model):
     fecha_registro = models.DateTimeField(
         _('Fecha de registro'),
         auto_now_add=True,
-         null=True,
+        null=True
     )
     activa = models.BooleanField(
         _('Activa'),
@@ -476,7 +499,7 @@ class OfertaTrabajo(models.Model):
         _('Fecha de publicación'),
         auto_now_add=True,
         null=True
-        
+
     )
     fecha_cierre = models.DateField(
         _('Fecha de cierre'),
@@ -504,7 +527,7 @@ class OfertaTrabajo(models.Model):
     def clean(self):
         """Validar fechas coherentes"""
         super().clean()
-        if self.fecha_cierre and self.fecha_publicacion > self.fecha_cierre:
+        if self.fecha_cierre and self.fecha_publicacion > self.fecha_publicacion:
             raise ValidationError(
                 _('La fecha de publicación no puede ser posterior a la fecha de cierre')
             )
