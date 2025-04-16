@@ -1,10 +1,12 @@
 from django.shortcuts import render
 from .models import PersonaNatural, OfertaTrabajo, Categoria
 from django.db.models import Q  # Para búsquedas avanzadas
-from .forms import LoginForm
+from .forms import LoginForm, registroForm
 from django.contrib.auth import authenticate, login
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.contrib import messages
+from .models import PersonaNatural, Empresa
 
 def iniciar_sesion(request):
     if request.method == 'POST':
@@ -76,3 +78,34 @@ def mi_perfil(request):
 # Vista para la página Mis Datos
 def base(request):
     return render(request, 'gestionOfertas/base.html')
+
+
+# vista registro
+def registro(request):
+    if request.method == 'POST':
+        form = registroForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.nombres = form.cleaned_data.get('nombres')
+            user.apellidos = form.cleaned_data.get('apellidos')
+            user.direccion = form.cleaned_data.get('direccion')
+            user.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
+            user.nacionalidad = form.cleaned_data.get('nacionalidad')
+            user.nombre_empresa = form.cleaned_data.get('nombre_empresa')
+            user.rut_empresa = form.cleaned_data.get('rut_empresa')
+            user.razon_social = form.cleaned_data.get('razon_social')
+            user.giro = form.cleaned_data.get('giro')
+            user.set_password(form.cleaned_data['password'])
+            user.save()
+            messages.success(request, 'Tu cuenta ha sido creada exitosamente.')
+            return redirect(reverse('inicio'))
+        else:
+            print("Formulario no es válido:", form.errors)
+            # Puedes agregar lógica para mostrar los errores al usuario en el template
+            # Por ejemplo:
+            # for field, errors in form.errors.items():
+            #     for error in errors:
+            #         messages.error(request, f"Error en {field}: {error}")
+    else:
+        form = registroForm()
+    return render(request, 'gestionOfertas/registro.html', {'form': form})
