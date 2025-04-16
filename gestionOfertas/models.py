@@ -1,29 +1,35 @@
-from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+"""
+Modelos optimizados para el sistema MatchJob con:
+- Relaciones claras y consistentes
+- Validaciones mejoradas
+- Documentación completa
+- Convenciones Django estándar
+- Preparado para migraciones limpias
+"""
 
-# -----------------------------
-# Modelo base de Usuario
-# -----------------------------
-# Representa cualquier tipo de usuario del sistema.
-# Contiene información común como username, correo y tipo de usuario.
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
-# Gestor personalizado para el modelo Usuario
+# -----------------------------
+# Gestor Personalizado de Usuario
+# -----------------------------
 class UsuarioManager(BaseUserManager):
     """
-    Gestor personalizado para el modelo Usuario.
-    Proporciona métodos para crear usuarios y superusuarios.
+    Gestor personalizado para el modelo Usuario que reemplaza
+    el gestor por defecto de Django.
     """
     
     def create_user(self, username, correo, password=None, **extra_fields):
         """
-        Crea y guarda un usuario con RUT como username, correo y contraseña.
+        Crea y guarda un usuario con username (RUT), correo y contraseña.
+        Valida campos obligatorios y normaliza el correo.
         """
         if not username:
-            raise ValueError("El campo 'username' (RUT) es obligatorio")
+            raise ValueError(_('El RUT es obligatorio'))
         if not correo:
-            raise ValueError("El campo 'correo' es obligatorio")
+            raise ValueError(_('El correo electrónico es obligatorio'))
 
         email = self.normalize_email(correo)
         user = self.model(username=username, correo=email, **extra_fields)
@@ -33,103 +39,292 @@ class UsuarioManager(BaseUserManager):
 
     def create_superuser(self, username, correo, password=None, **extra_fields):
         """
-        Crea y guarda un superusuario con permisos administrativos.
+        Crea un superusuario con todos los permisos.
         """
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('tipo_usuario', 'admin')
 
         if extra_fields.get('is_staff') is not True:
-            raise ValueError("El superusuario debe tener 'is_staff=True'")
+            raise ValueError(_('Superusuario debe tener is_staff=True'))
         if extra_fields.get('is_superuser') is not True:
-            raise ValueError("El superusuario debe tener 'is_superuser=True'")
+            raise ValueError(_('Superusuario debe tener is_superuser=True'))
 
         return self.create_user(username, correo, password, **extra_fields)
 
 
-# Modelo personalizado de usuario
+# -----------------------------
+# Modelo Usuario Personalizado
+# -----------------------------
 class Usuario(AbstractBaseUser, PermissionsMixin):
     """
-    Este es el modelo personalizado de usuario que hereda de AbstractBaseUser y PermissionsMixin
-    para integrar los campos y funcionalidades necesarias para la autenticación y permisos.
+    Modelo de usuario personalizado que reemplaza al modelo User por defecto de Django.
+    Utiliza RUT como username y soporta múltiples tipos de usuarios.
     """
     
-    # Definimos los campos del modelo (usamos el RUT como el campo 'username')
-    username = models.CharField(max_length=50, unique=True)  # RUT como username, único
-    correo = models.EmailField(unique=True)  # Correo electrónico, único
-    telefono = models.CharField(max_length=20)  # Teléfono del usuario
-    tipo_usuario = models.CharField(max_length=20)  # Tipo de usuario (ejemplo: 'persona' o 'empresa')
+    TIPO_USUARIO_CHOICES = [
+        ('persona', _('Persona Natural')),
+        ('empresa', _('Empresa')),
+        ('admin', _('Administrador')),
+    ]
+
+    # Campos básicos
+    username = models.CharField(
+        _('RUT/Username'),
+        max_length=50,
+        unique=True,
+        help_text=_('RUT en formato 12345678-9')
+    )
+    correo = models.EmailField(
+        _('Correo electrónico'),
+        unique=True
+    )
+    telefono = models.CharField(
+        _('Teléfono'),
+        max_length=20,
+        blank=True,
+        null=True
+    )
+    tipo_usuario = models.CharField(
+        _('Tipo de usuario'),
+        max_length=20,
+        choices=TIPO_USUARIO_CHOICES,
+        default='persona'
+    )
     
-    # Campos estándar de autenticación y permisos
-    is_active = models.BooleanField(default=True)  # Indica si el usuario está activo
-    is_staff = models.BooleanField(default=False)  # Indica si el usuario tiene acceso al admin
+    # Campos de estado y permisos
+    is_active = models.BooleanField(
+        _('Activo'),
+        default=True
+    )
+    is_staff = models.BooleanField(
+        _('Acceso administrador'),
+        default=False
+    )
     
-    # Este campo conecta con el gestor personalizado
+    # Auditoría
+    fecha_creacion = models.DateTimeField(
+        _('Fecha de creación'),
+        auto_now_add=True,
+        null=True
+    )
+    fecha_actualizacion = models.DateTimeField(
+        _('Fecha de actualización'),
+        auto_now=True,
+        null=True
+    )
+
     objects = UsuarioManager()
 
-    # Se indica el campo que se usará para el login
-    USERNAME_FIELD = 'username'  # Usamos el 'username' (RUT) como campo para login
-    
-    # Campos adicionales requeridos al crear un superusuario
-    REQUIRED_FIELDS = ['correo']  # Requiere el correo al crear un superusuario
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['correo']
 
-    # Función para mostrar el nombre de usuario cuando imprimimos el objeto
+    class Meta:
+        verbose_name = _('Usuario')
+        verbose_name_plural = _('Usuarios')
+        ordering = ['fecha_creacion']
+        indexes = [
+            models.Index(fields=['username']),
+            models.Index(fields=['correo']),
+            models.Index(fields=['tipo_usuario']),
+        ]
+
     def __str__(self):
-        return f"{self.username} ({self.tipo_usuario})"
+        return f"{self.username} ({self.get_tipo_usuario_display()})"
 
+    def clean(self):
+        """Validaciones adicionales del modelo"""
+        super().clean()
+        
+        # Validar que el tipo de usuario coincida con su perfil
+        if self.tipo_usuario == 'empresa' and not hasattr(self, 'empresa'):
+            raise ValidationError(
+                _('Los usuarios de tipo empresa deben tener un perfil de empresa asociado')
+            )
+        elif self.tipo_usuario == 'persona' and not hasattr(self, 'personanatural'):
+            raise ValidationError(
+                _('Los usuarios de tipo persona deben tener un perfil de persona natural asociado')
+            )
 
 
 # -----------------------------
 # Persona Natural
 # -----------------------------
-# Datos adicionales solo si el usuario es una persona (no empresa).
-# Está relacionado 1 a 1 con el modelo Usuario.
 class PersonaNatural(models.Model):
-    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, primary_key=True)  # Relación uno a uno con Usuario
-    rut = models.CharField(max_length=12)  # RUT chileno
-    nombres = models.CharField(max_length=100)  # Nombre(s) del usuario
-    apellidos = models.CharField(max_length=100)  # Apellidos
-    direccion = models.CharField(max_length=200)  # Dirección de residencia
-    fecha_nacimiento = models.DateField()  # Fecha de nacimiento
-    nacionalidad = models.CharField(max_length=50)  # Nacionalidad
+    """
+    Perfil extendido para usuarios de tipo Persona Natural.
+    Contiene información personal adicional.
+    """
+    usuario = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        verbose_name=_('Usuario asociado'),
+        related_name='personanatural'
+    )
+    rut = models.CharField(
+        _('RUT'),
+        max_length=12,
+        help_text=_('Formato: 12345678-9')
+    )
+    nombres = models.CharField(
+        _('Nombres'),
+        max_length=100
+    )
+    apellidos = models.CharField(
+        _('Apellidos'),
+        max_length=100
+    )
+    direccion = models.CharField(
+        _('Dirección'),
+        max_length=200,
+        blank=True,
+        null=True
+    )
+    fecha_nacimiento = models.DateField(
+        _('Fecha de nacimiento'),
+        blank=True,
+        null=True
+    )
+    nacionalidad = models.CharField(
+        _('Nacionalidad'),
+        max_length=50,
+        default='Chilena'
+    )
+
+    class Meta:
+        verbose_name = _('Persona Natural')
+        verbose_name_plural = _('Personas Naturales')
+        ordering = ['apellidos', 'nombres']
 
     def __str__(self):
         return f"{self.nombres} {self.apellidos}"
+
+    def clean(self):
+        """Validar que el usuario asociado sea de tipo persona"""
+        super().clean()
+        if self.usuario.tipo_usuario != 'persona':
+            raise ValidationError(
+                _('El usuario asociado debe ser de tipo Persona')
+            )
 
 
 # -----------------------------
 # Empresa
 # -----------------------------
-# Datos adicionales solo si el usuario es una empresa.
-# Está relacionado 1 a 1 con el modelo Usuario.
 class Empresa(models.Model):
-    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE)
-    rut_empresa = models.CharField(max_length=12, unique=True)
-    nombre_empresa = models.CharField(max_length=100)
-    razon_cial = models.CharField(max_length=100)
-    giro = models.CharField(max_length=100)
+    """
+    Perfil extendido para usuarios de tipo Empresa.
+    Contiene información comercial de la empresa.
+    """
+    usuario = models.OneToOneField(
+        Usuario,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        verbose_name=_('Usuario asociado'),
+        related_name='empresa'
+    )
+    rut_empresa = models.CharField(
+        _('RUT Empresa'),
+        max_length=12,
+        unique=True,
+        help_text=_('Formato: 12345678-9')
+    )
+    nombre_empresa = models.CharField(
+        _('Nombre de la empresa'),
+        max_length=100
+    )
+    razon_social = models.CharField(
+        _('Razón social'),
+        max_length=100,
+         null=True
+    )
+    giro = models.CharField(
+        _('Giro comercial'),
+        max_length=100
+    )
+    fecha_registro = models.DateTimeField(
+        _('Fecha de registro'),
+        auto_now_add=True,
+         null=True,
+    )
+    activa = models.BooleanField(
+        _('Activa'),
+        default=True
+    )
 
     class Meta:
-        db_table = 'gestionofertas_empresa'  # Especifica el nombre de la tabla en la base de datos
-        verbose_name = 'Empresa'
-        verbose_name_plural = 'Empresas'
+        verbose_name = _('Empresa')
+        verbose_name_plural = _('Empresas')
+        ordering = ['nombre_empresa']
+        indexes = [
+            models.Index(fields=['nombre_empresa']),
+            models.Index(fields=['rut_empresa']),
+        ]
 
     def __str__(self):
         return f"{self.nombre_empresa} ({self.rut_empresa})"
+
+    def clean(self):
+        """Validar que el usuario asociado sea de tipo empresa"""
+        super().clean()
+        if self.usuario.tipo_usuario != 'empresa':
+            raise ValidationError(
+                _('El usuario asociado debe ser de tipo Empresa')
+            )
 
 
 # -----------------------------
 # CV (Currículum Vitae)
 # -----------------------------
-# Representa un CV subido por una persona.
-# Tiene relación uno a uno con PersonaNatural.
 class CV(models.Model):
-    persona = models.OneToOneField(PersonaNatural, on_delete=models.CASCADE)  # CV pertenece a una sola persona
-    nombre = models.CharField(max_length=100)  # Nombre o título del CV
-    correo = models.EmailField()  # Correo asociado al CV
-    archivo_url = models.URLField()  # Enlace al archivo del CV (PDF, por ejemplo)
-    experiencia = models.TextField()  # Resumen de experiencia general
-    fecha_subida = models.DateField()  # Fecha en que se subió el CV
+    """
+    Modelo que representa el currículum vitae de una persona.
+    Relacionado 1-a-1 con PersonaNatural.
+    """
+    persona = models.OneToOneField(
+        PersonaNatural,
+        on_delete=models.CASCADE,
+        verbose_name=_('Persona'),
+        related_name='cv'
+    )
+    nombre = models.CharField(
+        _('Título del CV'),
+        max_length=100
+    )
+    correo = models.EmailField(
+        _('Correo de contacto')
+    )
+    archivo_url = models.URLField(
+        _('URL del archivo'),
+        max_length=500,
+        blank=True,
+        null=True
+    )
+    experiencia = models.TextField(
+        _('Resumen de experiencia'),
+        blank=True
+    )
+    habilidades = models.TextField(
+        _('Habilidades destacadas'),
+        blank=True
+    )
+    fecha_subida = models.DateField(
+        _('Fecha de subida'),
+        auto_now_add=True,
+        null=True
+    )
+    fecha_actualizacion = models.DateField(
+        _('Fecha de actualización'),
+        auto_now=True,
+        null=True
+    )
+
+    class Meta:
+        verbose_name = _('Currículum Vitae')
+        verbose_name_plural = _('Currículos Vitae')
+        ordering = ['-fecha_subida']
 
     def __str__(self):
         return f"CV de {self.persona}"
@@ -138,68 +333,252 @@ class CV(models.Model):
 # -----------------------------
 # Experiencia Laboral
 # -----------------------------
-# Detalles de experiencias pasadas que van dentro de un CV.
-# Muchas experiencias pueden estar asociadas a un solo CV.
 class ExperienciaLaboral(models.Model):
-    cv = models.ForeignKey(CV, on_delete=models.CASCADE)  # Relación muchos a uno con CV
-    nombre_empresa = models.CharField(max_length=100)  # Empresa donde se trabajó
-    puesto = models.CharField(max_length=100)  # Cargo o puesto ocupado
-    fecha_inicio = models.DateField()  # Fecha de inicio del trabajo
-    fecha_termino = models.DateField(null=True, blank=True)  # Fecha de fin (puede estar vacío si sigue vigente)
-    descripcion = models.TextField()  # Tareas realizadas
+    """
+    Experiencia laboral asociada a un CV.
+    Una persona puede tener múltiples experiencias laborales.
+    """
+    cv = models.ForeignKey(
+        CV,
+        on_delete=models.CASCADE,
+        verbose_name=_('CV asociado'),
+        related_name='experiencias'
+    )
+    nombre_empresa = models.CharField(
+        _('Nombre de la empresa'),
+        max_length=100
+    )
+    puesto = models.CharField(
+        _('Puesto ocupado'),
+        max_length=100
+    )
+    fecha_inicio = models.DateField(
+        _('Fecha de inicio')
+    )
+    fecha_termino = models.DateField(
+        _('Fecha de término'),
+        blank=True,
+        null=True
+    )
+    descripcion = models.TextField(
+        _('Descripción de funciones'),
+        blank=True
+    )
+    actualmente = models.BooleanField(
+        _('Actualmente trabajando aquí'),
+        default=False
+    )
+
+    class Meta:
+        verbose_name = _('Experiencia Laboral')
+        verbose_name_plural = _('Experiencias Laborales')
+        ordering = ['-fecha_inicio']
 
     def __str__(self):
         return f"{self.puesto} en {self.nombre_empresa}"
+
+    def clean(self):
+        """Validar fechas coherentes"""
+        super().clean()
+        if self.fecha_termino and self.fecha_inicio > self.fecha_termino:
+            raise ValidationError(
+                _('La fecha de inicio no puede ser posterior a la fecha de término')
+            )
 
 
 # -----------------------------
 # Categoría de Oferta
 # -----------------------------
-# Categoriza las ofertas de trabajo.
 class Categoria(models.Model):
+    """
+    Categoría para clasificar las ofertas de trabajo.
+    """
     nombre_categoria = models.CharField(
+        _('Nombre'),
         max_length=100,
-        unique=True,  # Evita duplicados
-        verbose_name="Nombre",
-        help_text="Ej: Tecnología, Marketing, Diseño"
+        unique=True,
+        help_text=_('Ej: Tecnología, Marketing, Diseño')
+    )
+    descripcion = models.TextField(
+        _('Descripción'),
+        blank=True
+    )
+    icono = models.CharField(
+        _('Icono'),
+        max_length=50,
+        blank=True,
+        help_text=_('Clase de icono para mostrar en la interfaz')
+    )
+    activa = models.BooleanField(
+        _('Activa'),
+        default=True
     )
 
     class Meta:
-        verbose_name = "Categoría"
-        verbose_name_plural = "Categorías"
-        ordering = ['nombre_categoria']  # Orden alfabético por defecto
+        verbose_name = _('Categoría')
+        verbose_name_plural = _('Categorías')
+        ordering = ['nombre_categoria']
 
     def __str__(self):
         return self.nombre_categoria
-    
-    def natural_key(self):
-        return (self.nombre_categoria,)  # Para usar en fixtures
 
 
 # -----------------------------
 # Oferta de Trabajo
 # -----------------------------
-# Publicada por una empresa.
-# Relacionada con una categoría y una empresa.
 class OfertaTrabajo(models.Model):
-    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE)  # Empresa que publica la oferta
-    categoria = models.ForeignKey(Categoria, on_delete=models.CASCADE)  # Categoría de la oferta
-    nombre = models.CharField(max_length=100)  # Título de la oferta
-    descripcion = models.TextField()  # Descripción del trabajo
-    fecha_oferta = models.DateField()  # Fecha de publicación
+    """
+    Oferta de trabajo publicada por una empresa.
+    """
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        verbose_name=_('Empresa'),
+        related_name='ofertas'
+    )
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.PROTECT,
+        verbose_name=_('Categoría'),
+        related_name='ofertas'
+    )
+    nombre = models.CharField(
+        _('Título de la oferta'),
+        max_length=100
+    )
+    descripcion = models.TextField(
+        _('Descripción del puesto')
+    )
+    requisitos = models.TextField(
+        _('Requisitos'),
+        blank=True
+    )
+    beneficios = models.TextField(
+        _('Beneficios'),
+        blank=True
+    )
+    salario = models.CharField(
+        _('Salario'),
+        max_length=100,
+        blank=True
+    )
+    ubicacion = models.CharField(
+        _('Ubicación'),
+        max_length=100,
+        blank=True
+    )
+    tipo_contrato = models.CharField(
+        _('Tipo de contrato'),
+        max_length=50,
+        blank=True
+    )
+    fecha_publicacion = models.DateField(
+        _('Fecha de publicación'),
+        auto_now_add=True,
+        null=True
+        
+    )
+    fecha_cierre = models.DateField(
+        _('Fecha de cierre'),
+        blank=True,
+        null=True
+    )
+    activa = models.BooleanField(
+        _('Activa'),
+        default=True
+    )
+
+    class Meta:
+        verbose_name = _('Oferta de Trabajo')
+        verbose_name_plural = _('Ofertas de Trabajo')
+        ordering = ['-fecha_publicacion']
+        indexes = [
+            models.Index(fields=['nombre']),
+            models.Index(fields=['empresa']),
+            models.Index(fields=['categoria']),
+        ]
 
     def __str__(self):
         return self.nombre
+
+    def clean(self):
+        """Validar fechas coherentes"""
+        super().clean()
+        if self.fecha_cierre and self.fecha_publicacion > self.fecha_cierre:
+            raise ValidationError(
+                _('La fecha de publicación no puede ser posterior a la fecha de cierre')
+            )
 
 
 # -----------------------------
 # Postulación
 # -----------------------------
-# Registra la postulación de una persona a una oferta.
 class Postulacion(models.Model):
-    persona = models.ForeignKey(PersonaNatural, on_delete=models.CASCADE)  # Persona que postula
-    oferta = models.ForeignKey(OfertaTrabajo, on_delete=models.CASCADE)  # Oferta a la que se postula
-    fecha_postulacion = models.DateField()  # Fecha en que se realizó la postulación
+    """
+    Registro de postulación de una persona a una oferta.
+    """
+    ESTADOS = [
+        ('pendiente', _('Pendiente')),
+        ('revisado', _('Revisado')),
+        ('entrevista', _('Entrevista')),
+        ('contratado', _('Contratado')),
+        ('rechazado', _('Rechazado')),
+    ]
+
+    persona = models.ForeignKey(
+        PersonaNatural,
+        on_delete=models.CASCADE,
+        verbose_name=_('Postulante'),
+        related_name='postulaciones'
+    )
+    oferta = models.ForeignKey(
+        OfertaTrabajo,
+        on_delete=models.CASCADE,
+        verbose_name=_('Oferta'),
+        related_name='postulaciones'
+    )
+    cv = models.ForeignKey(
+        CV,
+        on_delete=models.SET_NULL,
+        verbose_name=_('CV enviado'),
+        null=True,
+        blank=True
+    )
+    fecha_postulacion = models.DateTimeField(
+        _('Fecha de postulación'),
+        auto_now_add=True
+    )
+    mensaje = models.TextField(
+        _('Mensaje del postulante'),
+        blank=True
+    )
+    estado = models.CharField(
+        _('Estado'),
+        max_length=20,
+        choices=ESTADOS,
+        default='pendiente'
+    )
+    feedback = models.TextField(
+        _('Feedback'),
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = _('Postulación')
+        verbose_name_plural = _('Postulaciones')
+        ordering = ['-fecha_postulacion']
+        unique_together = ['persona', 'oferta']
+        indexes = [
+            models.Index(fields=['persona']),
+            models.Index(fields=['oferta']),
+            models.Index(fields=['estado']),
+        ]
 
     def __str__(self):
         return f"{self.persona} postuló a {self.oferta}"
+
+    def clean(self):
+        """Validar coherencia en la postulación"""
+        super().clean()
+        if not self.cv and hasattr(self.persona, 'cv'):
+            self.cv = self.persona.cv

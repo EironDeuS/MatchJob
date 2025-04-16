@@ -1,14 +1,41 @@
 [
   {
-    "model": "gestionOfertas.CV",
+    "model": "gestionOfertas.cv",
     "pk": 1,
     "fields": {
       "persona": 1,
-      "nombre": "CV Juan Pérez",
+      "nombre": "CV Juan Pérez - Desarrollador Fullstack",
       "correo": "persona1@example.com",
       "archivo_url": "https://example.com/cv/juanperez.pdf",
-      "experiencia": "5 años como desarrollador fullstack",
+      "experiencia": "5 años como desarrollador fullstack con experiencia en Django y React",
+      "habilidades": "Python, Django, React, PostgreSQL, Docker",
       "fecha_subida": "2023-01-10"
+    }
+  },
+  {
+    "model": "gestionOfertas.cv",
+    "pk": 2,
+    "fields": {
+      "persona": 3,
+      "nombre": "CV María Gómez - Especialista en Marketing",
+      "correo": "persona2@example.com",
+      "archivo_url": "https://example.com/cv/mariagomez.pdf",
+      "experiencia": "8 años en marketing digital con enfoque en SEO y redes sociales",
+      "habilidades": "SEO, Google Ads, Facebook Ads, Analytics",
+      "fecha_subida": "2023-01-15"
+    }
+  },
+  {
+    "model": "gestionOfertas.cv",
+    "pk": 3,
+    "fields": {
+      "persona": 5,
+      "nombre": "CV Pedro Martínez - Ingeniero Civil",
+      "correo": "persona3@example.com",
+      "archivo_url": "https://example.com/cv/pedromartinez.pdf",
+      "experiencia": "3 años en construcción de obras civiles",
+      "habilidades": "Autocad, Project Management, Cálculo estructural",
+      "fecha_subida": "2023-02-01"
     }
   }
 ]
