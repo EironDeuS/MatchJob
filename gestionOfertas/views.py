@@ -3,29 +3,32 @@ from .models import PersonaNatural, OfertaTrabajo, Categoria
 from django.db.models import Q  # Para búsquedas avanzadas
 from .forms import LoginForm, registroForm
 from django.contrib.auth import authenticate, login
+from django.contrib.auth.forms import AuthenticationForm
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.contrib import messages
 from .models import PersonaNatural, Empresa
+from django.contrib.auth.decorators import login_required
 
 def iniciar_sesion(request):
     if request.method == 'POST':
-        form = LoginForm(request.POST)
-
+        form = LoginForm(request, data=request.POST)
         if form.is_valid():
-            rut = form.cleaned_data['rut']
+            rut = form.cleaned_data['username']  # Accede al campo como 'username'
             password = form.cleaned_data['password']
 
-            user = authenticate(request, username=rut, password=password)
+            user = authenticate(request, username=rut, password=password) # Usa 'username' como el nombre de usuario de autenticación
 
             if user is not None:
                 login(request, user)
                 messages.success(request, '¡Inicio de sesión exitoso!')
-                return redirect('inicio')  # Redirige a tu vista de inicio
+                return redirect('inicio')
             else:
-                messages.error(request, 'RUT o contraseña incorrectos.')
+                form.add_error(None, 'RUT o contraseña incorrectos.')
+        else:
+            form = LoginForm(request)
     else:
-        form = LoginForm()
+        form = LoginForm(request)
 
     return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form})
 
@@ -58,22 +61,21 @@ def inicio(request):
     return render(request, 'gestionOfertas/inicio.html', context)
 
 # Vista para la página Mis Datos
+@login_required  # Asegura que solo los usuarios autenticados puedan ver esta página
 def mi_perfil(request):
-    try:
-        # Obtener el primer registro de PersonaNatural
-        persona = PersonaNatural.objects.first()
-        
-        # Verificar si existe al menos un registro
-        if not persona:
-            raise PersonaNatural.DoesNotExist
-            
-        return render(request, 'gestionOfertas/miperfil.html', {'persona': persona})
-        
-    except PersonaNatural.DoesNotExist:
-        # Datos de ejemplo por si la tabla está vacía
-        datos_ejemplo = 0
-        return render(request, 'gestionOfertas/miperfil.html', {'persona': datos_ejemplo})
+    # Obtiene el usuario actual
+    usuario = request.user
 
+    try:
+        # Intenta obtener el perfil de PersonaNatural asociado al usuario
+        persona = PersonaNatural.objects.get(usuario=usuario)
+    except PersonaNatural.DoesNotExist:
+        # Maneja el caso en que el usuario no tiene un perfil de PersonaNatural
+        # Puedes crear uno o mostrar un mensaje de error, por ejemplo:
+        persona = None  # O puedes crear un perfil vacío aquí si lo prefieres
+
+    context = {'persona': persona}
+    return render(request, 'gestionOfertas/miperfil.html', context)
 
 # Vista para la página Mis Datos
 def base(request):

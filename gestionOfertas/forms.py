@@ -1,24 +1,22 @@
 from django import forms
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from .models import Usuario, PersonaNatural, Empresa
+from django.contrib.auth.forms import AuthenticationForm
 
-
-
-class LoginForm(forms.Form):
-    rut = forms.CharField(
+class LoginForm(AuthenticationForm):
+    username = forms.CharField(  # OJO: Mantenemos 'username'
         label='RUT',
         max_length=12,
-        widget=forms.TextInput(attrs={
-            'placeholder': '12.345.678-9',
-        })
+        widget=forms.TextInput(attrs={'placeholder': '12.345.678-9', 'class': 'form-control'})
     )
     password = forms.CharField(
         label='Contraseña',
-        widget=forms.PasswordInput(attrs={
-            'placeholder': 'Contraseña',
-        })
+        widget=forms.PasswordInput(attrs={'placeholder': 'Contraseña', 'class': 'form-control'})
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].label = 'RUT'  #  Mejorar la etiqueta
 
 class UsuarioCreationForm(forms.ModelForm):
     """Formulario para crear nuevos usuarios (usa set_password)."""
