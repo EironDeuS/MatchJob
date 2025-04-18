@@ -4,47 +4,107 @@
 {% block title %}Mi Perfil | MatchJob{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Columna izquierda -->
-    <div class="col-lg-4 col-md-5 col-12 mb-4">
-        <div class="card shadow-sm">
-            <div class="card-body text-center">
-                <img src="{% static 'gestionOfertas/img/japon.jpg' %}" class="rounded-circle mb-3" width="120" alt="Avatar">
-                <h4>{{ persona.nombres }} {{ persona.apellidos }}</h4>
-                <p class="text-muted">{{ persona.direccion }}</p>
-                <button class="btn btn-primary btn-sm w-100 d-lg-none">Editar Foto</button>
+<div class="container mt-4">
+    <div class="row">
+        <!-- Columna izquierda - Perfil -->
+        <div class="col-lg-4 col-md-5 col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <img src="{% static 'gestionOfertas/img/'|add:perfil|yesno:'empresa.jpg,japon.jpg' %}" 
+                         class="rounded-circle mb-3" width="120" alt="Avatar">
+                    
+                    {% if es_empresa %}
+                        <h4>{{ perfil.nombre_empresa }}</h4>
+                        <p class="text-muted">{{ perfil.giro }}</p>
+                        <p><i class="fas fa-id-card"></i> {{ perfil.rut_empresa }}</p>
+                        <p><i class="fas fa-envelope"></i> {{ usuario.email }}</p>
+                        <p><i class="fas fa-phone"></i> {{ perfil.telefono_contacto|default:"Sin teléfono registrado" }}</p>
+                    {% else %}
+                        <h4>{{ perfil.nombres }} {{ perfil.apellidos }}</h4>
+                        <p class="text-muted">{{ perfil.direccion|default:"Sin dirección registrada" }}</p>
+                        <p><i class="fas fa-id-card"></i> {{ perfil.rut }}</p>
+                        <p><i class="fas fa-envelope"></i> {{ usuario.email }}</p>
+                        <p><i class="fas fa-phone"></i> {{ perfil.telefono|default:"Sin teléfono registrado" }}</p>
+                        <p><i class="fas fa-birthday-cake"></i> {{ perfil.fecha_nacimiento|date:"d/m/Y"|default:"Sin fecha de nacimiento" }}</p>
+                        <p><i class="fas fa-venus-mars"></i> {{ perfil.get_genero_display|default:"Sin género especificado" }}</p>
+                    {% endif %}
+                    
+                    <a href="{% url 'inicio' %}" class="btn btn-primary btn-sm w-100 mt-3">
+                        <i class="fas fa-user-edit"></i> Editar Perfil
+                    </a>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Columna derecha -->
-    <div class="col-lg-8 col-md-7 col-12">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h3 class="card-title">Mis Datos</h3>
-                <form>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Nombres</label>
-                            <input type="text" class="form-control" value="{{ persona.nombres }}" readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" value="{{ persona.apellidos }}" readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Dirección</label>
-                            <input type="text" class="form-control" value="{{ persona.direccion }}" readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Teléfono</label>
-                            <input type="tel" class="form-control" value="{{ persona.usuario.telefono }}" readonly>
-                        </div>
+        <!-- Columna derecha - Ofertas -->
+        <div class="col-lg-8 col-md-7 col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="card-title mb-0">
+                            {% if es_empresa %}Ofertas Publicadas{% else %}Ofertas Aplicadas{% endif %}
+                        </h3>
+                        {% if es_empresa %}
+                        <a href="{% url 'crear_oferta' %}" class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Nueva Oferta
+                        </a>
+                        {% endif %}
                     </div>
-                </form>
+                    
+                    {% if ofertas %}
+                        <div class="list-group">
+                            {% for oferta in ofertas %}
+                                <div class="list-group-item mb-2 rounded">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <h5 class="mb-1">{{ oferta.nombre }}</h5>
+                                            <small class="text-muted">
+                                                Publicado el {{ oferta.fecha_publicacion|date:"d/m/Y" }}
+                                                {% if oferta.fecha_cierre %}
+                                                    | Cierra el {{ oferta.fecha_cierre|date:"d/m/Y" }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-{% if oferta.activa %}success{% else %}secondary{% endif %}">
+                                            {{ oferta.activa|yesno:"Activa,Inactiva" }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-2 mb-1">{{ oferta.descripcion|truncatewords:20 }}</p>
+                                    <div class="btn-group mt-2">
+                                        <a href="{% url 'detalle_oferta' oferta.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> Ver
+                                        </a>
+                                        {% if es_empresa %}
+                                        <a href="{% url 'inicio' %}" 
+                                           class="btn btn-sm btn-outline-warning">
+                                            <i class="fas fa-edit"></i> Editar
+                                        </a>
+                                        <a href="{% url 'inicio' %}" 
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('¿Estás seguro de eliminar esta oferta?')">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            {% if es_empresa %}
+                                No has publicado ninguna oferta de trabajo aún.
+                            {% else %}
+                                No has aplicado a ninguna oferta de trabajo.
+                            {% endif %}
+                            {% if es_empresa %}
+                            <a href="{% url 'crear_oferta' %}" class="alert-link">Publica tu primera oferta</a>
+                            {% else %}
+                            <a href="{% url 'listar_ofertas' %}" class="alert-link">Explora las ofertas disponibles</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

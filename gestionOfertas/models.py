@@ -11,6 +11,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 # -----------------------------
 # Gestor Personalizado de Usuario
@@ -451,14 +453,25 @@ class Categoria(models.Model):
 # -----------------------------
 class OfertaTrabajo(models.Model):
     """
-    Oferta de trabajo publicada por una empresa.
+    Oferta de trabajo publicada por una empresa o persona natural.
+    Utiliza GenericForeignKey para relacionarse con el creador.
     """
-    empresa = models.ForeignKey(
-        Empresa,
+    # Relación genérica con el creador (Empresa o PersonaNatural)
+    content_type = models.ForeignKey(
+        ContentType,
         on_delete=models.CASCADE,
-        verbose_name=_('Empresa'),
-        related_name='ofertas'
+        null=True,
+        blank=True,
+        verbose_name=_('Tipo de creador')
     )
+    object_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_('ID del creador')
+    )
+    creador = GenericForeignKey('content_type', 'object_id')
+
+    # Información de la oferta
     categoria = models.ForeignKey(
         Categoria,
         on_delete=models.PROTECT,
@@ -497,9 +510,7 @@ class OfertaTrabajo(models.Model):
     )
     fecha_publicacion = models.DateField(
         _('Fecha de publicación'),
-        auto_now_add=True,
-        null=True
-
+        auto_now_add=True
     )
     fecha_cierre = models.DateField(
         _('Fecha de cierre'),
@@ -517,7 +528,7 @@ class OfertaTrabajo(models.Model):
         ordering = ['-fecha_publicacion']
         indexes = [
             models.Index(fields=['nombre']),
-            models.Index(fields=['empresa']),
+            models.Index(fields=['content_type', 'object_id']),
             models.Index(fields=['categoria']),
         ]
 
@@ -525,12 +536,26 @@ class OfertaTrabajo(models.Model):
         return self.nombre
 
     def clean(self):
-        """Validar fechas coherentes"""
+        """Validaciones del modelo"""
         super().clean()
-        if self.fecha_cierre and self.fecha_publicacion > self.fecha_publicacion:
-            raise ValidationError(
-                _('La fecha de publicación no puede ser posterior a la fecha de cierre')
-            )
+        
+        # Validar fechas coherentes (solo si fecha_cierre no es None)
+        if self.fecha_cierre and self.fecha_publicacion:
+            if self.fecha_publicacion > self.fecha_cierre:
+                raise ValidationError(
+                    _('La fecha de publicación no puede ser posterior a la fecha de cierre')
+                )
+        
+        # Validar que el creador sea Empresa o PersonaNatural
+        if hasattr(self, 'content_type') and self.content_type:
+            valid_models = [
+                ContentType.objects.get_for_model(Empresa),
+                ContentType.objects.get_for_model(PersonaNatural)
+            ]
+            if self.content_type not in valid_models:
+                raise ValidationError(
+                    _('El creador debe ser una Empresa o una PersonaNatural')
+                )
 
 
 # -----------------------------

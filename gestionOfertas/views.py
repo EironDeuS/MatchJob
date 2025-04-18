@@ -1,14 +1,18 @@
+from django.utils import timezone
 from django.shortcuts import render
-from .models import PersonaNatural, OfertaTrabajo, Categoria
+from .models import PersonaNatural, OfertaTrabajo, Categoria,OfertaTrabajo, Empresa
 from django.db.models import Q  # Para búsquedas avanzadas
-from .forms import LoginForm, registroForm
+from .forms import LoginForm, registroForm, OfertaTrabajoForm
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.forms import AuthenticationForm
-from django.shortcuts import redirect
+from django.shortcuts import redirect,get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from .models import PersonaNatural, Empresa
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
+from django.views.generic.detail import DetailView
+from django.contrib.contenttypes.models import ContentType
 
 def iniciar_sesion(request):
     if request.method == 'POST':
@@ -61,20 +65,37 @@ def inicio(request):
     return render(request, 'gestionOfertas/inicio.html', context)
 
 # Vista para la página Mis Datos
-@login_required  # Asegura que solo los usuarios autenticados puedan ver esta página
+@login_required
 def mi_perfil(request):
-    # Obtiene el usuario actual
     usuario = request.user
-
+    perfil = None
+    ofertas = None
+    
+    # Obtener el perfil según tipo de usuario
     try:
-        # Intenta obtener el perfil de PersonaNatural asociado al usuario
-        persona = PersonaNatural.objects.get(usuario=usuario)
-    except PersonaNatural.DoesNotExist:
-        # Maneja el caso en que el usuario no tiene un perfil de PersonaNatural
-        # Puedes crear uno o mostrar un mensaje de error, por ejemplo:
-        persona = None  # O puedes crear un perfil vacío aquí si lo prefieres
+        if usuario.tipo_usuario == 'empresa':
+            perfil = usuario.empresa
+            content_type = ContentType.objects.get_for_model(Empresa)
+        else:
+            perfil = usuario.personanatural
+            content_type = ContentType.objects.get_for_model(PersonaNatural)
+            
+        # Obtener ofertas del creador
+        ofertas = OfertaTrabajo.objects.filter(
+            content_type=content_type,
+            object_id=perfil.pk
+        ).order_by('-fecha_publicacion')
+        
+    except (Empresa.DoesNotExist, PersonaNatural.DoesNotExist):
+        pass
 
-    context = {'persona': persona}
+    context = {
+        'usuario': usuario,
+        'perfil': perfil,
+        'ofertas': ofertas,
+        'es_empresa': usuario.tipo_usuario == 'empresa'
+    }
+    
     return render(request, 'gestionOfertas/miperfil.html', context)
 
 # Vista para la página Mis Datos
@@ -111,3 +132,47 @@ def registro(request):
     else:
         form = registroForm()
     return render(request, 'gestionOfertas/registro.html', {'form': form})
+
+def salir(request):
+    logout(request)
+    return redirect('inicio')
+
+def detalle_oferta(request, oferta_id):
+    oferta = get_object_or_404(OfertaTrabajo, pk=oferta_id)
+    return render(request, 'gestionOfertas/detalle_oferta.html', {'oferta': oferta})
+
+@login_required
+def crear_oferta(request):
+    if request.method == 'POST':
+        form = OfertaTrabajoForm(request.POST)
+        if form.is_valid():
+            oferta = form.save(commit=False)
+            oferta.fecha_publicacion = timezone.now().date()
+
+            try:
+                if request.user.tipo_usuario == 'empresa':
+                    empresa = request.user.empresa
+                    oferta.content_type = ContentType.objects.get_for_model(Empresa)
+                    oferta.object_id = empresa.pk
+                elif request.user.tipo_usuario == 'persona':
+                    persona = request.user.personanatural
+                    oferta.content_type = ContentType.objects.get_for_model(PersonaNatural)
+                    oferta.object_id = persona.pk
+                else:
+                    raise ValueError("Tipo de usuario no soportado")
+
+                oferta.save()
+                messages.success(request, '¡Oferta publicada exitosamente!')
+                return redirect('mi_perfil')
+
+            except Exception as e:
+                form.add_error(None, f'Error al asignar creador: {str(e)}')
+                return render(request, 'gestionOfertas/crear_oferta.html', {'form': form})
+    else:
+        form = OfertaTrabajoForm(initial={
+            'fecha_publicacion': timezone.now().date(),
+            'activa': True
+        })
+
+    return render(request, 'gestionOfertas/crear_oferta.html', {'form': form})
+

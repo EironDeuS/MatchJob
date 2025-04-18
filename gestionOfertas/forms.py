@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from .models import Usuario, PersonaNatural, Empresa
+from .models import Usuario, PersonaNatural, Empresa,OfertaTrabajo
 from django.contrib.auth.forms import AuthenticationForm
 
 class LoginForm(AuthenticationForm):
@@ -94,3 +94,27 @@ class registroForm(forms.ModelForm):
         """
         user = super().save(commit=commit)
         return user
+    
+
+class OfertaTrabajoForm(forms.ModelForm):
+    class Meta:
+        model = OfertaTrabajo
+        fields = [
+            'categoria', 'nombre', 'descripcion', 'requisitos', 'beneficios',
+            'salario', 'ubicacion', 'tipo_contrato', 'fecha_cierre', 'activa'
+        ]  # ¡Omitimos 'empresa' aquí!
+        widgets = {
+            'descripcion': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
+            'requisitos': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
+            'beneficios': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),
+            'fecha_cierre': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            if not field.widget.attrs.get('class'):
+                field.widget.attrs['class'] = 'form-control'
+
+

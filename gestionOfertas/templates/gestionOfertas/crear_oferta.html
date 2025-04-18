@@ -1,0 +1,61 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+{% load widget_tweaks %} 
+
+{% block title %}Crear Oferta de Trabajo - MatchJob{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-primary text-white text-center rounded-top-4">
+                    <h3 class="mb-0 py-2"><i class="fas fa-briefcase me-2"></i>Publicar Nueva Oferta</h3>
+                </div>
+                                    <!-- Mensajes flash -->
+                                    {% if messages %}
+                                    <div class="mb-3">
+                                        {% for message in messages %}
+                                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                                {{ message }}
+                                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                <div class="card-body px-4 py-4">
+                    <form method="POST">
+                        {% csrf_token %}
+
+                        {% for field in form %}
+                            <div class="mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label fw-semibold text-dark">
+                                    {{ field.label }}
+                                </label>
+                                {{ field|add_class:"form-control shadow-sm" }}
+                                {% if field.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {{ field.errors|striptags }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-success btn-lg shadow-sm mt-3">
+                                <i class="fas fa-check-circle me-2"></i>Publicar Oferta
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{% url 'inicio' %}" class="text-decoration-none text-muted">
+                    <i class="fas fa-arrow-left me-1"></i>Volver al inicio
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

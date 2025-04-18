@@ -5,6 +5,11 @@
 <div class="container my-4">
     <!-- Barra de búsqueda y filtros -->
     <div class="row mb-4">
+        {% if user.is_authenticated %}
+        <a href="{% url 'crear_oferta' %}" class="btn-float shadow-lg">
+            <i class="fas fa-plus"></i>
+        </a>
+        {% endif %}
         <div class="col-md-8">
             <form method="get" action="{% url 'inicio' %}">
                 <div class="input-group">
@@ -53,8 +58,10 @@
                     <span class="badge bg-secondary">{{ oferta.categoria.nombre_categoria }}</span>
                 </div>
                 <div class="card-footer bg-transparent">
-                    <small class="text-muted">Publicado: {{ oferta.fecha_oferta|date:"d/m/Y" }}</small>
-                    <a href="#" class="btn btn-sm btn-outline-primary float-end">Ver detalles</a>
+                    <small class="text-muted">Publicado: {{ oferta.fecha_publicacion|date:"d/m/Y" }}</small>
+                    <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-sm btn-outline-primary float-end">
+                        Ver detalles
+                    </a>
                 </div>
             </div>
         </div>
@@ -64,5 +71,6 @@
         </div>
         {% endfor %}
     </div>
+    
 </div>
 {% endblock %}
