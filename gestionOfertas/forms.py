@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from .models import Usuario, PersonaNatural, Empresa,OfertaTrabajo
+from django.core.exceptions import ValidationError
 from django.contrib.auth.forms import AuthenticationForm
 
 class LoginForm(AuthenticationForm):
@@ -55,46 +56,79 @@ class UsuarioChangeForm(forms.ModelForm):
 
 # formulario registro
 class registroForm(forms.ModelForm):
-    """
-    Formulario de creación de usuario con campos dinámicos según el tipo de usuario.
-    """
     password = forms.CharField(widget=forms.PasswordInput, required=True, label="Contraseña")
-    nombres = forms.CharField(max_length=100, required=True)  # Cambiado a required=True
-    apellidos = forms.CharField(max_length=100, required=True)  # Y apellidos también
-    fecha_nacimiento = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
-    nacionalidad = forms.CharField(max_length=50, initial='Chilena', required=False)
-    nombre_empresa = forms.CharField(max_length=100, required=False)
-    rut_empresa = forms.CharField(max_length=12, required=False, widget=forms.TextInput(attrs={'placeholder': 'RUT de la empresa'}))
-    razon_social = forms.CharField(max_length=100, required=False)
-    giro = forms.CharField(max_length=100, required=False)
+    nombres = forms.CharField(max_length=100, required=False, label="Nombres")
+    apellidos = forms.CharField(max_length=100, required=False, label="Apellidos")
+    fecha_nacimiento = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}), label="Fecha de Nacimiento")
+    nacionalidad = forms.CharField(max_length=50, initial='Chilena', required=False, label="Nacionalidad")
+    nombre_empresa = forms.CharField(max_length=100, required=False, label="Nombre de la Empresa")
+    rut_empresa = forms.CharField(max_length=12, required=False, widget=forms.TextInput(attrs={'placeholder': 'RUT de la empresa'}), label="RUT de la Empresa")
+    razon_social = forms.CharField(max_length=100, required=False, label="Razón Social")
+    giro = forms.CharField(max_length=100, required=False, label="Giro Comercial")
+    direccion = forms.CharField(max_length=255, required=False, label="Dirección")
 
     class Meta:
         model = Usuario
-        fields = ['username', 'correo', 'telefono', 'tipo_usuario',
-                  'nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad',
-                  'nombre_empresa', 'rut_empresa', 'razon_social', 'giro']
+        fields = ['username', 'correo', 'telefono', 'tipo_usuario']
         widgets = {
             'username': forms.TextInput(attrs={'placeholder': 'RUT (12345678-9)'}),
             'correo': forms.EmailInput(attrs={'placeholder': 'Correo electrónico'}),
             'telefono': forms.TextInput(attrs={'placeholder': 'Teléfono (opcional)'}),
             'tipo_usuario': forms.Select(attrs={'onchange': 'toggleUsuarioFields()'}),
         }
+        labels = {
+            'username': 'RUT',
+            'correo': 'Correo electrónico',
+            'telefono': 'Teléfono de Contacto',
+            'tipo_usuario': 'Tipo de Usuario',
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['tipo_usuario'].choices = Usuario.TIPO_USUARIO_CHOICES
+        if hasattr(Usuario, 'TIPO_USUARIO_CHOICES'):
+             self.fields['tipo_usuario'].choices = Usuario.TIPO_USUARIO_CHOICES
+        else:
+             print("Advertencia: Usuario.TIPO_USUARIO_CHOICES no encontrado.")
+             self.fields['tipo_usuario'].choices = []
 
-        # No es necesario agregar/remover campos aquí para la visualización inicial.
-        # La lógica de mostrar/ocultar se manejará con JavaScript.
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo_usuario = cleaned_data.get('tipo_usuario')
 
-    def save(self, commit=True):
-        """
-        Sobrescribe el método save() para guardar solo el Usuario.
-        La creación de PersonaNatural o Empresa se maneja en el modelo Usuario.
-        """
-        user = super().save(commit=commit)
-        return user
-    
+        if not tipo_usuario:
+             self.add_error('tipo_usuario', ValidationError("Debes seleccionar un tipo de usuario.", code='required'))
+             return cleaned_data
+
+        if tipo_usuario == 'persona':
+            required_persona_fields = {
+                'nombres': 'Nombres',
+                'apellidos': 'Apellidos',
+            }
+            for field_name, field_label in required_persona_fields.items():
+                if not cleaned_data.get(field_name):
+                    self.add_error(field_name, ValidationError(f"El campo '{field_label}' es requerido para personas.", code='required'))
+
+            cleaned_data['nombre_empresa'] = None
+            cleaned_data['rut_empresa'] = None
+            cleaned_data['razon_social'] = None
+            cleaned_data['giro'] = None
+
+        elif tipo_usuario == 'empresa':
+            required_empresa_fields = {
+                'nombre_empresa': 'Nombre de la Empresa',
+                'rut_empresa': 'RUT de la Empresa',
+            }
+            for field_name, field_label in required_empresa_fields.items():
+                if not cleaned_data.get(field_name):
+                    self.add_error(field_name, ValidationError(f"El campo '{field_label}' es requerido para empresas.", code='required'))
+
+            cleaned_data['nombres'] = None
+            cleaned_data['apellidos'] = None
+            cleaned_data['fecha_nacimiento'] = None
+            cleaned_data['nacionalidad'] = None
+
+        return cleaned_data
+
 
 class OfertaTrabajoForm(forms.ModelForm):
     class Meta:

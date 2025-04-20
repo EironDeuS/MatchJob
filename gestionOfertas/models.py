@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 
 # -----------------------------
 # Gestor Personalizado de Usuario
@@ -71,7 +72,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         ('admin', _('Administrador')),
     ]
 
-    # Campos básicos
+    # Campos básicos (username, correo, telefono, tipo_usuario) - SIN CAMBIOS
     username = models.CharField(
         _('RUT/Username'),
         max_length=50,
@@ -95,7 +96,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         default='persona'
     )
 
-    # Campos de estado y permisos
+    # Campos de estado y permisos (is_active, is_staff) - SIN CAMBIOS
     is_active = models.BooleanField(
         _('Activo'),
         default=True
@@ -105,7 +106,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         default=False
     )
 
-    # Auditoría
+    # Auditoría (fecha_creacion, fecha_actualizacion) - SIN CAMBIOS
     fecha_creacion = models.DateTimeField(
         _('Fecha de creación'),
         auto_now_add=True,
@@ -117,11 +118,14 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         null=True
     )
 
+    # Gestor personalizado - SIN CAMBIOS
     objects = UsuarioManager()
 
+    # Configuración del modelo User - SIN CAMBIOS
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = ['correo']
 
+    # Meta - SIN CAMBIOS
     class Meta:
         verbose_name = _('Usuario')
         verbose_name_plural = _('Usuarios')
@@ -132,46 +136,29 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
             models.Index(fields=['tipo_usuario']),
         ]
 
+    # __str__ - SIN CAMBIOS
     def __str__(self):
         return f"{self.username} ({self.get_tipo_usuario_display()})"
 
+    # VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+    # VVV ESTE ES EL MÉTODO QUE SE MODIFICÓ VVV
     def save(self, *args, **kwargs):
         """
-        Sobrescribe el método save() para crear automáticamente
-        el perfil de PersonaNatural o Empresa al crear un Usuario.
+        Sobrescribe el método save() pero YA NO crea perfiles aquí.
+        La creación de perfiles se maneja explícitamente en la vista registro.
         """
-        is_new = not self.pk  # Verificar si el usuario es nuevo
-        super().save(*args, **kwargs)  # Guardar el Usuario
+        # Simplemente llama al método save() original.
+        super().save(*args, **kwargs)
+    # ^^^ ESTE ES EL MÉTODO QUE SE MODIFICÓ ^^^
+    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        if is_new:  # Solo crear el perfil si es un nuevo usuario
-            if self.tipo_usuario == 'persona':
-                PersonaNatural.objects.create(
-                    usuario=self,
-                    rut=self.username,  # Inicializar con datos básicos
-                    nombres=getattr(self, 'nombres', None),
-                    apellidos=getattr(self, 'apellidos', None),
-                    direccion=getattr(self, 'direccion', None),
-                    fecha_nacimiento=getattr(self, 'fecha_nacimiento', None),
-                    nacionalidad=getattr(self, 'nacionalidad', None),
-                )
-            elif self.tipo_usuario == 'empresa':
-                Empresa.objects.create(
-                    usuario=self,
-                    rut_empresa=self.username,  # Inicializar con datos básicos
-                    nombre_empresa=getattr(self, 'nombre_empresa', None),
-                    razon_social=getattr(self, 'razon_social', None),
-                    giro=getattr(self, 'giro', None),
-                )
-
+    # clean - SIN CAMBIOS (puedes dejarlo como estaba)
     def clean(self):
         """
         Validaciones adicionales del modelo.
-        Ya no necesitamos validar la existencia del perfil aquí,
-        ya que se crea automáticamente en el save().
         """
         super().clean()
         # Puedes agregar otras validaciones específicas del Usuario aquí.
-
 
 # -----------------------------
 # Persona Natural
@@ -456,10 +443,11 @@ class OfertaTrabajo(models.Model):
     Oferta de trabajo publicada por una empresa o persona natural.
     Utiliza GenericForeignKey para relacionarse con el creador.
     """
+
     # Relación genérica con el creador (Empresa o PersonaNatural)
     content_type = models.ForeignKey(
         ContentType,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE,   
         null=True,
         blank=True,
         verbose_name=_('Tipo de creador')
