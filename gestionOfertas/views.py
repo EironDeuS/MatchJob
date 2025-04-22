@@ -1,5 +1,6 @@
 from django.utils import timezone
 from django.shortcuts import render
+from django.contrib import messages
 import logging
 
 # Configure logger
@@ -12,7 +13,6 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.forms import AuthenticationForm
 from django.shortcuts import redirect,get_object_or_404
 from django.urls import reverse
-from django.contrib import messages
 from .models import PersonaNatural, Empresa
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
