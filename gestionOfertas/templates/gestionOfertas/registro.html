@@ -1,5 +1,7 @@
 {% extends 'gestionOfertas/base.html' %}
 
+{% load static %}
+
 {% block title %}Registro - MatchJob{% endblock %}
 
 {% block content %}
@@ -26,7 +28,6 @@
                   {% endfor %}
               </div>
           {% endif %}
-
 
           <form method="post" novalidate> {# Añadido novalidate para que los errores de Django se muestren bien #}
             {% csrf_token %}
@@ -69,7 +70,7 @@
                  {{ form.nombre_empresa.errors }}
                 {{ form.nombre_empresa }}
               </div>
-              {# --- Campo rut_empresa eliminado --- #}
+              {# --- Campo razon_social eliminado --- #}
               <div class="mb-3">
                 <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
                  {{ form.razon_social.errors }}
@@ -134,66 +135,130 @@
 {% endblock %}
 
 {% block js %}
+
 <script>
-  function toggleUsuarioFields() {
-    // Asegurarse que el elemento exista antes de leer su valor
-    const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-    if (!tipoUsuarioSelect) return; // Salir si no se encuentra el select
-
-    const tipoUsuario = tipoUsuarioSelect.value;
-    const personaFields = document.getElementById('persona-fields');
-    const empresaFields = document.getElementById('empresa-fields');
-
-    // Asegurarse que los contenedores de campos existan
-    if (!personaFields || !empresaFields) return;
-
-    // Lógica para mostrar/ocultar y requerir/no requerir campos
-    const personaInputs = personaFields.querySelectorAll('input, select, textarea');
-    const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
-
-    if (tipoUsuario === 'persona') {
-      personaFields.style.display = 'block';
-      empresaFields.style.display = 'none';
-      // Hacer campos de persona requeridos (visualmente y para validación JS si aplica)
-      personaInputs.forEach(input => {
-          // Añadir lógica para required si es necesario, ej: input.required = true;
-          // Cuidado con los que son opcionales por defecto en el form
+    // --- Script para mostrar/ocultar campos de perfil ---
+    function toggleUsuarioFields() {
+      const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+      if (!tipoUsuarioSelect) return;
+  
+      const tipoUsuario = tipoUsuarioSelect.value;
+      const personaFields = document.getElementById('persona-fields');
+      const empresaFields = document.getElementById('empresa-fields');
+  
+      if (!personaFields || !empresaFields) return;
+  
+      const personaInputs = personaFields.querySelectorAll('input, select, textarea');
+      const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
+  
+      if (tipoUsuario === 'persona') {
+        personaFields.style.display = 'block';
+        empresaFields.style.display = 'none';
+        personaInputs.forEach(input => {
           if (input.name === 'nombres' || input.name === 'apellidos') {
-              input.required = true;
+            input.required = true;
           } else {
-              input.required = false; // Asegurar que los opcionales sigan siéndolo
+            input.required = false;
           }
-      });
-       empresaInputs.forEach(input => input.required = false); // No requeridos
-
-    } else if (tipoUsuario === 'empresa') {
-      personaFields.style.display = 'none';
-      empresaFields.style.display = 'block';
-       personaInputs.forEach(input => input.required = false); // No requeridos
-       // Hacer campos de empresa requeridos
-       empresaInputs.forEach(input => {
-           if (input.name === 'nombre_empresa') { // Ajusta si otros son requeridos
-                input.required = true;
-           } else {
-               input.required = false;
-           }
-       });
-    } else {
-      // Ocultar ambos si no se selecciona nada (o es admin, etc.)
-      personaFields.style.display = 'none';
-      empresaFields.style.display = 'none';
-      personaInputs.forEach(input => input.required = false);
-      empresaInputs.forEach(input => input.required = false);
+        });
+        empresaInputs.forEach(input => input.required = false);
+  
+      } else if (tipoUsuario === 'empresa') {
+        personaFields.style.display = 'none';
+        empresaFields.style.display = 'block';
+        personaInputs.forEach(input => input.required = false);
+        empresaInputs.forEach(input => {
+          if (input.name === 'nombre_empresa') {
+             input.required = true;
+          } else {
+             input.required = false;
+          }
+        });
+      } else {
+        personaFields.style.display = 'none';
+        empresaFields.style.display = 'none';
+        personaInputs.forEach(input => input.required = false);
+        empresaInputs.forEach(input => input.required = false);
+      }
     }
-  }
-
-  // Ejecutar al cargar y al cambiar
-  document.addEventListener('DOMContentLoaded', function() {
-    toggleUsuarioFields(); // Configurar estado inicial
-    const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-    if (tipoUsuarioSelect) {
-        tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+  
+    // --- Script para formatear RUT ---
+    function formatRut(rut) {
+        // 1. Limpiar entrada: permite solo números y k/K
+        let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
+        let body = '';
+        let dv = '';
+  
+        // 2. Separar cuerpo y dígito verificador
+        if (cleanRut.length > 1) {
+            dv = cleanRut.slice(-1);
+            body = cleanRut.slice(0, -1);
+        } else {
+            // Si solo hay un caracter, podría ser el DV (K) o parte del cuerpo
+            // Lo tratamos como cuerpo por ahora, excepto si es K
+             if (cleanRut !== 'K'){
+                  body = cleanRut;
+             } else {
+                  dv = 'K'; // Tratar K sola como DV
+             }
+  
+        }
+  
+        // 3. Limitar longitud del cuerpo (máx 8 dígitos)
+        body = body.slice(0, 8);
+  
+         // 4. Si no hay cuerpo, no formatear (maneja el caso de solo DV 'K')
+         if (body.length === 0) {
+             return dv; // Devolver solo K si es lo único válido
+         }
+  
+  
+        // 5. Formatear con guión
+        let formatted = body;
+        if (dv !== '') {
+            formatted += '-' + dv;
+        }
+  
+        return formatted;
     }
-  });
-</script>
+  
+    // --- Ejecutar al cargar y al cambiar ---
+    document.addEventListener('DOMContentLoaded', function() {
+      // Toggle inicial
+      toggleUsuarioFields();
+      const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+      if (tipoUsuarioSelect) {
+          tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+      }
+  
+      // Listener para formateo de RUT
+      const rutInput = document.getElementById('id_username');
+      if (rutInput) {
+          rutInput.addEventListener('input', function (e) {
+              const originalValue = e.target.value;
+              const formattedValue = formatRut(originalValue);
+  
+              // Actualizar solo si el valor formateado es diferente
+              // para evitar problemas con el cursor
+              if (originalValue !== formattedValue) {
+                   // Guardar posición del cursor
+                   let start = e.target.selectionStart;
+                   let end = e.target.selectionEnd;
+                   let diff = formattedValue.length - originalValue.length;
+  
+                   e.target.value = formattedValue;
+  
+                   // Restaurar posición del cursor (aproximado)
+                   e.target.setSelectionRange(start + diff, end + diff);
+              }
+          });
+  
+           // Formatear al perder foco (blur) por si pegan texto
+           rutInput.addEventListener('blur', function(e) {
+                e.target.value = formatRut(e.target.value);
+           });
+      }
+    });
+  </script>
+
 {% endblock %}

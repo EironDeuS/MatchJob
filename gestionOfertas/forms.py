@@ -11,7 +11,7 @@ class LoginForm(AuthenticationForm):
     username = forms.CharField( # Mantenemos 'username' para el campo de login
         label='RUT',
         max_length=50, # Ajustar si es necesario
-        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos, con guión)', 'class': 'form-control'})
+        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos ni guión)', 'class': 'form-control'})
     )
     password = forms.CharField(
         label='Contraseña',
@@ -21,91 +21,77 @@ class LoginForm(AuthenticationForm):
 
 
 # --- Formulario de Registro Actualizado ---
-class RegistroForm(forms.Form): # Cambiado a forms.Form en lugar de ModelForm
-    """
-    Formulario de registro que recopila datos para Usuario y el perfil correspondiente.
-    """
+class RegistroForm(forms.Form):
     # --- Campos del Modelo Usuario ---
     tipo_usuario = forms.ChoiceField(
-        choices=Usuario.TIPO_USUARIO_CHOICES[:-1], # Excluir 'admin' de las opciones públicas
+        choices=Usuario.TIPO_USUARIO_CHOICES[:-1],
         required=True,
-        widget=forms.Select(attrs={'onchange': 'toggleUsuarioFields()'}),
+        # Clase para Select
+        widget=forms.Select(attrs={'onchange': 'toggleUsuarioFields()', 'class': 'form-select'}),
         label="Tipo de Usuario"
     )
     username = forms.CharField( # RUT
-        label="RUT",
-        max_length=50, # Coincidir con el modelo
-        required=True,
-        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos, con guión)'})
+        label="RUT", max_length=50, required=True,
+        # Clase para Input
+        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos, con guión)', 'class': 'form-control'})
     )
     correo = forms.EmailField(
-        label="Correo electrónico",
-        required=True,
-        widget=forms.EmailInput(attrs={'placeholder': 'Correo electrónico'})
+        label="Correo electrónico", required=True,
+        widget=forms.EmailInput(attrs={'placeholder': 'Correo electrónico', 'class': 'form-control'})
     )
     telefono = forms.CharField(
-        label="Teléfono",
-        max_length=20,
-        required=False, # Opcional como en el modelo
-        widget=forms.TextInput(attrs={'placeholder': 'Teléfono (opcional)'})
+        label="Teléfono", max_length=20, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Teléfono (opcional)', 'class': 'form-control'})
     )
-    # Dirección ahora es parte de Usuario
     direccion = forms.CharField(
-        label="Dirección",
-        max_length=255,
-        required=False, # Opcional como en el modelo
-        widget=forms.TextInput(attrs={'placeholder': 'Dirección (opcional)'})
+        label="Dirección", max_length=255, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Dirección (opcional)', 'class': 'form-control'})
     )
     password = forms.CharField(
-        label="Contraseña",
-        widget=forms.PasswordInput,
-        required=True
+        label="Contraseña", required=True,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}) # Clase para Password
     )
     password2 = forms.CharField(
-        label="Confirmar contraseña",
-        widget=forms.PasswordInput,
-        required=True
+        label="Confirmar contraseña", required=True,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}) # Clase para Password
     )
 
     # --- Campos del Perfil PersonaNatural ---
-    nombres = forms.CharField(label="Nombres", max_length=100, required=False)
-    apellidos = forms.CharField(label="Apellidos", max_length=100, required=False)
+    nombres = forms.CharField(label="Nombres", max_length=100, required=False,
+                              widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
+    apellidos = forms.CharField(label="Apellidos", max_length=100, required=False,
+                                widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
     fecha_nacimiento = forms.DateField(
-        label="Fecha de Nacimiento",
-        required=False,
-        widget=forms.DateInput(attrs={'type': 'date'})
+        label="Fecha de Nacimiento", required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}) # Añadir clase
     )
     nacionalidad = forms.CharField(
-        label="Nacionalidad",
-        max_length=50,
-        initial='Chilena',
-        required=False
+        label="Nacionalidad", max_length=50, initial='Chilena', required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'}) # Añadir clase
     )
 
     # --- Campos del Perfil Empresa ---
-    nombre_empresa = forms.CharField(label="Nombre de la Empresa", max_length=100, required=False)
-    # rut_empresa ya no existe en el modelo Empresa
-    razon_social = forms.CharField(label="Razón Social", max_length=100, required=False)
-    giro = forms.CharField(label="Giro Comercial", max_length=100, required=False)
-    # Puedes añadir aquí pagina_web, redes_sociales si quieres recolectarlos en el registro
+    nombre_empresa = forms.CharField(label="Nombre de la Empresa", max_length=100, required=False,
+                                     widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
+    razon_social = forms.CharField(label="Razón Social", max_length=100, required=False,
+                                   widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
+    giro = forms.CharField(label="Giro Comercial", max_length=100, required=False,
+                           widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
 
+    # ... (métodos clean como los tenías) ...
     def clean_username(self):
-        """ Valida que el RUT (username) no exista ya. """
         username = self.cleaned_data.get('username')
         if Usuario.objects.filter(username=username).exists():
             raise ValidationError("Este RUT ya está registrado.")
-        # Aquí podrías añadir validación del formato del RUT si quieres
         return username
 
     def clean_correo(self):
-        """ Valida que el correo no exista ya. """
         correo = self.cleaned_data.get('correo')
         if Usuario.objects.filter(correo=correo).exists():
             raise ValidationError("Este correo electrónico ya está registrado.")
         return correo
 
     def clean_password2(self):
-        """ Valida que las contraseñas coincidan. """
         password = self.cleaned_data.get("password")
         password2 = self.cleaned_data.get("password2")
         if password and password2 and password != password2:
@@ -113,25 +99,16 @@ class RegistroForm(forms.Form): # Cambiado a forms.Form en lugar de ModelForm
         return password2
 
     def clean(self):
-        """
-        Validación cruzada de campos: asegura que los campos requeridos
-        para el tipo de usuario seleccionado estén presentes.
-        """
         cleaned_data = super().clean()
         tipo_usuario = cleaned_data.get('tipo_usuario')
-
         if tipo_usuario == 'persona':
             if not cleaned_data.get('nombres'):
                 self.add_error('nombres', 'Este campo es requerido para personas.')
             if not cleaned_data.get('apellidos'):
                 self.add_error('apellidos', 'Este campo es requerido para personas.')
-            # Puedes añadir validaciones para otros campos de persona si son obligatorios
-
         elif tipo_usuario == 'empresa':
             if not cleaned_data.get('nombre_empresa'):
                 self.add_error('nombre_empresa', 'Este campo es requerido para empresas.')
-            # Puedes añadir validaciones para otros campos de empresa si son obligatorios
-
         return cleaned_data
 
 # --- Formularios UsuarioCreationForm y UsuarioChangeForm ---
