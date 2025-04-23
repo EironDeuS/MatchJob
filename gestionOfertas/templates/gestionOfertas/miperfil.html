@@ -4,49 +4,315 @@
 {% block title %}Mi Perfil | MatchJob{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Columna izquierda -->
-    <div class="col-lg-4 col-md-5 col-12 mb-4">
-        <div class="card shadow-sm">
-            <div class="card-body text-center">
-                <img src="{% static 'gestionOfertas/img/japon.jpg' %}" class="rounded-circle mb-3" width="120" alt="Avatar">
-                <h4>{{ persona.nombres }} {{ persona.apellidos }}</h4>
-                <p class="text-muted">{{ persona.direccion }}</p>
-                <button class="btn btn-primary btn-sm w-100 d-lg-none">Editar Foto</button>
+<div class="container py-4">
+  <div class="row">
+    <!-- Columna izquierda - Información del perfil -->
+    <div class="col-lg-4 col-md-5 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          {% if perfil.foto_perfil %}
+            <img src="{{ perfil.foto_perfil.url }}" class="rounded-circle mb-3" width="150" alt="Foto de perfil">
+          {% else %}
+            <div class="d-flex justify-content-center mb-3">
+              <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 150px; height: 150px;">
+                <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-fill{% else %}building{% endif %} text-muted" style="font-size: 3rem;"></i>
+              </div>
             </div>
+          {% endif %}
+          
+          <h4 class="mb-1">
+            {% if usuario.tipo_usuario == 'persona' %}
+              {{ perfil.nombres }} {{ perfil.apellidos }}
+            {% else %}
+              {{ perfil.nombre_empresa }}
+            {% endif %}
+          </h4>
+
+          <!-- Valoración con estrellas - CORRECCIÓN APLICADA AQUÍ -->
+          <div class="mb-2">
+            {% for i in "12345" %}
+              {% if forloop.counter <= valoracion_promedio %}
+                <i class="bi bi-star-fill text-warning"></i>
+              {% else %}
+                <i class="bi bi-star text-warning"></i>
+              {% endif %}
+            {% endfor %}
+            <small class="text-muted">({{ valoracion_promedio }}/5 - {{ cantidad_valoraciones }} valoración{{ cantidad_valoraciones|pluralize:"es" }})</small>
+          </div>
+
+          <p class="text-muted mb-3">
+            <i class="bi bi-geo-alt-fill"></i> {{ perfil.direccion|default:"Sin dirección registrada" }}
+          </p>
+
+          <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <a href="{% url 'inicio' %}" class="btn btn-primary btn-sm">
+              <i class="bi bi-pencil"></i> Editar Perfil
+            </a>
+            <a href="{% url 'crear_oferta' %}" class="btn btn-success btn-sm">
+              <i class="bi bi-plus-circle"></i> Crear Oferta
+            </a>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Columna derecha -->
-    <div class="col-lg-8 col-md-7 col-12">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h3 class="card-title">Mis Datos</h3>
-                <form>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Nombres</label>
-                            <input type="text" class="form-control" value="{{ persona.nombres }}" readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Apellidos</label>
-                            <input type="text" class="form-control" value="{{ persona.apellidos }}" readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Dirección</label>
-                            <input type="text" class="form-control" value="{{ persona.direccion }}" readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Teléfono</label>
-                            <input type="tel" class="form-control" value="{{ persona.usuario.telefono }}" readonly>
-                        </div>
+      <!-- Sección de valoraciones recibidas -->
+      {% if valoraciones_recibidas %}
+        <div class="card shadow-sm mt-4">
+          <div class="card-body">
+            <h5 class="card-title">
+              <i class="bi bi-star-fill text-warning"></i> Últimas Valoraciones
+            </h5>
+            <div class="list-group list-group-flush">
+              {% for valoracion in valoraciones_recibidas %}
+                <div class="list-group-item border-0 px-0 py-2">
+                  <div class="d-flex justify-content-between">
+                    <strong>
+                      {% if valoracion.autor.tipo_usuario == 'persona' %}
+                        {{ valoracion.autor.personanatural.nombres }}
+                      {% else %}
+                        {{ valoracion.autor.empresa.nombre_empresa }}
+                      {% endif %}
+                    </strong>
+                    <div>
+                      {% for i in "12345" %}
+                        {% if forloop.counter <= valoracion.puntuacion %}
+                          <i class="bi bi-star-fill text-warning" style="font-size: 0.8rem;"></i>
+                        {% endif %}
+                      {% endfor %}
                     </div>
-                </form>
+                  </div>
+                  <p class="mb-0 small">{{ valoracion.comentario|truncatechars:60 }}</p>
+                  <small class="text-muted">{{ valoracion.fecha|date:"d/m/Y" }}</small>
+                </div>
+              {% endfor %}
             </div>
+            {% if cantidad_valoraciones > 3 %}
+              <a href="#" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                Ver todas ({{ cantidad_valoraciones }})
+              </a>
+            {% endif %}
+          </div>
         </div>
+      {% endif %}
     </div>
+
+    <!-- Columna derecha - Contenido principal -->
+    <div class="col-lg-8 col-md-7">
+      <!-- Sección de información básica -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <h3 class="card-title border-bottom pb-2">Información Básica</h3>
+          <div class="row g-3">
+            {% if usuario.tipo_usuario == 'persona' %}
+              <!-- Campos para persona natural -->
+              <div class="col-md-6">
+                <label class="form-label">Nombres</label>
+                <input type="text" class="form-control" value="{{ perfil.nombres }}" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Apellidos</label>
+                <input type="text" class="form-control" value="{{ perfil.apellidos }}" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Fecha de Nacimiento</label>
+                <input type="text" class="form-control" value="{{ perfil.fecha_nacimiento|date:'d/m/Y' }}" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Nacionalidad</label>
+                <input type="text" class="form-control" value="{{ perfil.nacionalidad }}" readonly>
+              </div>
+            {% else %}
+              <!-- Campos para empresa -->
+              <div class="col-md-6">
+                <label class="form-label">Nombre de la Empresa</label>
+                <input type="text" class="form-control" value="{{ perfil.nombre_empresa }}" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Razón Social</label>
+                <input type="text" class="form-control" value="{{ perfil.razon_social }}" readonly>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Giro</label>
+                <input type="text" class="form-control" value="{{ perfil.giro }}" readonly>
+              </div>
+            {% endif %}
+            <!-- Campos comunes -->
+            <div class="col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input type="tel" class="form-control" value="{{ usuario.telefono }}" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Correo Electrónico</label>
+              <input type="email" class="form-control" value="{{ usuario.email }}" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección de Ofertas Creadas -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="card-title mb-0">
+              {% if usuario.tipo_usuario == 'persona' %}
+                Mis Servicios Ofrecidos
+              {% else %}
+                Mis Ofertas Publicadas
+              {% endif %}
+            </h3>
+            <a href="{% url 'crear_oferta' %}" class="btn btn-sm btn-success">
+              <i class="bi bi-plus"></i> Nueva Oferta
+            </a>
+          </div>
+
+          {% if tiene_ofertas %}
+            <div class="list-group">
+              {% for oferta in ofertas_creadas %}
+                <div class="list-group-item">
+                  <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ oferta.titulo }}</h5>
+                    <small>{{ oferta.fecha_publicacion|date:"d/m/Y" }}</small>
+                  </div>
+                  <p class="mb-1">{{ oferta.descripcion|truncatewords:20 }}</p>
+                  <div class="d-flex justify-content-between align-items-center mt-2">
+                    <div>
+                      <span class="badge bg-primary me-1">{{ oferta.get_tipo_contrato_display }}</span>
+                      <span class="badge bg-secondary">{{ oferta.ubicacion }}</span>
+                      {% if usuario.tipo_usuario == 'empresa' %}
+                        <span class="badge bg-info ms-1">
+                          {{ oferta.postulaciones.count }} Postulante{{ oferta.postulaciones.count|pluralize }}
+                        </span>
+                      {% endif %}
+                    </div>
+                    <div>
+                      <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> Ver
+                      </a>
+                      {% if oferta.creador == user or oferta.empresa.usuario == user %}
+                        <a href="{% url 'editar_oferta' oferta.id %}" class="btn btn-sm btn-outline-secondary ms-1">
+                          <i class="bi bi-pencil"></i> Editar
+                        </a>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-info mb-0">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <div>
+                  <h5 class="alert-heading mb-1">No tienes ofertas publicadas</h5>
+                  <p class="mb-0">
+                    {% if usuario.tipo_usuario == 'persona' %}
+                      Crea una oferta para mostrar tus servicios disponibles.
+                    {% else %}
+                      Publica tu primera oferta para encontrar candidatos.
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Sección de Postulaciones -->
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h3 class="card-title border-bottom pb-2 mb-3">
+            {% if usuario.tipo_usuario == 'persona' %}
+              Mis Postulaciones
+            {% else %}
+              Postulaciones Recibidas
+            {% endif %}
+          </h3>
+
+          {% if tiene_postulaciones %}
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    {% if usuario.tipo_usuario == 'empresa' %}
+                      <th>Postulante</th>
+                    {% endif %}
+                    <th>Oferta</th>
+                    {% if usuario.tipo_usuario == 'empresa' %}
+                      <th>Experiencia</th>
+                    {% endif %}
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for postulacion in postulaciones_recibidas|default:postulaciones %}
+                    <tr>
+                      {% if usuario.tipo_usuario == 'empresa' %}
+                        <td>
+                          <div class="d-flex align-items-center">
+                            {% if postulacion.postulante.foto_perfil %}
+                              <img src="{{ postulacion.postulante.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
+                            {% else %}
+                              <i class="bi bi-person-circle me-2"></i>
+                            {% endif %}
+                            {{ postulacion.postulante.nombres }} {{ postulacion.postulante.apellidos }}
+                          </div>
+                        </td>
+                      {% endif %}
+                      <td>
+                        <a href="{% url 'detalle_oferta' postulacion.oferta.id %}">
+                          {{ postulacion.oferta.titulo }}
+                        </a>
+                      </td>
+                      {% if usuario.tipo_usuario == 'empresa' %}
+                        <td>
+                          {{ postulacion.cv.experiencia|default:"No especificada"|truncatewords:5 }}
+                        </td>
+                      {% endif %}
+                      <td>{{ postulacion.fecha_postulacion|date:"d/m/Y" }}</td>
+                      <td>
+                        <span class="badge bg-{% if postulacion.estado == 'aceptada' %}success{% elif postulacion.estado == 'rechazada' %}danger{% else %}warning{% endif %}">
+                          {{ postulacion.get_estado_display }}
+                        </span>
+                      </td>
+                      <td>
+                        <a href="{% url 'ver_postulacion' postulacion.id %}" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-eye"></i> {% if usuario.tipo_usuario == 'empresa' %}Revisar{% else %}Ver{% endif %}
+                        </a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-info mb-0">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <div>
+                  <h5 class="alert-heading mb-1">
+                    {% if usuario.tipo_usuario == 'persona' %}
+                      No tienes postulaciones
+                    {% else %}
+                      No has recibido postulaciones
+                    {% endif %}
+                  </h5>
+                  <p class="mb-0">
+                    {% if usuario.tipo_usuario == 'persona' %}
+                      Busca ofertas que se ajusten a tu perfil y postula.
+                    {% else %}
+                      Promociona tus ofertas para recibir más postulaciones.
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

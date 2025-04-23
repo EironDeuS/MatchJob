@@ -168,3 +168,72 @@ class UsuarioChangeForm(forms.ModelForm):
          fields = ('username', 'correo', 'telefono', 'direccion', 'tipo_usuario', 'is_active', 'is_staff', 'is_superuser')
 
      # def clean_password(self): ... # Ya no es necesario
+
+from django import forms
+from django.utils.translation import gettext_lazy as _
+from .models import OfertaTrabajo, Categoria
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+class OfertaTrabajoForm(forms.ModelForm):
+    class Meta:
+        model = OfertaTrabajo
+        fields = [
+            'categoria',
+            'nombre', 
+            'descripcion', 
+            'requisitos',
+            'beneficios',
+            'salario', 
+            'ubicacion', 
+            'tipo_contrato',
+            'fecha_cierre',
+        ]
+        widgets = {
+            'descripcion': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': _('Describe detalladamente el puesto de trabajo')
+            }),
+            'requisitos': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': _('Lista los requisitos necesarios para el puesto')
+            }),
+            'beneficios': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': _('Menciona los beneficios que ofrece el puesto')
+            }),
+            'fecha_cierre': forms.DateInput(attrs={
+                'type': 'date',
+                'min': timezone.now().date().isoformat()
+            }),
+        }
+        labels = {
+            'categoria': _('Categoría'),
+            'nombre': _('Título de la oferta'),
+            'descripcion': _('Descripción del puesto'),
+            'requisitos': _('Requisitos'),
+            'beneficios': _('Beneficios'),
+            'salario': _('Salario'),
+            'ubicacion': _('Ubicación'),
+            'tipo_contrato': _('Tipo de contrato'),
+            'fecha_cierre': _('Fecha de cierre'),
+        }
+        help_texts = {
+            'fecha_cierre': _('Opcional. Si no se especifica, la oferta permanecerá activa indefinidamente.'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        # Filtramos categorías activas
+        self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
+        
+        # Marcamos campos opcionales
+        for field in ['beneficios', 'salario', 'ubicacion', 'tipo_contrato', 'fecha_cierre']:
+            self.fields[field].required = False
+
+    def clean_fecha_cierre(self):
+        fecha_cierre = self.cleaned_data.get('fecha_cierre')
+        if fecha_cierre and fecha_cierre < timezone.now().date():
+            raise ValidationError(_('La fecha de cierre no puede ser anterior a la fecha actual.'))
+        return fecha_cierre

@@ -4,9 +4,10 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
-from .forms import LoginForm, RegistroForm # Usar el nuevo RegistroForm
-from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria # Importar modelos necesarios
+from .forms import LoginForm, OfertaTrabajoForm, RegistroForm # Usar el nuevo RegistroForm
+from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion
 from django.contrib.auth.decorators import login_required
+from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
@@ -116,29 +117,91 @@ def inicio(request):
     return render(request, 'gestionOfertas/inicio.html', context)
 
 @login_required
+def crear_oferta(request):
+    if request.method == 'POST':
+        form = OfertaTrabajoForm(request.POST, user=request.user)
+        if form.is_valid():
+            oferta = form.save(commit=False)
+            oferta.creador = request.user
+            
+            # Si el usuario tiene perfil de empresa, asociamos la oferta a su empresa
+            if hasattr(request.user, 'empresa'):
+                oferta.empresa = request.user.empresa
+                
+            oferta.save()
+            
+            messages.success(request, _('¡Oferta creada exitosamente!'))
+            return redirect('miperfil')
+    else:
+        # Pasamos el usuario al formulario como espera según su definición
+        form = OfertaTrabajoForm(user=request.user)
+    
+    context = {
+        'form': form,
+        'es_empresa': hasattr(request.user, 'empresa')
+    }
+    return render(request, 'gestionOfertas/crear_oferta.html', context)
+
+@login_required
 def mi_perfil(request):
     usuario = request.user
-    # Usar el método get_profile() del modelo Usuario
     perfil = usuario.get_profile()
+    
     context = {
-        'usuario': usuario, # Pasar el objeto usuario completo
-        'perfil': perfil   # Pasar el perfil específico (PersonaNatural o Empresa)
+        'usuario': usuario,
+        'perfil': perfil,
+        'valoracion_promedio': usuario.valoracion_promedio,
+        'cantidad_valoraciones': usuario.cantidad_valoraciones
     }
-    # Decidir qué template usar o cómo mostrar los datos basado en usuario.tipo_usuario
-    # if usuario.tipo_usuario == 'persona':
-    #     template_name = 'gestionOfertas/miperfil_persona.html'
-    # elif usuario.tipo_usuario == 'empresa':
-    #     template_name = 'gestionOfertas/miperfil_empresa.html'
-    # else:
-    #     template_name = 'gestionOfertas/miperfil_base.html' # O manejar admin
-    # return render(request, template_name, context)
-    return render(request, 'gestionOfertas/miperfil.html', context) # Usar un solo template por ahora
+    
+    try:
+        # Ofertas creadas (común para ambos tipos)
+        if usuario.tipo_usuario == 'persona':
+            ofertas_creadas = OfertaTrabajo.objects.filter(
+                Q(creador=usuario) | Q(empresa__usuario=usuario)
+            ).distinct().order_by('-fecha_publicacion')
+            
+            postulaciones = Postulacion.objects.filter(
+                postulante=perfil
+            ).select_related('oferta', 'oferta__empresa')
+            context.update({
+                'postulaciones': postulaciones,
+                'tiene_postulaciones': postulaciones.exists()
+            })
+            
+        elif usuario.tipo_usuario == 'empresa':
+            ofertas_creadas = OfertaTrabajo.objects.filter(
+                empresa=perfil
+            ).order_by('-fecha_publicacion')
+            
+            postulaciones_recibidas = Postulacion.objects.filter(
+                oferta__empresa=perfil
+            ).select_related('postulante', 'oferta')
+            context.update({
+                'postulaciones_recibidas': postulaciones_recibidas,
+                'tiene_postulaciones': postulaciones_recibidas.exists()
+            })
+
+        context.update({
+            'ofertas_creadas': ofertas_creadas,
+            'tiene_ofertas': ofertas_creadas.exists()
+        })
+            
+        # Valoraciones recibidas
+        context['valoraciones_recibidas'] = usuario.valoraciones_recibidas.select_related('autor').order_by('-fecha')[:3]
+            
+    except Exception as e:
+        # Log del error para diagnóstico
+        print(f"Error en mi_perfil: {str(e)}")
+        # Puedes agregar un mensaje de error al contexto si lo deseas
+    
+    return render(request, 'gestionOfertas/miperfil.html', context)
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')
 
 # Añadir vista de logout
-def cerrar_sesion(request):
+def salir(request):
     logout(request)
     messages.info(request, 'Has cerrado sesión.')
     return redirect('inicio')
