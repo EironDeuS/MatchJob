@@ -3,101 +3,197 @@
 {% block title %}Registro - MatchJob{% endblock %}
 
 {% block content %}
-<h2 class="text-center mb-4">Crear una cuenta</h2>
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h2 class="text-center mb-4">Crear una cuenta</h2>
 
-<form method="post">
-    {% csrf_token %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
 
-    <div class="form-group mb-3">
-        <label for="id_tipo_usuario">Tipo de Usuario</label>
-        {{ form.tipo_usuario }}
+          {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                  {% for error in form.non_field_errors %}
+                      <p>{{ error }}</p>
+                  {% endfor %}
+              </div>
+          {% endif %}
+
+
+          <form method="post" novalidate> {# Añadido novalidate para que los errores de Django se muestren bien #}
+            {% csrf_token %}
+
+            {# --- Tipo de Usuario --- #}
+            <div class="mb-3">
+              <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label">{{ form.tipo_usuario.label }}</label>
+              {{ form.tipo_usuario.errors }}
+              {{ form.tipo_usuario }}
+            </div>
+
+            {# --- Campos Persona Natural (Ocultos por defecto) --- #}
+            <div id="persona-fields" style="display:none;">
+              <div class="mb-3">
+                <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
+                 {{ form.nombres.errors }}
+                {{ form.nombres }}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
+                 {{ form.apellidos.errors }}
+                {{ form.apellidos }}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
+                 {{ form.fecha_nacimiento.errors }}
+                {{ form.fecha_nacimiento }}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
+                 {{ form.nacionalidad.errors }}
+                {{ form.nacionalidad }}
+              </div>
+            </div>
+
+            {# --- Campos Empresa (Ocultos por defecto) --- #}
+            <div id="empresa-fields" style="display:none;">
+              <div class="mb-3">
+                <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
+                 {{ form.nombre_empresa.errors }}
+                {{ form.nombre_empresa }}
+              </div>
+              {# --- Campo rut_empresa eliminado --- #}
+              <div class="mb-3">
+                <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
+                 {{ form.razon_social.errors }}
+                {{ form.razon_social }}
+              </div>
+              <div class="mb-3">
+                <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
+                 {{ form.giro.errors }}
+                {{ form.giro }}
+              </div>
+               {# Añadir aquí otros campos de empresa si los pusiste en el form #}
+            </div>
+
+            {# --- Campos Comunes (Usuario) --- #}
+            <hr>
+            <div class="mb-3">
+              <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+               {{ form.username.errors }}
+              {{ form.username }}
+            </div>
+            <div class="mb-3">
+              <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
+               {{ form.correo.errors }}
+              {{ form.correo }}
+            </div>
+            <div class="mb-3">
+              <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
+               {{ form.telefono.errors }}
+              {{ form.telefono }}
+            </div>
+            {# --- Campo Dirección añadido --- #}
+            <div class="mb-3">
+              <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
+               {{ form.direccion.errors }}
+              {{ form.direccion }}
+            </div>
+            <div class="mb-3">
+              <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+               {{ form.password.errors }}
+              {{ form.password }}
+            </div>
+             {# --- Campo Confirmar Contraseña añadido --- #}
+            <div class="mb-3">
+                <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
+                {{ form.password2.errors }}
+                {{ form.password2 }}
+            </div>
+
+            <div class="d-grid gap-2 mb-4">
+              <button type="submit" class="btn btn-primary">Crear cuenta</button>
+            </div>
+
+          </form>
+           <div class="text-center">
+                <p>¿Ya tienes una cuenta? <a href="{% url 'iniciar_sesion' %}">Inicia sesión aquí</a></p>
+            </div>
+        </div>
+      </div>
     </div>
-
-    <div id="persona-fields" class="user-type-fields" style="display:none;">
-        <div class="form-group mb-3">
-            <label for="id_nombres">Nombres</label>
-            {{ form.nombres }}
-        </div>
-        <div class="form-group mb-3">
-            <label for="id_apellidos">Apellidos</label>
-            {{ form.apellidos }}
-        </div>
-        <div class="form-group mb-3">
-            <label for="id_fecha_nacimiento">Fecha de Nacimiento</label>
-            {{ form.fecha_nacimiento }}
-        </div>
-        <div class="form-group mb-3">
-            <label for="id_nacionalidad">Nacionalidad</label>
-            {{ form.nacionalidad }}
-        </div>
-    </div>
-
-    <div id="empresa-fields" class="user-type-fields" style="display:none;">
-        <div class="form-group mb-3">
-            <label for="id_nombre_empresa">Nombre de la Empresa</label>
-            {{ form.nombre_empresa }}
-        </div>
-        <div class="form-group mb-3">
-            <label for="id_rut_empresa">RUT de la Empresa</label>
-            {{ form.rut_empresa }}
-        </div>
-        <div class="form-group mb-3">
-            <label for="id_razon_social">Razón Social</label>
-            {{ form.razon_social }}
-        </div>
-        <div class="form-group mb-3">
-            <label for="id_giro">Giro Comercial</label>
-            {{ form.giro }}
-        </div>
-    </div>
-
-    <div class="form-group mb-3">
-        <label for="id_username">RUT</label>
-        {{ form.username }}
-    </div>
-
-    <div class="form-group mb-3">
-        <label for="id_correo">Correo electrónico</label>
-        {{ form.correo }}
-    </div>
-
-    <div class="form-group mb-3">
-        <label for="id_telefono">Teléfono</label>
-        {{ form.telefono }}
-    </div>
-
-    <div class="form-group mb-3">
-        <label for="id_password">Contraseña</label>
-        {{ form.password }}  </div>
-
-    <div class="form-group mb-4">
-        <button type="submit" class="btn btn-primary w-100">Crear cuenta</button>
-    </div>
-</form>
-
+  </div>
+</div>
 {% endblock %}
 
 {% block js %}
 <script>
-    function toggleUsuarioFields() {
-        const tipoUsuario = document.getElementById('id_tipo_usuario').value;
-        const personaFields = document.getElementById('persona-fields');
-        const empresaFields = document.getElementById('empresa-fields');
+  function toggleUsuarioFields() {
+    // Asegurarse que el elemento exista antes de leer su valor
+    const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+    if (!tipoUsuarioSelect) return; // Salir si no se encuentra el select
 
-        // Mostrar/ocultar campos según el tipo de usuario
-        if (tipoUsuario === 'persona') {
-            personaFields.style.display = 'block';
-            empresaFields.style.display = 'none';
-        } else if (tipoUsuario === 'empresa') {
-            personaFields.style.display = 'none';
-            empresaFields.style.display = 'block';
-        }
+    const tipoUsuario = tipoUsuarioSelect.value;
+    const personaFields = document.getElementById('persona-fields');
+    const empresaFields = document.getElementById('empresa-fields');
+
+    // Asegurarse que los contenedores de campos existan
+    if (!personaFields || !empresaFields) return;
+
+    // Lógica para mostrar/ocultar y requerir/no requerir campos
+    const personaInputs = personaFields.querySelectorAll('input, select, textarea');
+    const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
+
+    if (tipoUsuario === 'persona') {
+      personaFields.style.display = 'block';
+      empresaFields.style.display = 'none';
+      // Hacer campos de persona requeridos (visualmente y para validación JS si aplica)
+      personaInputs.forEach(input => {
+          // Añadir lógica para required si es necesario, ej: input.required = true;
+          // Cuidado con los que son opcionales por defecto en el form
+          if (input.name === 'nombres' || input.name === 'apellidos') {
+              input.required = true;
+          } else {
+              input.required = false; // Asegurar que los opcionales sigan siéndolo
+          }
+      });
+       empresaInputs.forEach(input => input.required = false); // No requeridos
+
+    } else if (tipoUsuario === 'empresa') {
+      personaFields.style.display = 'none';
+      empresaFields.style.display = 'block';
+       personaInputs.forEach(input => input.required = false); // No requeridos
+       // Hacer campos de empresa requeridos
+       empresaInputs.forEach(input => {
+           if (input.name === 'nombre_empresa') { // Ajusta si otros son requeridos
+                input.required = true;
+           } else {
+               input.required = false;
+           }
+       });
+    } else {
+      // Ocultar ambos si no se selecciona nada (o es admin, etc.)
+      personaFields.style.display = 'none';
+      empresaFields.style.display = 'none';
+      personaInputs.forEach(input => input.required = false);
+      empresaInputs.forEach(input => input.required = false);
     }
+  }
 
-    // Llamar la función para configurar los campos al cargar la página
-    window.onload = function() {
-        toggleUsuarioFields();  // Asegurarse de que los campos se muestren correctamente al cargar
-        document.getElementById('id_tipo_usuario').addEventListener('change', toggleUsuarioFields);  // Añadir listener para cambios
-    };
+  // Ejecutar al cargar y al cambiar
+  document.addEventListener('DOMContentLoaded', function() {
+    toggleUsuarioFields(); // Configurar estado inicial
+    const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+    if (tipoUsuarioSelect) {
+        tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+    }
+  });
 </script>
 {% endblock %}

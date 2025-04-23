@@ -88,7 +88,7 @@ WSGI_APPLICATION = 'MatchJob.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'matchjobBD',
+        'NAME': 'BDmatchjob',
         'USER': 'neondb_owner',
         'PASSWORD': 'npg_lU8ucqsIiP6X',
         'HOST': 'ep-weathered-sunset-ac0mxs0q-pooler.sa-east-1.aws.neon.tech',
