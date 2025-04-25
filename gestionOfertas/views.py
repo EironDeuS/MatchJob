@@ -1,5 +1,6 @@
 # En tu_app/views.py
 
+from django.forms import ValidationError
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
@@ -121,81 +122,62 @@ def crear_oferta(request):
     if request.method == 'POST':
         form = OfertaTrabajoForm(request.POST, user=request.user)
         if form.is_valid():
-            oferta = form.save(commit=False)
-            oferta.creador = request.user
+            oferta = form.save()
             
-            # Si el usuario tiene perfil de empresa, asociamos la oferta a su empresa
-            if hasattr(request.user, 'empresa'):
-                oferta.empresa = request.user.empresa
-                
-            oferta.save()
+            msg = _('¡Oferta de empleo creada!') if hasattr(request.user, 'empresa') else _('¡Servicio publicado!')
+            messages.success(request, msg)
             
-            messages.success(request, _('¡Oferta creada exitosamente!'))
             return redirect('miperfil')
     else:
-        # Pasamos el usuario al formulario como espera según su definición
         form = OfertaTrabajoForm(user=request.user)
     
-    context = {
+    contexto = {
         'form': form,
-        'es_empresa': hasattr(request.user, 'empresa')
+        'es_empresa': hasattr(request.user, 'empresa'),
+        'es_persona': hasattr(request.user, 'personanatural')
     }
-    return render(request, 'gestionOfertas/crear_oferta.html', context)
+    
+    return render(request, 'gestionOfertas/crear_oferta.html', contexto)
+
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.shortcuts import render
+from .models import OfertaTrabajo, Postulacion     # ajusta el import según tu app
 
 @login_required
 def mi_perfil(request):
     usuario = request.user
     perfil = usuario.get_profile()
-    
+
+    # Ofertas creadas por este usuario (empresa o persona)
+    ofertas_creadas = usuario.ofertas_creadas.order_by('-fecha_publicacion')
+
+    # Postulaciones:
+    if usuario.tipo_usuario == 'empresa':
+        postulaciones = Postulacion.objects.filter(
+            oferta__creador=usuario
+        ).select_related('persona', 'oferta')  # Cambiado de 'postulante' a 'persona' para coincidir con tu modelo
+    else:  # persona natural
+        postulaciones = Postulacion.objects.filter(
+            persona=perfil  # Cambiado de 'postulante' a 'persona'
+        ).select_related('oferta', 'oferta__creador')
+
     context = {
         'usuario': usuario,
         'perfil': perfil,
         'valoracion_promedio': usuario.valoracion_promedio,
-        'cantidad_valoraciones': usuario.cantidad_valoraciones
+        'cantidad_valoraciones': usuario.cantidad_valoraciones,
+        'ofertas_creadas': ofertas_creadas,
+        'tiene_ofertas': ofertas_creadas.exists(),
+        'postulaciones': postulaciones,
+        'tiene_postulaciones': postulaciones.exists(),
+        'valoraciones_recibidas': usuario.valoraciones_recibidas
+                                     .select_related('emisor')  # Cambiado de 'autor' a 'emisor'
+                                     .order_by('-fecha_creacion')[:3],  # Cambiado de 'fecha' a 'fecha_creacion'
     }
-    
-    try:
-        # Ofertas creadas (común para ambos tipos)
-        if usuario.tipo_usuario == 'persona':
-            ofertas_creadas = OfertaTrabajo.objects.filter(
-                Q(creador=usuario) | Q(empresa__usuario=usuario)
-            ).distinct().order_by('-fecha_publicacion')
-            
-            postulaciones = Postulacion.objects.filter(
-                postulante=perfil
-            ).select_related('oferta', 'oferta__empresa')
-            context.update({
-                'postulaciones': postulaciones,
-                'tiene_postulaciones': postulaciones.exists()
-            })
-            
-        elif usuario.tipo_usuario == 'empresa':
-            ofertas_creadas = OfertaTrabajo.objects.filter(
-                empresa=perfil
-            ).order_by('-fecha_publicacion')
-            
-            postulaciones_recibidas = Postulacion.objects.filter(
-                oferta__empresa=perfil
-            ).select_related('postulante', 'oferta')
-            context.update({
-                'postulaciones_recibidas': postulaciones_recibidas,
-                'tiene_postulaciones': postulaciones_recibidas.exists()
-            })
 
-        context.update({
-            'ofertas_creadas': ofertas_creadas,
-            'tiene_ofertas': ofertas_creadas.exists()
-        })
-            
-        # Valoraciones recibidas
-        context['valoraciones_recibidas'] = usuario.valoraciones_recibidas.select_related('autor').order_by('-fecha')[:3]
-            
-    except Exception as e:
-        # Log del error para diagnóstico
-        print(f"Error en mi_perfil: {str(e)}")
-        # Puedes agregar un mensaje de error al contexto si lo deseas
-    
     return render(request, 'gestionOfertas/miperfil.html', context)
+
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')

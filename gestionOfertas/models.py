@@ -268,60 +268,98 @@ class Categoria(models.Model):
 # Oferta de Trabajo
 # -----------------------------
 class OfertaTrabajo(models.Model):
-    # Enlazado a Usuario (personalizado)
+    TIPO_CONTRATO_CHOICES = [
+        ('tiempo_completo', 'Tiempo completo'),
+        ('medio_tiempo', 'Medio tiempo'),
+        ('por_proyecto', 'Por proyecto'),
+        ('temporal', 'Temporal'),
+        ('freelance', 'Freelance'),
+    ]
+
+    # Relaciones
     creador = models.ForeignKey(
-        Usuario, on_delete=models.CASCADE, related_name='ofertas_creadas'
+        'Usuario',
+        on_delete=models.CASCADE,
+        related_name='ofertas_creadas',
+        verbose_name=_('Creador')
     )
+    
+    empresa = models.ForeignKey(
+        'Empresa',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ofertas_publicadas',
+        verbose_name=_('Empresa')
+    )
+    
     categoria = models.ForeignKey(
-        Categoria, on_delete=models.PROTECT, related_name='ofertas'
+        'Categoria',
+        on_delete=models.PROTECT,
+        related_name='ofertas',
+        verbose_name=_('Categoría')
     )
-    nombre = models.CharField(_('Título de la oferta'), max_length=100)
-    descripcion = models.TextField(_('Descripción del puesto'))
+    
+    # Campos principales
+    nombre = models.CharField(_('Título'), max_length=100)
+    descripcion = models.TextField(_('Descripción'))
     requisitos = models.TextField(_('Requisitos'), blank=True)
     beneficios = models.TextField(_('Beneficios'), blank=True)
     salario = models.CharField(_('Salario'), max_length=100, blank=True)
     ubicacion = models.CharField(_('Ubicación'), max_length=100, blank=True)
-    tipo_contrato = models.CharField(_('Tipo de contrato'), max_length=50, blank=True)
-    fecha_publicacion = models.DateTimeField(_('Fecha de publicación'), default=timezone.now)
-    fecha_cierre = models.DateField(_('Fecha de cierre'), blank=True, null=True)
+    tipo_contrato = models.CharField(
+        _('Tipo de contrato'),
+        max_length=50,
+        choices=TIPO_CONTRATO_CHOICES,
+        blank=True
+    )
+    
+    # Fechas y estado
+    fecha_publicacion = models.DateTimeField(_('Publicación'), default=timezone.now)
+    fecha_cierre = models.DateField(_('Cierre'), blank=True, null=True)
     esta_activa = models.BooleanField(_('Activa'), default=True)
-
+    es_servicio = models.BooleanField(_('Es servicio'), default=False)
+    
     class Meta:
-        verbose_name = _('Oferta de Trabajo')
-        verbose_name_plural = _('Ofertas de Trabajo')
+        verbose_name = _('Oferta de trabajo')
+        verbose_name_plural = _('Ofertas de trabajo')
         ordering = ['-fecha_publicacion']
-        indexes = [
-            models.Index(fields=['nombre']),
-            models.Index(fields=['creador']),
-            models.Index(fields=['categoria']),
+        permissions = [
+            ('destacar_oferta', 'Puede destacar ofertas'),
         ]
 
     def __str__(self):
-        # Usa la propiedad para mostrar el nombre del creador
-        return f"{self.nombre} ({self.nombre_creador_display})"
-
-    def get_creador_profile(self):
-        """ Obtiene el perfil específico del creador (Persona o Empresa). """
-        return self.creador.get_profile() # Usa el método del modelo Usuario
-
-    @property
-    def nombre_creador_display(self):
-        """Retorna el nombre visible del creador."""
-        profile = self.get_creador_profile()
-        if isinstance(profile, PersonaNatural):
-            # Usa el método del perfil PersonaNatural
-            return profile.nombre_completo or self.creador.username
-        elif isinstance(profile, Empresa):
-             # Accede directo al campo del perfil Empresa
-            return profile.nombre_empresa or self.creador.username
-        else:
-            return self.creador.username # Fallback para admin u otros
+        tipo = "Servicio" if self.es_servicio else "Empleo"
+        return f"{self.nombre} ({tipo})"
 
     def clean(self):
-        super().clean()
-        if self.fecha_cierre and self.fecha_publicacion.date() > self.fecha_cierre:
-             raise ValidationError(_('La fecha de cierre no puede ser anterior a la fecha de publicación'))
+        # 🚦 PROTECCIÓN: si aún no hay creador, salimos y dejamos que el formulario lo asigne
+        if not self.creador_id:
+            return
 
+        # --- lógica original ---
+        if not self.pk:  # Solo para nuevas ofertas
+            if hasattr(self.creador, 'empresa'):
+                self.empresa = self.creador.empresa
+                self.es_servicio = False
+            elif hasattr(self.creador, 'personanatural'):
+                self.es_servicio = True
+                self.empresa = None
+
+        if self.fecha_cierre and self.fecha_cierre < timezone.now().date():
+            raise ValidationError(_('La fecha de cierre no puede ser en el pasado'))
+
+    @property
+    def tipo_oferta(self):
+        return _("Servicio") if self.es_servicio else _("Empleo")
+
+    @property
+    def puede_postular(self, usuario):
+        """Determina si un usuario puede postular a esta oferta"""
+        if self.es_servicio:
+            return usuario != self.creador and hasattr(usuario, 'empresa')
+        else:
+            return usuario != self.creador and hasattr(usuario, 'personanatural')
 
 # -----------------------------
 # Postulación

@@ -82,7 +82,7 @@
                     </div>
                   </div>
                   <p class="mb-0 small">{{ valoracion.comentario|truncatechars:60 }}</p>
-                  <small class="text-muted">{{ valoracion.fecha|date:"d/m/Y" }}</small>
+                  <small class="text-muted"> {{ valoracion.fecha_creacion|date:"d/m/Y" }}</small>
                 </div>
               {% endfor %}
             </div>
@@ -185,11 +185,11 @@
                       {% endif %}
                     </div>
                     <div>
-                      <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-sm btn-outline-primary">
+                      <a href="{% url 'inicio' %}" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-eye"></i> Ver
                       </a>
                       {% if oferta.creador == user or oferta.empresa.usuario == user %}
-                        <a href="{% url 'editar_oferta' oferta.id %}" class="btn btn-sm btn-outline-secondary ms-1">
+                        <a href="{% url 'inicio' %}" class="btn btn-sm btn-outline-secondary ms-1">
                           <i class="bi bi-pencil"></i> Editar
                         </a>
                       {% endif %}

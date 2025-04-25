@@ -1,568 +1,142 @@
 {% extends 'gestionOfertas/base.html' %}
 {% load static %}
 
-{% block title %}Crear Oferta | MatchJob{% endblock %}
+{% block title %}Crear Oferta o Servicio{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'gestionOfertas/css/select2.min.css' %}" rel="stylesheet">
+<link href="{% static 'gestionOfertas/css/select2-bootstrap4.min.css' %}" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'gestionOfertas/css/ofertas_form.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-9">
-            <div class="card shadow-lg border-0">
-                <!-- Encabezado con progreso -->
-                <div class="card-header bg-gradient-primary text-white py-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h2 class="mb-0 fw-bold">
-                            <i class="bi bi-file-earmark-plus me-2" aria-hidden="true"></i>
-                            Crear Nueva Oferta
-                        </h2>
-                        <div class="badge bg-white text-primary px-3 py-2">
-                            <span id="current-step">1</span>/4 pasos
-                        </div>
-                    </div>
-                    
-                    <div class="progress mt-3" style="height: 6px;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="25">
-                        <div id="progress-bar" class="progress-bar bg-white" role="progressbar" style="width: 25%"></div>
-                    </div>
-                </div>
-                
-                <div class="card-body p-5">
-                    {% if form.errors %}
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>
-                        <strong>Por favor corrige los errores marcados en el formulario.</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-                    </div>
-                    {% endif %}
-                    
-                    <form method="post" class="needs-validation" novalidate id="oferta-form">
-                        {% csrf_token %}
-                        
-                        <!-- Sección 1: Información Básica -->
-                        <div class="form-section active" id="section-1">
-                            <h4 class="mb-4 text-primary d-flex align-items-center">
-                                <span class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px;">1</span>
-                                Información Básica
-                            </h4>
-                            
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <div class="form-floating mb-3">
-                                        {{ form.categoria }}
-                                        <label for="{{ form.categoria.id_for_label }}"><i class="bi bi-tag me-1" aria-hidden="true"></i> {{ form.categoria.label }}</label>
-                                        <div class="form-text">Selecciona la categoría principal</div>
-                                        {% if form.categoria.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.categoria.errors.0 }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-floating mb-3">
-                                        {{ form.nombre }}
-                                        <label for="{{ form.nombre.id_for_label }}"><i class="bi bi-card-heading me-1" aria-hidden="true"></i> {{ form.nombre.label }}</label>
-                                        <div class="form-text">Ej: "Desarrollador Web Senior"</div>
-                                        {% if form.nombre.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.nombre.errors.0 }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-end mt-4">
-                                <button type="button" class="btn btn-primary next-section" data-next="2">
-                                    Siguiente <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Sección 2: Descripción del Puesto -->
-                        <div class="form-section" id="section-2">
-                            <h4 class="mb-4 text-primary d-flex align-items-center">
-                                <span class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px;">2</span>
-                                Descripción del Puesto
-                            </h4>
-                            
-                            <div class="mb-4">
-                                <div class="form-floating mb-3">
-                                    {{ form.descripcion }}
-                                    <label for="{{ form.descripcion.id_for_label }}"><i class="bi bi-text-paragraph me-1" aria-hidden="true"></i> {{ form.descripcion.label }}</label>
-                                    <div class="form-text">Describe las responsabilidades principales</div>
-                                    {% if form.descripcion.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.descripcion.errors.0 }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="form-floating mb-3">
-                                    {{ form.requisitos }}
-                                    <label for="{{ form.requisitos.id_for_label }}"><i class="bi bi-list-check me-1" aria-hidden="true"></i> {{ form.requisitos.label }}</label>
-                                    <div class="form-text">Lista los requisitos, uno por línea</div>
-                                    {% if form.requisitos.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.requisitos.errors.0 }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between mt-4">
-                                <button type="button" class="btn btn-outline-secondary prev-section" data-prev="1">
-                                    <i class="bi bi-arrow-left me-2" aria-hidden="true"></i> Anterior
-                                </button>
-                                <button type="button" class="btn btn-primary next-section" data-next="3">
-                                    Siguiente <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Sección 3: Detalles de Contrato -->
-                        <div class="form-section" id="section-3">
-                            <h4 class="mb-4 text-primary d-flex align-items-center">
-                                <span class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px;">3</span>
-                                Detalles del Contrato
-                            </h4>
-                            
-                            <div class="row g-4">
-                                <div class="col-md-6">
-                                    <div class="form-floating mb-3">
-                                        {{ form.salario }}
-                                        <label for="{{ form.salario.id_for_label }}"><i class="bi bi-cash-coin me-1" aria-hidden="true"></i> {{ form.salario.label }}</label>
-                                        <div class="form-text">Ej: $1,800,000 - $2,500,000</div>
-                                        {% if form.salario.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.salario.errors.0 }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-floating mb-3">
-                                        {{ form.ubicacion }}
-                                        <label for="{{ form.ubicacion.id_for_label }}"><i class="bi bi-geo-alt me-1" aria-hidden="true"></i> {{ form.ubicacion.label }}</label>
-                                        <div class="form-text">Ej: Santiago (Híbrido)</div>
-                                        {% if form.ubicacion.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.ubicacion.errors.0 }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-floating mb-3">
-                                        {{ form.tipo_contrato }}
-                                        <label for="{{ form.tipo_contrato.id_for_label }}"><i class="bi bi-file-earmark-text me-1" aria-hidden="true"></i> {{ form.tipo_contrato.label }}</label>
-                                        <div class="form-text">Selecciona el tipo de contrato</div>
-                                        {% if form.tipo_contrato.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.tipo_contrato.errors.0 }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-floating mb-3">
-                                        {{ form.fecha_cierre }}
-                                        <label for="{{ form.fecha_cierre.id_for_label }}"><i class="bi bi-calendar-x me-1" aria-hidden="true"></i> {{ form.fecha_cierre.label }}</label>
-                                        <div class="form-text">{{ form.fecha_cierre.help_text }}</div>
-                                        {% if form.fecha_cierre.errors %}
-                                        <div class="invalid-feedback d-block">
-                                            {{ form.fecha_cierre.errors.0 }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between mt-4">
-                                <button type="button" class="btn btn-outline-secondary prev-section" data-prev="2">
-                                    <i class="bi bi-arrow-left me-2" aria-hidden="true"></i> Anterior
-                                </button>
-                                <button type="button" class="btn btn-primary next-section" data-next="4">
-                                    Siguiente <i class="bi bi-arrow-right ms-2" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Sección 4: Beneficios y Publicación -->
-                        <div class="form-section" id="section-4">
-                            <h4 class="mb-4 text-primary d-flex align-items-center">
-                                <span class="step-number bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px;">4</span>
-                                Beneficios y Publicación
-                            </h4>
-                            
-                            <div class="mb-4">
-                                <div class="form-floating mb-3">
-                                    {{ form.beneficios }}
-                                    <label for="{{ form.beneficios.id_for_label }}"><i class="bi bi-gift me-1" aria-hidden="true"></i> {{ form.beneficios.label }}</label>
-                                    <div class="form-text">Menciona beneficios como seguros, bonos, flexibilidad, etc.</div>
-                                    {% if form.beneficios.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.beneficios.errors.0 }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="alert alert-info mt-4" role="alert">
-                                    <i class="bi bi-info-circle-fill me-2" aria-hidden="true"></i>
-                                    Revisa cuidadosamente la información antes de publicar
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between mt-4">
-                                <button type="button" class="btn btn-outline-secondary prev-section" data-prev="3">
-                                    <i class="bi bi-arrow-left me-2" aria-hidden="true"></i> Anterior
-                                </button>
-                                <button type="submit" class="btn btn-success px-4">
-                                    <i class="bi bi-check-circle me-2" aria-hidden="true"></i> Publicar Oferta
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+<div class="create-offer-container">
+  <div class="container">
+    <div class="form-card">
+      <h3 class="form-title">Publicar Oferta o Servicio</h3>
+
+      <div class="step-indicators">
+        <div class="step-label active-step" data-step="1">1</div>
+        <div class="step-label" data-step="2">2</div>
+        <div class="step-label" data-step="3">3</div>
+      </div>
+
+      <div class="progress mb-4">
+        <div class="progress-bar" role="progressbar" style="width: 33%;" id="progress-bar"></div>
+      </div>
+
+      <form method="post" id="ofertaForm" novalidate>
+        {% csrf_token %}
+
+        <!-- Paso 1 -->
+        <div class="step active" id="step-1">
+          <h5 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
+          <div class="mb-3">
+            <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
+            {{ form.categoria }}
+            <div class="invalid-feedback">Por favor selecciona una categoría</div>
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+            {{ form.nombre }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="nombre-counter">0</span>/100</span>
             </div>
+            <div class="invalid-feedback">Este campo es requerido</div>
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+            {{ form.descripcion }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="descripcion-counter">0</span>/500</span>
+            </div>
+            <div class="invalid-feedback">Por favor proporciona una descripción</div>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+          </div>
         </div>
+
+        <!-- Paso 2 -->
+        <div class="step" id="step-2">
+          <h5 class="text-primary mb-3"><i class="fas fa-list-check me-2"></i>Detalles</h5>
+          <div class="mb-3">
+            <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
+            {{ form.requisitos }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="requisitos-counter">0</span>/1000</span>
+            </div>
+            <div class="invalid-feedback">Por favor indica los requisitos</div>
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
+            {{ form.beneficios }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="beneficios-counter">0</span>/500</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.salario.id_for_label }}" class="form-label">{{ form.salario.label }}</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-dollar-sign"></i></span>
+                {{ form.salario }}
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.ubicacion.id_for_label }}" class="form-label">{{ form.ubicacion.label }}</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                {{ form.ubicacion }}
+              </div>
+            </div>
+          </div>
+          {% if form.tipo_contrato %}
+          <div class="mb-3">
+            <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
+            {{ form.tipo_contrato }}
+            <div class="invalid-feedback">Por favor selecciona un tipo de contrato</div>
+          </div>
+          {% endif %}
+          <div class="d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-2"></i> Anterior</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+          </div>
+        </div>
+
+        <!-- Paso 3 -->
+        <div class="step" id="step-3">
+          <h5 class="text-primary mb-3"><i class="fas fa-paper-plane me-2"></i>Publicar</h5>
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> Estas a un paso de publicar tu oferta. Revisa la información antes de continuar.
+          </div>
+          <div class="mb-4">
+            <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+              {{ form.fecha_cierre }}
+            </div>
+            <div class="invalid-feedback">Por favor selecciona una fecha válida</div>
+            <small class="text-muted">La oferta dejará de mostrarse después de esta fecha</small>
+          </div>
+          <div class="form-check form-switch mb-4">
+            {{ form.esta_activa }}
+            <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">{{ form.esta_activa.label }}</label>
+            <small class="d-block text-muted mt-1">Si no activas esta opción, la oferta quedará guardada como borrador</small>
+          </div>
+          <div class="d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-2"></i> Anterior</button>
+            <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-2"></i> Publicar Oferta</button>
+          </div>
+        </div>
+      </form>
     </div>
+  </div>
 </div>
+{% endblock %}
 
-<style>
-    :root {
-        --primary-color: #4a90e2;
-        --secondary-color: #6c757d;
-        --success-color: #28a745;
-    }
-    
-    body {
-        background-color: #f8f9fa;
-    }
-    
-    .card {
-        border-radius: 12px;
-        overflow: hidden;
-        border: none;
-    }
-    
-    .card-header {
-        border-bottom: none;
-    }
-    
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #4a90e2 0%, #2c3e50 100%);
-    }
-    
-    .form-section {
-        display: none;
-        animation: fadeIn 0.3s ease-in-out;
-    }
-    
-    .form-section.active {
-        display: block;
-    }
-    
-    .form-floating label {
-        color: var(--secondary-color);
-        font-weight: 500;
-    }
-    
-    .form-control, .form-select {
-        border-radius: 8px;
-        padding: 12px 15px;
-        border: 2px solid #e9ecef;
-        transition: all 0.3s;
-    }
-    
-    .form-control:focus, .form-select:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
-    }
-    
-    textarea.form-control {
-        min-height: 150px;
-    }
-    
-    .form-text {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin-top: 0.25rem;
-    }
-    
-    .step-number {
-        font-size: 0.9rem;
-    }
-    
-    .btn-primary {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 500;
-    }
-    
-    .btn-success {
-        background-color: var(--success-color);
-        border-color: var(--success-color);
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 500;
-    }
-    
-    .btn-outline-secondary {
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-weight: 500;
-    }
-    
-    .invalid-feedback {
-        color: #dc3545;
-        font-size: 0.85rem;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .card-body {
-            padding: 1.5rem;
-        }
-        
-        .d-flex.justify-content-between {
-            flex-direction: column-reverse;
-        }
-        
-        .d-flex.justify-content-between .btn {
-            width: 100%;
-            margin-bottom: 10px;
-        }
-        
-        .d-flex.justify-content-between .prev-section {
-            order: 2;
-            margin-top: 10px;
-        }
-        
-        .d-flex.justify-content-between .next-section,
-        .d-flex.justify-content-between .btn-success {
-            order: 1;
-        }
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Manejo de secciones del formulario
-        const sections = document.querySelectorAll('.form-section');
-        const nextButtons = document.querySelectorAll('.next-section');
-        const prevButtons = document.querySelectorAll('.prev-section');
-        const progressBar = document.getElementById('progress-bar');
-        const currentStep = document.getElementById('current-step');
-        let currentSection = 1;
-        
-        // Lista de campos requeridos por sección
-        const requiredFieldsBySection = {
-            1: ['id_categoria', 'id_nombre'],
-            2: ['id_descripcion', 'id_requisitos'],
-            3: [], // Todos los campos de esta sección son opcionales según el formulario
-            4: []  // Todos los campos de esta sección son opcionales según el formulario
-        };
-        
-        // Mostrar solo la primera sección inicialmente
-        showSection(currentSection);
-        
-        // Comprobar si hay errores de validación de Django para mostrar la sección adecuada
-        checkForDjangoErrors();
-        
-        // Event listeners para botones Siguiente
-        nextButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const nextSection = parseInt(this.getAttribute('data-next'));
-                if (validateCurrentSection()) {
-                    currentSection = nextSection;
-                    showSection(currentSection);
-                    updateProgress();
-                    // Desplazar al inicio del formulario
-                    document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
-                }
-            });
-        });
-        
-        // Event listeners para botones Anterior
-        prevButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const prevSection = parseInt(this.getAttribute('data-prev'));
-                currentSection = prevSection;
-                showSection(currentSection);
-                updateProgress();
-                // Desplazar al inicio del formulario
-                document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
-            });
-        });
-        
-        // Validación del formulario al enviar
-        const form = document.getElementById('oferta-form');
-        form.addEventListener('submit', function(event) {
-            // Validar todas las secciones antes de enviar
-            let allValid = true;
-            for (let i = 1; i <= sections.length; i++) {
-                if (!validateSection(i)) {
-                    allValid = false;
-                    // Mostrar la primera sección con error
-                    if (currentSection !== i) {
-                        currentSection = i;
-                        showSection(currentSection);
-                        updateProgress();
-                        
-                        // Enfocar el primer campo con error
-                        const firstInvalidField = document.querySelector('#section-' + i + ' .is-invalid');
-                        if (firstInvalidField) {
-                            firstInvalidField.focus();
-                            // Desplazar al elemento con error
-                            firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                        break;
-                    }
-                }
-            }
-            
-            if (!allValid) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            
-            form.classList.add('was-validated');
-        });
-        
-        // Funciones auxiliares
-        function showSection(sectionNumber) {
-            sections.forEach(section => {
-                section.classList.remove('active');
-            });
-            document.getElementById(`section-${sectionNumber}`).classList.add('active');
-            
-            // Actualizar atributos ARIA para accesibilidad
-            progressBar.setAttribute('aria-valuenow', (sectionNumber / sections.length) * 100);
-        }
-        
-        function updateProgress() {
-            const progress = (currentSection / sections.length) * 100;
-            progressBar.style.width = `${progress}%`;
-            currentStep.textContent = currentSection;
-        }
-        
-        function validateCurrentSection() {
-            return validateSection(currentSection);
-        }
-        
-        function validateSection(sectionNumber) {
-            let isValid = true;
-            const section = document.getElementById(`section-${sectionNumber}`);
-            if (!section) return true;
-            
-            // Obtener los campos requeridos para esta sección
-            const requiredFields = requiredFieldsBySection[sectionNumber] || [];
-            
-            // Validar solo los campos marcados como requeridos en esta sección
-            requiredFields.forEach(fieldId => {
-                const input = document.getElementById(fieldId);
-                if (!input) return;
-                
-                // Reiniciar estado de validación
-                input.classList.remove('is-invalid');
-                
-                // Eliminar mensajes de error anteriores (no generados por Django)
-                const parentNode = input.closest('.form-floating');
-                if (parentNode) {
-                    const customErrors = parentNode.querySelectorAll('.invalid-feedback:not(.d-block)');
-                    customErrors.forEach(error => error.remove());
-                }
-                
-                // Validar campo
-                if (!input.value.trim()) {
-                    input.classList.add('is-invalid');
-                    
-                    // Verificar si ya existe un mensaje de error de Django
-                    let errorExists = false;
-                    if (parentNode) {
-                        const djangoErrors = parentNode.querySelectorAll('.invalid-feedback.d-block');
-                        errorExists = djangoErrors.length > 0;
-                    }
-                    
-                    // Solo crear mensaje de error si no hay uno de Django
-                    if (!errorExists) {
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'invalid-feedback';
-                        errorDiv.textContent = 'Este campo es obligatorio';
-                        
-                        if (parentNode) {
-                            parentNode.appendChild(errorDiv);
-                        } else {
-                            input.parentNode.insertBefore(errorDiv, input.nextSibling);
-                        }
-                    }
-                    
-                    isValid = false;
-                }
-            });
-            
-            return isValid;
-        }
-        
-        function checkForDjangoErrors() {
-            // Buscar errores de Django en todo el formulario
-            const djangoErrors = document.querySelectorAll('.invalid-feedback.d-block');
-            if (djangoErrors.length > 0) {
-                // Encontrar la primera sección con errores
-                let firstSectionWithError = null;
-                
-                djangoErrors.forEach(error => {
-                    const section = error.closest('.form-section');
-                    if (section && !firstSectionWithError) {
-                        const sectionId = section.id;
-                        const sectionNumber = parseInt(sectionId.split('-')[1]);
-                        firstSectionWithError = sectionNumber;
-                    }
-                });
-                
-                // Mostrar la sección con errores
-                if (firstSectionWithError) {
-                    currentSection = firstSectionWithError;
-                    showSection(currentSection);
-                    updateProgress();
-                    
-                    // Resaltar los campos con errores de Django
-                    const fieldsWithErrors = document.querySelectorAll('.form-floating:has(.invalid-feedback.d-block) input, .form-floating:has(.invalid-feedback.d-block) select, .form-floating:has(.invalid-feedback.d-block) textarea');
-                    fieldsWithErrors.forEach(field => {
-                        field.classList.add('is-invalid');
-                    });
-                    
-                    // Enfocar el primer campo con error
-                    const firstField = document.querySelector('#section-' + firstSectionWithError + ' .is-invalid');
-                    if (firstField) {
-                        firstField.focus();
-                    }
-                }
-            }
-        }
-        
-        // Ajustar datepicker si es necesario
-        const fechaCierre = document.getElementById('id_fecha_cierre');
-        if (fechaCierre && fechaCierre.type === 'date') {
-            // La fecha mínima ya debe estar establecida por Django
-            // Solo añadimos este código como respaldo
-            const today = new Date();
-            const formattedDate = today.toISOString().split('T')[0];
-            if (!fechaCierre.min) {
-                fechaCierre.min = formattedDate;
-            }
-        }
-    });
-</script>
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+<script src="{% static 'gestionOfertas/js/ofertas_form.js' %}"></script>
 {% endblock %}
