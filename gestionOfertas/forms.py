@@ -2,7 +2,7 @@
 
 from django import forms
 # from django.contrib.auth.forms import ReadOnlyPasswordHashField # Solo si usas UsuarioChangeForm
-from .models import Usuario, PersonaNatural, Empresa # Importa tus modelos
+from .models import Usuario, PersonaNatural, Empresa, Valoracion # Importa tus modelos
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError # Para validación personalizada
 
@@ -215,6 +215,7 @@ class OfertaTrabajoForm(forms.ModelForm):
         self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
         self.fields['fecha_cierre'].widget.attrs['min'] = timezone.now().date().isoformat()
 
+
     def clean(self):
         cleaned_data = super().clean()
         
@@ -239,3 +240,19 @@ class OfertaTrabajoForm(forms.ModelForm):
             instance.save()
         
         return instance
+
+
+
+
+class ValoracionForm(forms.ModelForm):
+    class Meta:
+        model = Valoracion
+        fields = ['puntuacion', 'comentario']
+        widgets = {
+            'puntuacion': forms.RadioSelect(choices=[(i, f'{i} estrellas') for i in range(1, 6)]),
+            'comentario': forms.Textarea(attrs={'placeholder': 'Escribe un comentario opcional...', 'rows': 4}),
+        }
+        labels = {
+            'puntuacion': 'Calificación',
+            'comentario': 'Comentario',
+        }

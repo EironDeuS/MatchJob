@@ -1,12 +1,15 @@
 # En tu_app/views.py
 
+
 from django.forms import ValidationError
-from django.shortcuts import render, redirect
+
+from django.shortcuts import render, get_object_or_404, redirect
+
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
-from .forms import LoginForm, OfertaTrabajoForm, RegistroForm # Usar el nuevo RegistroForm
-from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion
+from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm # Usar el nuevo RegistroForm
+from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
@@ -187,3 +190,34 @@ def salir(request):
     logout(request)
     messages.info(request, 'Has cerrado sesión.')
     return redirect('inicio')
+
+
+def demo_valoracion(request):
+    form = ValoracionForm()
+    return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
+
+
+@login_required
+def valorar_postulacion(request, postulacion_id):
+    postulacion = get_object_or_404(Postulacion, id=postulacion_id)
+    puede_valorar, receptor = postulacion.puede_valorar(request.user)
+
+    if not puede_valorar:
+        messages.error(request, "No puedes valorar esta postulación.")
+        return redirect('registro')  # o a donde tú quieras redirigir
+
+    if request.method == 'POST':
+        form = ValoracionForm(request.POST)
+        if form.is_valid():
+            valoracion = form.save(commit=False)
+            valoracion.emisor = request.user
+            valoracion.receptor = receptor
+            valoracion.postulacion = postulacion
+            valoracion.save()
+            messages.success(request, "¡Valoración enviada con éxito!")
+            return redirect('registro')  # redirección final tras enviar
+    else:
+        form = ValoracionForm()
+
+    # 👇 ESTA línea es la que estaba mal
+    return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})

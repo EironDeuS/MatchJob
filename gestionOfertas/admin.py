@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import UsuarioCreationForm, UsuarioChangeForm
-from .models import Usuario, PersonaNatural, OfertaTrabajo, Categoria, Postulacion, Empresa
+from .models import Usuario, PersonaNatural, OfertaTrabajo, Categoria, Postulacion, Empresa, Valoracion
 
 # Desregistrar Usuario si ya fue registrado
 try:
@@ -43,3 +43,5 @@ admin.site.register(OfertaTrabajo)
 admin.site.register(Categoria)
 admin.site.register(Postulacion)
 admin.site.register(Empresa)
+admin.site.register(Valoracion)
+

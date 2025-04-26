@@ -1,0 +1,95 @@
+{% extends 'gestionOfertas/base.html' %}
+
+{% block content %}
+  <style>
+    .star-rating {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .star {
+      font-size: 2rem;
+      color: #ccc;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .star.hover,
+    .star.selected {
+      color: gold;
+    }
+
+    .valoracion-form {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background-color: #f9f9f9;
+    }
+  </style>
+
+  <div class="valoracion-form">
+    <h2 style="text-align:center;">Valora tu experiencia</h2>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <!-- Estrellas -->
+      <div class="star-rating" id="star-rating">
+        {% for i in "12345" %}
+          <span class="star" data-value="{{ i }}">&#9733;</span>
+        {% endfor %}
+      </div>
+
+      <!-- Campo oculto para enviar la puntuación -->
+      <input type="hidden" name="puntuacion" id="puntuacion" value="">
+
+      <!-- Comentario -->
+      <div style="margin-top: 15px;">
+        <label for="comentario">Comentario (opcional):</label><br>
+        <textarea name="comentario" rows="4" style="width: 100%;" placeholder="Escribe tu opinión..."></textarea>
+      </div>
+
+      <!-- Botón -->
+      <div style="text-align: center; margin-top: 15px;">
+        <button type="submit">Enviar valoración</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const stars = document.querySelectorAll('.star');
+    const puntuacionInput = document.getElementById('puntuacion');
+
+    stars.forEach(star => {
+      star.addEventListener('mouseover', () => {
+        resetStars();
+        star.classList.add('hover');
+        let next = star.previousElementSibling;
+        while (next) {
+          next.classList.add('hover');
+          next = next.previousElementSibling;
+        }
+      });
+
+      star.addEventListener('mouseout', resetStars);
+
+      star.addEventListener('click', () => {
+        puntuacionInput.value = star.dataset.value;
+        stars.forEach(s => s.classList.remove('selected'));
+        star.classList.add('selected');
+        let next = star.previousElementSibling;
+        while (next) {
+          next.classList.add('selected');
+          next = next.previousElementSibling;
+        }
+      });
+    });
+
+    function resetStars() {
+      stars.forEach(star => star.classList.remove('hover'));
+    }
+  </script>
+{% endblock %}
