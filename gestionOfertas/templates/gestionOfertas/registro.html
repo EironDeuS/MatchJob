@@ -1,17 +1,59 @@
 {% extends 'gestionOfertas/base.html' %}
 
-{% load static %}
-
 {% block title %}Registro - MatchJob{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<style>
+  .form-control, .form-select {
+    border-radius: 8px;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
+    outline: none;
+  }
+  .input-group-text {
+    background-color: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-right: none;
+  }
+  .input-with-icon {
+    position: relative;
+  }
+  .input-with-icon i {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    transform: translateY(-50%);
+    color: #6c757d;
+  }
+  .input-with-icon input {
+    padding-left: 40px;
+  }
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6c757d;
+  }
+</style>
+
+<div class="container py-5">
   <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
-      <div class="card shadow-sm">
-        <div class="card-body p-4">
-          <h2 class="text-center mb-4">Crear una cuenta</h2>
-
+      <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
+        <!-- Encabezado con color -->
+        <div class="card-header bg-primary text-white py-3">
+          <h2 class="text-center mb-0">Crear una cuenta</h2>
+        </div>
+        
+        <div class="card-body p-4 p-md-5">
+          <!-- Mensajes de alerta -->
           {% if messages %}
             {% for message in messages %}
               <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
@@ -24,109 +66,172 @@
           {% if form.non_field_errors %}
               <div class="alert alert-danger">
                   {% for error in form.non_field_errors %}
-                      <p>{{ error }}</p>
+                      <p class="mb-1">{{ error }}</p>
                   {% endfor %}
               </div>
           {% endif %}
 
-          <form method="post" novalidate> {# Añadido novalidate para que los errores de Django se muestren bien #}
+          <form method="post" novalidate class="needs-validation">
             {% csrf_token %}
 
-            {# --- Tipo de Usuario --- #}
-            <div class="mb-3">
-              <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label">{{ form.tipo_usuario.label }}</label>
+            <!-- Tipo de Usuario -->
+            <div class="mb-4">
+              <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label fw-bold">{{ form.tipo_usuario.label }}</label>
               {{ form.tipo_usuario.errors }}
-              {{ form.tipo_usuario }}
+              <select class="form-select form-select-lg" id="id_tipo_usuario" name="tipo_usuario" required>
+                <option value="" selected disabled>-- Selecciona tu tipo --</option>
+                <option value="persona">Persona Natural</option>
+                <option value="empresa">Empresa</option>
+              </select>
+              <small class="text-muted">Selecciona si eres persona natural o empresa</small>
             </div>
 
-            {# --- Campos Persona Natural (Ocultos por defecto) --- #}
-            <div id="persona-fields" style="display:none;">
-              <div class="mb-3">
-                <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
-                 {{ form.nombres.errors }}
-                {{ form.nombres }}
-              </div>
-              <div class="mb-3">
-                <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
-                 {{ form.apellidos.errors }}
-                {{ form.apellidos }}
-              </div>
-              <div class="mb-3">
-                <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
-                 {{ form.fecha_nacimiento.errors }}
-                {{ form.fecha_nacimiento }}
-              </div>
-              <div class="mb-3">
-                <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
-                 {{ form.nacionalidad.errors }}
-                {{ form.nacionalidad }}
+            <!-- Campos Persona Natural -->
+            <div id="persona-fields" style="display:none;" class="mb-4">
+              <h5 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Información Personal</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
+                  {{ form.nombres.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-person"></i>
+                    <input type="text" class="form-control" id="id_nombres" name="nombres" placeholder="Ej: Juan Carlos" required>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
+                  {{ form.apellidos.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-person"></i>
+                    <input type="text" class="form-control" id="id_apellidos" name="apellidos" placeholder="Ej: Pérez González" required>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
+                  {{ form.fecha_nacimiento.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-calendar"></i>
+                    <input type="date" class="form-control" id="id_fecha_nacimiento" name="fecha_nacimiento">
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
+                  {{ form.nacionalidad.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-globe"></i>
+                    <input type="text" class="form-control" id="id_nacionalidad" name="nacionalidad" placeholder="Ej: Chilena">
+                  </div>
+                </div>
               </div>
             </div>
 
-            {# --- Campos Empresa (Ocultos por defecto) --- #}
-            <div id="empresa-fields" style="display:none;">
-              <div class="mb-3">
-                <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
-                 {{ form.nombre_empresa.errors }}
-                {{ form.nombre_empresa }}
+            <!-- Campos Empresa -->
+            <div id="empresa-fields" style="display:none;" class="mb-4">
+              <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Información de la Empresa</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
+                  {{ form.nombre_empresa.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-building"></i>
+                    <input type="text" class="form-control" id="id_nombre_empresa" name="nombre_empresa" placeholder="Ej: Tech Solutions S.A." required>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
+                  {{ form.razon_social.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-card-text"></i>
+                    <input type="text" class="form-control" id="id_razon_social" name="razon_social" placeholder="Razón social legal">
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
+                  {{ form.giro.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-briefcase"></i>
+                    <input type="text" class="form-control" id="id_giro" name="giro" placeholder="Ej: Desarrollo de software">
+                  </div>
+                </div>
               </div>
-              {# --- Campo razon_social eliminado --- #}
-              <div class="mb-3">
-                <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
-                 {{ form.razon_social.errors }}
-                {{ form.razon_social }}
-              </div>
-              <div class="mb-3">
-                <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
-                 {{ form.giro.errors }}
-                {{ form.giro }}
-              </div>
-               {# Añadir aquí otros campos de empresa si los pusiste en el form #}
             </div>
 
-            {# --- Campos Comunes (Usuario) --- #}
-            <hr>
-            <div class="mb-3">
-              <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
-               {{ form.username.errors }}
-              {{ form.username }}
-            </div>
-            <div class="mb-3">
-              <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
-               {{ form.correo.errors }}
-              {{ form.correo }}
-            </div>
-            <div class="mb-3">
-              <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
-               {{ form.telefono.errors }}
-              {{ form.telefono }}
-            </div>
-            {# --- Campo Dirección añadido --- #}
-            <div class="mb-3">
-              <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
-               {{ form.direccion.errors }}
-              {{ form.direccion }}
-            </div>
-            <div class="mb-3">
-              <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
-               {{ form.password.errors }}
-              {{ form.password }}
-            </div>
-             {# --- Campo Confirmar Contraseña añadido --- #}
-            <div class="mb-3">
+            <!-- Campos Comunes -->
+            <hr class="my-4">
+            <h5 class="text-primary mb-3"><i class="bi bi-person-circle me-2"></i>Información de Cuenta</h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                {{ form.username.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-person"></i>
+                  <input type="text" class="form-control" id="id_username" name="username" placeholder="Ej: juan.perez" required>
+                </div>
+                <small class="text-muted">Requerido. 150 caracteres o menos. Letras, dígitos y @/./+/-/_ solamente.</small>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
+                {{ form.correo.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-envelope"></i>
+                  <input type="email" class="form-control" id="id_correo" name="correo" placeholder="Ej: ejemplo@correo.com" required>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
+                {{ form.telefono.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-telephone"></i>
+                  <input type="tel" class="form-control" id="id_telefono" name="telefono" placeholder="Ej: +56912345678">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
+                {{ form.direccion.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-geo-alt"></i>
+                  <input type="text" class="form-control" id="id_direccion" name="direccion" placeholder="Ej: Av. Principal 123">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+                {{ form.password.errors }}
+                <div class="input-with-icon position-relative">
+                  <i class="bi bi-lock"></i>
+                  <input type="password" class="form-control" id="id_password" name="password" placeholder="Crea una contraseña segura" required>
+                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
+                </div>
+                <small class="text-muted">
+                  <ul class="ps-3 mb-0">
+                    <li>Mínimo 8 caracteres</li>
+                    <li>No puede ser similar a tu información personal</li>
+                    <li>No puede ser una contraseña común</li>
+                    <li>Debe contener al menos un número</li>
+                  </ul>
+                </small>
+              </div>
+              <div class="col-md-6">
                 <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
                 {{ form.password2.errors }}
-                {{ form.password2 }}
+                <div class="input-with-icon position-relative">
+                  <i class="bi bi-lock"></i>
+                  <input type="password" class="form-control" id="id_password2" name="password2" placeholder="Repite tu contraseña" required>
+                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password2', this)"></i>
+                </div>
+                <small class="text-muted">Ingresa la misma contraseña para verificación</small>
+              </div>
             </div>
 
-            <div class="d-grid gap-2 mb-4">
-              <button type="submit" class="btn btn-primary">Crear cuenta</button>
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-primary btn-lg py-2">
+                <i class="bi bi-person-plus me-2"></i>Crear cuenta
+              </button>
             </div>
-
           </form>
-           <div class="text-center">
-                <p>¿Ya tienes una cuenta? <a href="{% url 'iniciar_sesion' %}">Inicia sesión aquí</a></p>
-            </div>
+
+          <div class="text-center mt-4 pt-3 border-top">
+            <p class="mb-0">¿Ya tienes una cuenta? <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a></p>
+          </div>
         </div>
       </div>
     </div>
@@ -135,130 +240,76 @@
 {% endblock %}
 
 {% block js %}
-
 <script>
-    // --- Script para mostrar/ocultar campos de perfil ---
-    function toggleUsuarioFields() {
-      const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-      if (!tipoUsuarioSelect) return;
-  
-      const tipoUsuario = tipoUsuarioSelect.value;
-      const personaFields = document.getElementById('persona-fields');
-      const empresaFields = document.getElementById('empresa-fields');
-  
-      if (!personaFields || !empresaFields) return;
-  
-      const personaInputs = personaFields.querySelectorAll('input, select, textarea');
-      const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
-  
-      if (tipoUsuario === 'persona') {
-        personaFields.style.display = 'block';
-        empresaFields.style.display = 'none';
-        personaInputs.forEach(input => {
-          if (input.name === 'nombres' || input.name === 'apellidos') {
-            input.required = true;
-          } else {
-            input.required = false;
-          }
-        });
-        empresaInputs.forEach(input => input.required = false);
-  
-      } else if (tipoUsuario === 'empresa') {
-        personaFields.style.display = 'none';
-        empresaFields.style.display = 'block';
-        personaInputs.forEach(input => input.required = false);
-        empresaInputs.forEach(input => {
-          if (input.name === 'nombre_empresa') {
-             input.required = true;
-          } else {
-             input.required = false;
-          }
-        });
-      } else {
-        personaFields.style.display = 'none';
-        empresaFields.style.display = 'none';
-        personaInputs.forEach(input => input.required = false);
-        empresaInputs.forEach(input => input.required = false);
-      }
-    }
-  
-    // --- Script para formatear RUT ---
-    function formatRut(rut) {
-        // 1. Limpiar entrada: permite solo números y k/K
-        let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
-        let body = '';
-        let dv = '';
-  
-        // 2. Separar cuerpo y dígito verificador
-        if (cleanRut.length > 1) {
-            dv = cleanRut.slice(-1);
-            body = cleanRut.slice(0, -1);
-        } else {
-            // Si solo hay un caracter, podría ser el DV (K) o parte del cuerpo
-            // Lo tratamos como cuerpo por ahora, excepto si es K
-             if (cleanRut !== 'K'){
-                  body = cleanRut;
-             } else {
-                  dv = 'K'; // Tratar K sola como DV
-             }
-  
-        }
-  
-        // 3. Limitar longitud del cuerpo (máx 8 dígitos)
-        body = body.slice(0, 8);
-  
-         // 4. Si no hay cuerpo, no formatear (maneja el caso de solo DV 'K')
-         if (body.length === 0) {
-             return dv; // Devolver solo K si es lo único válido
-         }
-  
-  
-        // 5. Formatear con guión
-        let formatted = body;
-        if (dv !== '') {
-            formatted += '-' + dv;
-        }
-  
-        return formatted;
-    }
-  
-    // --- Ejecutar al cargar y al cambiar ---
-    document.addEventListener('DOMContentLoaded', function() {
-      // Toggle inicial
-      toggleUsuarioFields();
-      const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-      if (tipoUsuarioSelect) {
-          tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
-      }
-  
-      // Listener para formateo de RUT
-      const rutInput = document.getElementById('id_username');
-      if (rutInput) {
-          rutInput.addEventListener('input', function (e) {
-              const originalValue = e.target.value;
-              const formattedValue = formatRut(originalValue);
-  
-              // Actualizar solo si el valor formateado es diferente
-              // para evitar problemas con el cursor
-              if (originalValue !== formattedValue) {
-                   // Guardar posición del cursor
-                   let start = e.target.selectionStart;
-                   let end = e.target.selectionEnd;
-                   let diff = formattedValue.length - originalValue.length;
-  
-                   e.target.value = formattedValue;
-  
-                   // Restaurar posición del cursor (aproximado)
-                   e.target.setSelectionRange(start + diff, end + diff);
-              }
-          });
-  
-           // Formatear al perder foco (blur) por si pegan texto
-           rutInput.addEventListener('blur', function(e) {
-                e.target.value = formatRut(e.target.value);
-           });
-      }
-    });
-  </script>
+  function toggleUsuarioFields() {
+    const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+    if (!tipoUsuarioSelect) return;
 
+    const tipoUsuario = tipoUsuarioSelect.value;
+    const personaFields = document.getElementById('persona-fields');
+    const empresaFields = document.getElementById('empresa-fields');
+
+    if (!personaFields || !empresaFields) return;
+
+    const personaInputs = personaFields.querySelectorAll('input, select, textarea');
+    const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
+
+    if (tipoUsuario === 'persona') {
+      personaFields.style.display = 'block';
+      empresaFields.style.display = 'none';
+      personaInputs.forEach(input => {
+          if (input.name === 'nombres' || input.name === 'apellidos') {
+              input.required = true;
+          } else {
+              input.required = false;
+          }
+      });
+      empresaInputs.forEach(input => input.required = false);
+
+    } else if (tipoUsuario === 'empresa') {
+      personaFields.style.display = 'none';
+      empresaFields.style.display = 'block';
+      personaInputs.forEach(input => input.required = false);
+      empresaInputs.forEach(input => {
+          if (input.name === 'nombre_empresa') {
+              input.required = true;
+          } else {
+              input.required = false;
+          }
+      });
+    } else {
+      personaFields.style.display = 'none';
+      empresaFields.style.display = 'none';
+      personaInputs.forEach(input => input.required = false);
+      empresaInputs.forEach(input => input.required = false);
+    }
+  }
+
+  function togglePassword(id, icon) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.classList.remove('bi-eye-slash');
+      icon.classList.add('bi-eye');
+    } else {
+      input.type = 'password';
+      icon.classList.remove('bi-eye');
+      icon.classList.add('bi-eye-slash');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    toggleUsuarioFields();
+    const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+    if (tipoUsuarioSelect) {
+        tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+    }
+    
+    // Mejorar la experiencia de los campos de fecha
+    const fechaNacimiento = document.getElementById('id_fecha_nacimiento');
+    if (fechaNacimiento) {
+      fechaNacimiento.type = 'date';
+    }
+  });
+</script>
 {% endblock %}

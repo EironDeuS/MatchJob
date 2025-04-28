@@ -1,0 +1,142 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Crear Oferta o Servicio{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'gestionOfertas/css/select2.min.css' %}" rel="stylesheet">
+<link href="{% static 'gestionOfertas/css/select2-bootstrap4.min.css' %}" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'gestionOfertas/css/ofertas_form.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="create-offer-container">
+  <div class="container">
+    <div class="form-card">
+      <h3 class="form-title">Publicar Oferta o Servicio</h3>
+
+      <div class="step-indicators">
+        <div class="step-label active-step" data-step="1">1</div>
+        <div class="step-label" data-step="2">2</div>
+        <div class="step-label" data-step="3">3</div>
+      </div>
+
+      <div class="progress mb-4">
+        <div class="progress-bar" role="progressbar" style="width: 33%;" id="progress-bar"></div>
+      </div>
+
+      <form method="post" id="ofertaForm" novalidate>
+        {% csrf_token %}
+
+        <!-- Paso 1 -->
+        <div class="step active" id="step-1">
+          <h5 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
+          <div class="mb-3">
+            <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
+            {{ form.categoria }}
+            <div class="invalid-feedback">Por favor selecciona una categoría</div>
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+            {{ form.nombre }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="nombre-counter">0</span>/100</span>
+            </div>
+            <div class="invalid-feedback">Este campo es requerido</div>
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+            {{ form.descripcion }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="descripcion-counter">0</span>/500</span>
+            </div>
+            <div class="invalid-feedback">Por favor proporciona una descripción</div>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+          </div>
+        </div>
+
+        <!-- Paso 2 -->
+        <div class="step" id="step-2">
+          <h5 class="text-primary mb-3"><i class="fas fa-list-check me-2"></i>Detalles</h5>
+          <div class="mb-3">
+            <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
+            {{ form.requisitos }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="requisitos-counter">0</span>/1000</span>
+            </div>
+            <div class="invalid-feedback">Por favor indica los requisitos</div>
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
+            {{ form.beneficios }}
+            <div class="char-counter-container">
+              <span class="char-counter"><span id="beneficios-counter">0</span>/500</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.salario.id_for_label }}" class="form-label">{{ form.salario.label }}</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-dollar-sign"></i></span>
+                {{ form.salario }}
+              </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.ubicacion.id_for_label }}" class="form-label">{{ form.ubicacion.label }}</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                {{ form.ubicacion }}
+              </div>
+            </div>
+          </div>
+          {% if form.tipo_contrato %}
+          <div class="mb-3">
+            <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
+            {{ form.tipo_contrato }}
+            <div class="invalid-feedback">Por favor selecciona un tipo de contrato</div>
+          </div>
+          {% endif %}
+          <div class="d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-2"></i> Anterior</button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
+          </div>
+        </div>
+
+        <!-- Paso 3 -->
+        <div class="step" id="step-3">
+          <h5 class="text-primary mb-3"><i class="fas fa-paper-plane me-2"></i>Publicar</h5>
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> Estas a un paso de publicar tu oferta. Revisa la información antes de continuar.
+          </div>
+          <div class="mb-4">
+            <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+              {{ form.fecha_cierre }}
+            </div>
+            <div class="invalid-feedback">Por favor selecciona una fecha válida</div>
+            <small class="text-muted">La oferta dejará de mostrarse después de esta fecha</small>
+          </div>
+          <div class="form-check form-switch mb-4">
+            {{ form.esta_activa }}
+            <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">{{ form.esta_activa.label }}</label>
+            <small class="d-block text-muted mt-1">Si no activas esta opción, la oferta quedará guardada como borrador</small>
+          </div>
+          <div class="d-flex justify-content-between">
+            <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-2"></i> Anterior</button>
+            <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-2"></i> Publicar Oferta</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+<script src="{% static 'gestionOfertas/js/ofertas_form.js' %}"></script>
+{% endblock %}

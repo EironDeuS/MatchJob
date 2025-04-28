@@ -1,12 +1,14 @@
 # En tu_app/views.py
 
+from django.forms import ValidationError
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
-from .forms import LoginForm, RegistroForm # Usar el nuevo RegistroForm
-from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria # Importar modelos necesarios
+from .forms import LoginForm, OfertaTrabajoForm, RegistroForm # Usar el nuevo RegistroForm
+from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion
 from django.contrib.auth.decorators import login_required
+from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
@@ -116,29 +118,72 @@ def inicio(request):
     return render(request, 'gestionOfertas/inicio.html', context)
 
 @login_required
+def crear_oferta(request):
+    if request.method == 'POST':
+        form = OfertaTrabajoForm(request.POST, user=request.user)
+        if form.is_valid():
+            oferta = form.save()
+            
+            msg = _('¡Oferta de empleo creada!') if hasattr(request.user, 'empresa') else _('¡Servicio publicado!')
+            messages.success(request, msg)
+            
+            return redirect('miperfil')
+    else:
+        form = OfertaTrabajoForm(user=request.user)
+    
+    contexto = {
+        'form': form,
+        'es_empresa': hasattr(request.user, 'empresa'),
+        'es_persona': hasattr(request.user, 'personanatural')
+    }
+    
+    return render(request, 'gestionOfertas/crear_oferta.html', contexto)
+
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.shortcuts import render
+from .models import OfertaTrabajo, Postulacion     # ajusta el import según tu app
+
+@login_required
 def mi_perfil(request):
     usuario = request.user
-    # Usar el método get_profile() del modelo Usuario
     perfil = usuario.get_profile()
+
+    # Ofertas creadas por este usuario (empresa o persona)
+    ofertas_creadas = usuario.ofertas_creadas.order_by('-fecha_publicacion')
+
+    # Postulaciones:
+    if usuario.tipo_usuario == 'empresa':
+        postulaciones = Postulacion.objects.filter(
+            oferta__creador=usuario
+        ).select_related('persona', 'oferta')  # Cambiado de 'postulante' a 'persona' para coincidir con tu modelo
+    else:  # persona natural
+        postulaciones = Postulacion.objects.filter(
+            persona=perfil  # Cambiado de 'postulante' a 'persona'
+        ).select_related('oferta', 'oferta__creador')
+
     context = {
-        'usuario': usuario, # Pasar el objeto usuario completo
-        'perfil': perfil   # Pasar el perfil específico (PersonaNatural o Empresa)
+        'usuario': usuario,
+        'perfil': perfil,
+        'valoracion_promedio': usuario.valoracion_promedio,
+        'cantidad_valoraciones': usuario.cantidad_valoraciones,
+        'ofertas_creadas': ofertas_creadas,
+        'tiene_ofertas': ofertas_creadas.exists(),
+        'postulaciones': postulaciones,
+        'tiene_postulaciones': postulaciones.exists(),
+        'valoraciones_recibidas': usuario.valoraciones_recibidas
+                                     .select_related('emisor')  # Cambiado de 'autor' a 'emisor'
+                                     .order_by('-fecha_creacion')[:3],  # Cambiado de 'fecha' a 'fecha_creacion'
     }
-    # Decidir qué template usar o cómo mostrar los datos basado en usuario.tipo_usuario
-    # if usuario.tipo_usuario == 'persona':
-    #     template_name = 'gestionOfertas/miperfil_persona.html'
-    # elif usuario.tipo_usuario == 'empresa':
-    #     template_name = 'gestionOfertas/miperfil_empresa.html'
-    # else:
-    #     template_name = 'gestionOfertas/miperfil_base.html' # O manejar admin
-    # return render(request, template_name, context)
-    return render(request, 'gestionOfertas/miperfil.html', context) # Usar un solo template por ahora
+
+    return render(request, 'gestionOfertas/miperfil.html', context)
+
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')
 
 # Añadir vista de logout
-def cerrar_sesion(request):
+def salir(request):
     logout(request)
     messages.info(request, 'Has cerrado sesión.')
     return redirect('inicio')

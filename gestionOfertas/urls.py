@@ -9,5 +9,9 @@ urlpatterns = [
     path('base/', views.base, name='base'),
     path('iniciar_sesion/', views.iniciar_sesion, name='iniciar_sesion'),
     path('registro/', views.registro, name='registro'),
-    path('cerrar_sesion/', views.cerrar_sesion, name='cerrar_sesion'),
+    path('salir/', views.salir, name='salir'),
+    path('crear_oferta/', views.crear_oferta, name='crear_oferta'),
+    # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
+    # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
+    # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),
 ]

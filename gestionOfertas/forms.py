@@ -145,3 +145,74 @@ class UsuarioChangeForm(forms.ModelForm):
          fields = ('username', 'correo', 'telefono', 'direccion', 'tipo_usuario', 'is_active', 'is_staff', 'is_superuser')
 
      # def clean_password(self): ... # Ya no es necesario
+
+from django import forms
+from django.utils.translation import gettext_lazy as _
+from .models import OfertaTrabajo, Categoria
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+
+class OfertaTrabajoForm(forms.ModelForm):
+    class Meta:
+        model = OfertaTrabajo
+        fields = [
+            'categoria', 'nombre', 'descripcion', 'requisitos',
+            'beneficios', 'salario', 'ubicacion', 'tipo_contrato',
+            'fecha_cierre', 'esta_activa'
+        ]
+        widgets = {
+            'descripcion': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'requisitos': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'beneficios': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'fecha_cierre': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'tipo_contrato': forms.Select(attrs={'class': 'form-select'}),
+        }
+        labels = {
+            'esta_activa': _('Publicar inmediatamente'),
+            'tipo_contrato': _('Tipo de Contrato'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Configuración dinámica según tipo de usuario
+        if self.user and hasattr(self.user, 'empresa'):
+            self.fields['tipo_contrato'].required = True
+            self.fields['ubicacion'].required = True
+            self.fields['nombre'].label = _('Nombre del puesto')
+        else:
+            self.fields['nombre'].label = _('Título de tu servicio')
+            self.fields['descripcion'].label = _('Descripción de tu servicio')
+            self.fields['requisitos'].label = _('Qué necesitas para el servicio')
+            self.fields.pop('tipo_contrato')  # Eliminar el campo si no es empresa
+            
+        # Configuración común
+        self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
+        self.fields['fecha_cierre'].widget.attrs['min'] = timezone.now().date().isoformat()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Validación específica para empresas
+        if hasattr(self.user, 'empresa') and not cleaned_data.get('tipo_contrato'):
+            self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.creador = self.user
+        
+        # Auto-configuración según tipo de usuario
+        if hasattr(self.user, 'empresa'):
+            instance.empresa = self.user.empresa
+            instance.es_servicio = False
+        else:
+            instance.es_servicio = True
+        
+        if commit:
+            instance.save()
+        
+        return instance
