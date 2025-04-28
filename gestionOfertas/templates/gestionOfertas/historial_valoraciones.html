@@ -1,0 +1,68 @@
+{% extends 'gestionOfertas/base.html' %}
+
+{% block title %}Historial de Valoraciones de
+    {% if usuario_perfil.personanatural %}
+        {{ usuario_perfil.personanatural.nombres }} {{ usuario_perfil.personanatural.apellidos }}
+    {% elif usuario_perfil.empresa %}
+        {{ usuario_perfil.empresa.nombre_empresa }}
+    {% else %}
+        {{ usuario_perfil.username }}
+    {% endif %}
+    | MatchJob
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>Historial de Valoraciones de
+        {% if usuario_perfil.personanatural %}
+            {{ usuario_perfil.personanatural.nombres }} {{ usuario_perfil.personanatural.apellidos }}
+        {% elif usuario_perfil.empresa %}
+            {{ usuario_perfil.empresa.nombre_empresa }}
+        {% else %}
+            {{ usuario_perfil.username }}
+        {% endif %}
+    </h1>
+
+    {% if valoraciones %}
+        <ul class="list-group">
+            {% for valoracion in valoraciones %}
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>
+                                {% if valoracion.emisor.personanatural %}
+                                    {{ valoracion.emisor.personanatural.nombres }} {{ valoracion.emisor.personanatural.apellidos }}
+                                {% elif valoracion.emisor.empresa %}
+                                    {{ valoracion.emisor.empresa.nombre_empresa }}
+                                {% else %}
+                                    {{ valoracion.emisor.username }}
+                                {% endif %}
+                            </strong> valoró con:
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= valoracion.puntuacion %}
+                                    <i class="bi bi-star-fill text-warning"></i>
+                                {% else %}
+                                    <i class="bi bi-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted">{{ valoracion.fecha_creacion|date:"d/m/Y H:i" }}</small>
+                    </div>
+                    {% if valoracion.comentario %}
+                        <p class="mt-2">{{ valoracion.comentario }}</p>
+                    {% else %}
+                        <p class="mt-2 text-muted">Sin comentario.</p>
+                    {% endif %}
+                    <small class="text-muted">En la postulación #{{ valoracion.postulacion.id }}</small>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Este usuario no ha recibido valoraciones aún.</p>
+    {% endif %}
+
+    <div class="mt-3">
+        <a href="{% url 'miperfil' %}" class="btn btn-outline-secondary">Volver al Perfil</a>
+    </div>
+</div>
+{% endblock %}

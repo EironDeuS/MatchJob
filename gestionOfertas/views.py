@@ -4,7 +4,7 @@
 from django.forms import ValidationError
 
 from django.shortcuts import render, get_object_or_404, redirect
-
+from django.contrib.auth.models import User
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
@@ -221,3 +221,13 @@ def valorar_postulacion(request, postulacion_id):
 
     # 👇 ESTA línea es la que estaba mal
     return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
+
+def historial_valoraciones(request, usuario_id):
+    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)  # Usa tu modelo Usuario
+    valoraciones_recibidas = Valoracion.objects.filter(receptor=usuario_perfil).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
+
+    context = {
+        'usuario_perfil': usuario_perfil,
+        'valoraciones': valoraciones_recibidas,
+    }
+    return render(request, 'gestionOfertas/historial_valoraciones.html', context)

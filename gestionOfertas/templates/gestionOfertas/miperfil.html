@@ -29,16 +29,19 @@
           </h4>
 
           <!-- Valoración con estrellas - CORRECCIÓN APLICADA AQUÍ -->
-          <div class="mb-2">
-            {% for i in "12345" %}
-              {% if forloop.counter <= valoracion_promedio %}
-                <i class="bi bi-star-fill text-warning"></i>
-              {% else %}
-                <i class="bi bi-star text-warning"></i>
-              {% endif %}
-            {% endfor %}
-            <small class="text-muted">({{ valoracion_promedio }}/5 - {{ cantidad_valoraciones }} valoración{{ cantidad_valoraciones|pluralize:"es" }})</small>
-          </div>
+          <a href="{% url 'historial_valoraciones' usuario.id %}" class="text-decoration-none">
+            <div class="mb-2">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= valoracion_promedio %}
+                        <i class="bi bi-star-fill text-warning"></i>
+                    {% else %}
+                        <i class="bi bi-star text-warning"></i>
+                    {% endif %}
+                {% endfor %}
+                <small class="text-muted">({{ valoracion_promedio }}/5 - {{ cantidad_valoraciones }} valoración{{ cantidad_valoraciones|pluralize:"es" }})</small>
+            </div>
+          </a>
+          <!-- Valoración con estrellas - CORRECCIÓN APLICADA AQUÍ -->
 
           <p class="text-muted mb-3">
             <i class="bi bi-geo-alt-fill"></i> {{ perfil.direccion|default:"Sin dirección registrada" }}
@@ -82,7 +85,7 @@
                     </div>
                   </div>
                   <p class="mb-0 small">{{ valoracion.comentario|truncatechars:60 }}</p>
-                  <small class="text-muted"> {{ valoracion.fecha_creacion|date:"d/m/Y" }}</small>
+                  <small class="text-muted">{{ valoracion.fecha|date:"d/m/Y" }}</small>
                 </div>
               {% endfor %}
             </div>
@@ -185,11 +188,11 @@
                       {% endif %}
                     </div>
                     <div>
-                      <a href="{% url 'inicio' %}" class="btn btn-sm btn-outline-primary">
+                      <a href="" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-eye"></i> Ver
                       </a>
                       {% if oferta.creador == user or oferta.empresa.usuario == user %}
-                        <a href="{% url 'inicio' %}" class="btn btn-sm btn-outline-secondary ms-1">
+                        <a href="" class="btn btn-sm btn-outline-secondary ms-1">
                           <i class="bi bi-pencil"></i> Editar
                         </a>
                       {% endif %}
@@ -262,7 +265,7 @@
                         </td>
                       {% endif %}
                       <td>
-                        <a href="{% url 'detalle_oferta' postulacion.oferta.id %}">
+                        <a href="">
                           {{ postulacion.oferta.titulo }}
                         </a>
                       </td>
@@ -278,7 +281,7 @@
                         </span>
                       </td>
                       <td>
-                        <a href="{% url 'ver_postulacion' postulacion.id %}" class="btn btn-sm btn-outline-primary">
+                        <a href="" class="btn btn-sm btn-outline-primary">
                           <i class="bi bi-eye"></i> {% if usuario.tipo_usuario == 'empresa' %}Revisar{% else %}Ver{% endif %}
                         </a>
                       </td>
