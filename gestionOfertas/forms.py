@@ -22,66 +22,75 @@ class LoginForm(AuthenticationForm):
 
 # --- Formulario de Registro Actualizado ---
 class RegistroForm(forms.Form):
+    """
+    Formulario de registro que recopila datos para Usuario y el perfil correspondiente.
+    (Versión sin gettext_lazy para labels/help_text)
+    """
     # --- Campos del Modelo Usuario ---
     tipo_usuario = forms.ChoiceField(
-        choices=Usuario.TIPO_USUARIO_CHOICES[:-1],
+        choices=[c for c in Usuario.TIPO_USUARIO_CHOICES if c[0] != 'admin'], # Excluir admin
         required=True,
-        # Clase para Select
         widget=forms.Select(attrs={'onchange': 'toggleUsuarioFields()', 'class': 'form-select'}),
-        label="Tipo de Usuario"
+        label="Tipo de Usuario" # Sin _()
     )
     username = forms.CharField( # RUT
-        label="RUT", max_length=50, required=True,
-        # Clase para Input
+        label="RUT", # Sin _()
+        max_length=50,
+        required=True,
         widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos, con guión)', 'class': 'form-control'})
     )
     correo = forms.EmailField(
-        label="Correo electrónico", required=True,
+        label="Correo electrónico", # Sin _()
+        required=True,
         widget=forms.EmailInput(attrs={'placeholder': 'Correo electrónico', 'class': 'form-control'})
     )
     telefono = forms.CharField(
-        label="Teléfono", max_length=20, required=False,
+        label="Teléfono", # Sin _()
+        max_length=20,
+        required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Teléfono (opcional)', 'class': 'form-control'})
     )
     direccion = forms.CharField(
-        label="Dirección", max_length=255, required=False,
+        label="Dirección", # Sin _()
+        max_length=255,
+        required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Dirección (opcional)', 'class': 'form-control'})
     )
     password = forms.CharField(
-        label="Contraseña", required=True,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}) # Clase para Password
+        label="Contraseña", # Sin _()
+        required=True,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
     )
     password2 = forms.CharField(
-        label="Confirmar contraseña", required=True,
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}) # Clase para Password
+        label="Confirmar contraseña", # Sin _()
+        required=True,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
     )
 
     # --- Campos del Perfil PersonaNatural ---
-    nombres = forms.CharField(label="Nombres", max_length=100, required=False,
-                              widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
-    apellidos = forms.CharField(label="Apellidos", max_length=100, required=False,
-                                widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
-    fecha_nacimiento = forms.DateField(
-        label="Fecha de Nacimiento", required=False,
-        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}) # Añadir clase
-    )
-    nacionalidad = forms.CharField(
-        label="Nacionalidad", max_length=50, initial='Chilena', required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control'}) # Añadir clase
+    nombres = forms.CharField(label="Nombres", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    apellidos = forms.CharField(label="Apellidos", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    fecha_nacimiento = forms.DateField(label="Fecha de Nacimiento", required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    nacionalidad = forms.CharField(label="Nacionalidad", max_length=50, initial='Chilena', required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    # --- Campo CV ---
+    cv_archivo = forms.FileField(
+        label="Currículum Vitae (PDF)", # Sin _()
+        required=False,
+        help_text="Sube tu CV actualizado en formato PDF.", # Sin _()
+        widget=forms.ClearableFileInput(attrs={'class':'form-control', 'accept': '.pdf'})
     )
 
     # --- Campos del Perfil Empresa ---
-    nombre_empresa = forms.CharField(label="Nombre de la Empresa", max_length=100, required=False,
-                                     widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
-    razon_social = forms.CharField(label="Razón Social", max_length=100, required=False,
-                                   widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
-    giro = forms.CharField(label="Giro Comercial", max_length=100, required=False,
-                           widget=forms.TextInput(attrs={'class': 'form-control'})) # Añadir clase
+    nombre_empresa = forms.CharField(label="Nombre de la Empresa", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    razon_social = forms.CharField(label="Razón Social", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    giro = forms.CharField(label="Giro Comercial", max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
-    # ... (métodos clean como los tenías) ...
+    # --- Métodos clean (sin cambios) ---
     def clean_username(self):
         username = self.cleaned_data.get('username')
         if Usuario.objects.filter(username=username).exists():
+            # Sin _() para mensajes de error también
             raise ValidationError("Este RUT ya está registrado.")
         return username
 
@@ -98,17 +107,34 @@ class RegistroForm(forms.Form):
             raise ValidationError("Las contraseñas no coinciden.")
         return password2
 
+    def clean_cv_archivo(self):
+        """ Valida que el archivo sea PDF y opcionalmente su tamaño. """
+        archivo = self.cleaned_data.get('cv_archivo')
+        if archivo:
+            if not archivo.name.lower().endswith('.pdf'):
+                raise ValidationError("Solo se permiten archivos PDF.")
+            MAX_SIZE_MB = 5
+            if archivo.size > MAX_SIZE_MB * 1024 * 1024:
+                raise ValidationError("El archivo no puede superar los {}MB.".format(MAX_SIZE_MB))
+        return archivo
+
     def clean(self):
+        """ Validaciones cruzadas. """
         cleaned_data = super().clean()
         tipo_usuario = cleaned_data.get('tipo_usuario')
+
         if tipo_usuario == 'persona':
             if not cleaned_data.get('nombres'):
-                self.add_error('nombres', 'Este campo es requerido para personas.')
+                self.add_error('nombres', 'Este campo es requerido para personas.') # Sin _()
             if not cleaned_data.get('apellidos'):
-                self.add_error('apellidos', 'Este campo es requerido para personas.')
+                self.add_error('apellidos', 'Este campo es requerido para personas.') # Sin _()
+            # if not cleaned_data.get('cv_archivo'): # Descomenta si CV es obligatorio
+            #     self.add_error('cv_archivo', 'El CV es requerido para personas.') # Sin _()
+
         elif tipo_usuario == 'empresa':
             if not cleaned_data.get('nombre_empresa'):
-                self.add_error('nombre_empresa', 'Este campo es requerido para empresas.')
+                self.add_error('nombre_empresa', 'Este campo es requerido para empresas.') # Sin _()
+
         return cleaned_data
 
 # --- Formularios UsuarioCreationForm y UsuarioChangeForm ---

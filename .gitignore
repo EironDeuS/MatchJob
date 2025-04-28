@@ -14,6 +14,7 @@ __pycache__/
 # Entornos virtuales
 venv/
 .env/
+.env
 
 # Archivos de IDE
 .idea/
@@ -27,4 +28,6 @@ echo "*.pyc" >> .gitignore
 "*.py[cod]" 
 "*.pyo" 
 "*.pyd" 
+
+matchjob-458200-6a0cfe7aa83a.json
 

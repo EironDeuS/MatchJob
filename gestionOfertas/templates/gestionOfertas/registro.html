@@ -1,9 +1,11 @@
 {% extends 'gestionOfertas/base.html' %}
+{% load static %} {# Asegúrate que load static esté aquí si usas static en este template #}
 
 {% block title %}Registro - MatchJob{% endblock %}
 
 {% block content %}
 <style>
+  /* --- Tus estilos CSS (sin cambios) --- */
   .form-control, .form-select {
     border-radius: 8px;
     padding: 12px 15px;
@@ -30,7 +32,9 @@
     transform: translateY(-50%);
     color: #6c757d;
   }
-  .input-with-icon input {
+  .input-with-icon input,
+  .input-with-icon select, /* Aplicar padding también a selects si usan icono */
+  .input-with-icon textarea { /* Y textareas */
     padding-left: 40px;
   }
   .password-toggle {
@@ -47,13 +51,11 @@
   <div class="row justify-content-center">
     <div class="col-md-8 col-lg-6">
       <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
-        <!-- Encabezado con color -->
         <div class="card-header bg-primary text-white py-3">
           <h2 class="text-center mb-0">Crear una cuenta</h2>
         </div>
-        
+
         <div class="card-body p-4 p-md-5">
-          <!-- Mensajes de alerta -->
           {% if messages %}
             {% for message in messages %}
               <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
@@ -71,154 +73,160 @@
               </div>
           {% endif %}
 
-          <form method="post" novalidate class="needs-validation">
+          <form method="post" enctype="multipart/form-data" novalidate class="needs-validation"> {# IMPORTANTE: enctype="multipart/form-data" #}
             {% csrf_token %}
 
-            <!-- Tipo de Usuario -->
             <div class="mb-4">
               <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label fw-bold">{{ form.tipo_usuario.label }}</label>
               {{ form.tipo_usuario.errors }}
-              <select class="form-select form-select-lg" id="id_tipo_usuario" name="tipo_usuario" required>
-                <option value="" selected disabled>-- Selecciona tu tipo --</option>
-                <option value="persona">Persona Natural</option>
-                <option value="empresa">Empresa</option>
-              </select>
+              {# Renderiza el <select> que ya tiene 'form-select' desde forms.py #}
+              {{ form.tipo_usuario }}
               <small class="text-muted">Selecciona si eres persona natural o empresa</small>
             </div>
 
-            <!-- Campos Persona Natural -->
             <div id="persona-fields" style="display:none;" class="mb-4">
               <h5 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Información Personal</h5>
               <div class="row g-3">
+                {# Nombres (col-md-6) #}
                 <div class="col-md-6">
                   <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
-                  {{ form.nombres.errors }}
+                   {{ form.nombres.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-person"></i>
-                    <input type="text" class="form-control" id="id_nombres" name="nombres" placeholder="Ej: Juan Carlos" required>
+                     {{ form.nombres }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
+                {# Apellidos (col-md-6) #}
                 <div class="col-md-6">
                   <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
-                  {{ form.apellidos.errors }}
+                   {{ form.apellidos.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-person"></i>
-                    <input type="text" class="form-control" id="id_apellidos" name="apellidos" placeholder="Ej: Pérez González" required>
+                     {{ form.apellidos }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
+                {# Fecha Nacimiento (col-md-6) #}
                 <div class="col-md-6">
                   <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
-                  {{ form.fecha_nacimiento.errors }}
+                   {{ form.fecha_nacimiento.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-calendar"></i>
-                    <input type="date" class="form-control" id="id_fecha_nacimiento" name="fecha_nacimiento">
+                     {{ form.fecha_nacimiento }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
+                 {# Nacionalidad (col-md-6) #}
                 <div class="col-md-6">
                   <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
-                  {{ form.nacionalidad.errors }}
+                   {{ form.nacionalidad.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-globe"></i>
-                    <input type="text" class="form-control" id="id_nacionalidad" name="nacionalidad" placeholder="Ej: Chilena">
+                     {{ form.nacionalidad }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <!-- Campos Empresa -->
+                {# --- CAMPO CV EN LUGAR CORRECTO --- #}
+                <div class="col-12"> {# Ocupa todo el ancho debajo de los anteriores #}
+                  <label for="{{ form.cv_archivo.id_for_label }}" class="form-label">{{ form.cv_archivo.label }}</label>
+                   {{ form.cv_archivo.errors }}
+                   {# Renderiza el input type="file" que tiene form-control y accept desde forms.py #}
+                  {{ form.cv_archivo }}
+                  {% if form.cv_archivo.help_text %}
+                      <div class="form-text text-muted">{{ form.cv_archivo.help_text }}</div>
+                  {% endif %}
+                </div>
+                {# --- FIN CAMPO CV --- #}
+
+              </div> {# Fin de row g-3 de Persona #}
+            </div> {# Fin de persona-fields #}
+
             <div id="empresa-fields" style="display:none;" class="mb-4">
               <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Información de la Empresa</h5>
               <div class="row g-3">
                 <div class="col-md-6">
                   <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
-                  {{ form.nombre_empresa.errors }}
+                   {{ form.nombre_empresa.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-building"></i>
-                    <input type="text" class="form-control" id="id_nombre_empresa" name="nombre_empresa" placeholder="Ej: Tech Solutions S.A." required>
+                     {{ form.nombre_empresa }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
                 <div class="col-md-6">
                   <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
-                  {{ form.razon_social.errors }}
+                   {{ form.razon_social.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-card-text"></i>
-                    <input type="text" class="form-control" id="id_razon_social" name="razon_social" placeholder="Razón social legal">
+                     {{ form.razon_social }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
                 <div class="col-12">
                   <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
-                  {{ form.giro.errors }}
+                   {{ form.giro.errors }}
                   <div class="input-with-icon">
                     <i class="bi bi-briefcase"></i>
-                    <input type="text" class="form-control" id="id_giro" name="giro" placeholder="Ej: Desarrollo de software">
+                     {{ form.giro }} {# Asume form-control desde forms.py #}
                   </div>
                 </div>
-              </div>
-            </div>
+              </div> {# Fin de row g-3 de Empresa #}
+            </div> {# Fin de empresa-fields #}
 
-            <!-- Campos Comunes -->
-            <hr class="my-4">
-            <h5 class="text-primary mb-3"><i class="bi bi-person-circle me-2"></i>Información de Cuenta</h5>
+            <hr class="my-4" />
+            <h5 class="text-primary mb-3">
+              <i class="bi bi-person-circle me-2"></i>Información de Cuenta
+            </h5>
             <div class="row g-3">
               <div class="col-md-6">
                 <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
-                {{ form.username.errors }}
+                 {{ form.username.errors }}
                 <div class="input-with-icon">
                   <i class="bi bi-person"></i>
-                  <input type="text" class="form-control" id="id_username" name="username" placeholder="Ej: juan.perez" required>
+                   {{ form.username }} {# Asume form-control desde forms.py #}
                 </div>
-                <small class="text-muted">Requerido. 150 caracteres o menos. Letras, dígitos y @/./+/-/_ solamente.</small>
+                {# <small class="text-muted">Requerido. 150 caracteres o menos. Letras, dígitos y @/./+/-/_ solamente.</small> #}
               </div>
               <div class="col-md-6">
                 <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
-                {{ form.correo.errors }}
+                 {{ form.correo.errors }}
                 <div class="input-with-icon">
                   <i class="bi bi-envelope"></i>
-                  <input type="email" class="form-control" id="id_correo" name="correo" placeholder="Ej: ejemplo@correo.com" required>
+                   {{ form.correo }} {# Asume form-control desde forms.py #}
                 </div>
               </div>
               <div class="col-md-6">
                 <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
-                {{ form.telefono.errors }}
+                 {{ form.telefono.errors }}
                 <div class="input-with-icon">
                   <i class="bi bi-telephone"></i>
-                  <input type="tel" class="form-control" id="id_telefono" name="telefono" placeholder="Ej: +56912345678">
+                   {{ form.telefono }} {# Asume form-control desde forms.py #}
                 </div>
               </div>
               <div class="col-md-6">
                 <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
-                {{ form.direccion.errors }}
+                 {{ form.direccion.errors }}
                 <div class="input-with-icon">
                   <i class="bi bi-geo-alt"></i>
-                  <input type="text" class="form-control" id="id_direccion" name="direccion" placeholder="Ej: Av. Principal 123">
+                   {{ form.direccion }} {# Asume form-control desde forms.py #}
                 </div>
               </div>
               <div class="col-md-6">
                 <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
-                {{ form.password.errors }}
+                 {{ form.password.errors }}
                 <div class="input-with-icon position-relative">
                   <i class="bi bi-lock"></i>
-                  <input type="password" class="form-control" id="id_password" name="password" placeholder="Crea una contraseña segura" required>
+                   {{ form.password }} {# Asume form-control desde forms.py #}
                   <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
                 </div>
-                <small class="text-muted">
-                  <ul class="ps-3 mb-0">
-                    <li>Mínimo 8 caracteres</li>
-                    <li>No puede ser similar a tu información personal</li>
-                    <li>No puede ser una contraseña común</li>
-                    <li>Debe contener al menos un número</li>
-                  </ul>
-                </small>
+                {# Puedes incluir las validaciones de contraseña aquí si quieres #}
+                {# <small class="text-muted"><ul>...</ul></small> #}
               </div>
               <div class="col-md-6">
                 <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
-                {{ form.password2.errors }}
+                 {{ form.password2.errors }}
                 <div class="input-with-icon position-relative">
                   <i class="bi bi-lock"></i>
-                  <input type="password" class="form-control" id="id_password2" name="password2" placeholder="Repite tu contraseña" required>
+                   {{ form.password2 }} {# Asume form-control desde forms.py #}
                   <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password2', this)"></i>
                 </div>
-                <small class="text-muted">Ingresa la misma contraseña para verificación</small>
+                 {# <small class="text-muted">Ingresa la misma contraseña para verificación</small> #}
               </div>
             </div>
 
@@ -230,7 +238,10 @@
           </form>
 
           <div class="text-center mt-4 pt-3 border-top">
-            <p class="mb-0">¿Ya tienes una cuenta? <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a></p>
+            <p class="mb-0">
+              ¿Ya tienes una cuenta?
+              <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a>
+            </p>
           </div>
         </div>
       </div>
@@ -240,76 +251,119 @@
 {% endblock %}
 
 {% block js %}
+{# Pega aquí el bloque <script> completo con las funciones #}
+{# toggleUsuarioFields, togglePassword y formatRut (si la usas) #}
 <script>
   function toggleUsuarioFields() {
     const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-    if (!tipoUsuarioSelect) return;
-
+    if (!tipoUsuarioSelect) { console.error("Elemento 'id_tipo_usuario' no encontrado."); return; }
     const tipoUsuario = tipoUsuarioSelect.value;
     const personaFields = document.getElementById('persona-fields');
     const empresaFields = document.getElementById('empresa-fields');
+    if (!personaFields) { console.error("Elemento 'persona-fields' no encontrado."); return; }
+    if (!empresaFields) { console.error("Elemento 'empresa-fields' no encontrado."); return; }
 
-    if (!personaFields || !empresaFields) return;
+    console.log("Tipo Usuario Seleccionado:", tipoUsuario); // Debug
 
     const personaInputs = personaFields.querySelectorAll('input, select, textarea');
     const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
+    const cvInput = personaFields.querySelector('[name="cv_archivo"]'); // Selecciona el input de CV por nombre
 
+    // Ocultar ambos y resetear required
+    personaFields.style.display = 'none';
+    empresaFields.style.display = 'none';
+    personaInputs.forEach(input => input.required = false);
+    empresaInputs.forEach(input => input.required = false);
+
+    // Mostrar y requerir los campos correctos
     if (tipoUsuario === 'persona') {
+      console.log("Mostrando campos Persona"); // Debug
       personaFields.style.display = 'block';
-      empresaFields.style.display = 'none';
       personaInputs.forEach(input => {
-          if (input.name === 'nombres' || input.name === 'apellidos') {
-              input.required = true;
-          } else {
-              input.required = false;
-          }
+        if (input.name === 'nombres' || input.name === 'apellidos') {
+          input.required = true;
+        }
+        // MARCAR CV COMO REQUERIDO si lo definiste así en forms.py
+        // Necesitamos pasar el valor 'required' del form al template,
+        // o simplemente asumir si es requerido o no basado en tu lógica de negocio
+        // if (input.name === 'cv_archivo') { input.required = false; } // Cambia a true si es obligatorio
       });
-      empresaInputs.forEach(input => input.required = false);
-
     } else if (tipoUsuario === 'empresa') {
-      personaFields.style.display = 'none';
+      console.log("Mostrando campos Empresa"); // Debug
       empresaFields.style.display = 'block';
-      personaInputs.forEach(input => input.required = false);
+       // Asegurar que CV no sea requerido si se muestra empresa
+       if (cvInput) cvInput.required = false;
       empresaInputs.forEach(input => {
-          if (input.name === 'nombre_empresa') {
-              input.required = true;
-          } else {
-              input.required = false;
-          }
+        if (input.name === 'nombre_empresa') {
+           input.required = true;
+        }
       });
     } else {
-      personaFields.style.display = 'none';
-      empresaFields.style.display = 'none';
-      personaInputs.forEach(input => input.required = false);
-      empresaInputs.forEach(input => input.required = false);
+        console.log("Tipo no reconocido u opción default, ocultando específicos."); // Debug
     }
   }
 
   function togglePassword(id, icon) {
     const input = document.getElementById(id);
-    if (input.type === 'password') {
-      input.type = 'text';
-      icon.classList.remove('bi-eye-slash');
-      icon.classList.add('bi-eye');
+    if (!input) return;
+    if (input.type === "password") {
+      input.type = "text";
+      icon.classList.remove("bi-eye-slash");
+      icon.classList.add("bi-eye");
     } else {
-      input.type = 'password';
-      icon.classList.remove('bi-eye');
-      icon.classList.add('bi-eye-slash');
+      input.type = "password";
+      icon.classList.remove("bi-eye");
+      icon.classList.add("bi-eye-slash");
     }
   }
 
+ function formatRut(rut) {
+      // Función para formatear RUT (la misma que te di antes)
+      let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
+      let body = ''; let dv = '';
+      if (cleanRut.length > 1) { dv = cleanRut.slice(-1); body = cleanRut.slice(0, -1); }
+      else { if (cleanRut !== 'K'){ body = cleanRut; } else { dv = 'K'; } }
+      body = body.slice(0, 8);
+      if (body.length === 0) { return dv; }
+      let formatted = body; if (dv !== '') { formatted += '-' + dv; }
+      return formatted;
+  }
+
+
   document.addEventListener('DOMContentLoaded', function() {
-    toggleUsuarioFields();
+    console.log("DOM Cargado, configurando listeners."); // Debug
+    toggleUsuarioFields(); // Llamada inicial
     const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
     if (tipoUsuarioSelect) {
         tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+    } else {
+         console.error("Listener no añadido: 'id_tipo_usuario' no encontrado al cargar.");
     }
-    
-    // Mejorar la experiencia de los campos de fecha
+
+    // Listener para RUT
+    const rutInput = document.getElementById('id_username'); // ID del campo RUT
+    if (rutInput) {
+        rutInput.addEventListener('input', function (e) {
+            const originalValue = e.target.value; const formattedValue = formatRut(originalValue);
+            if (originalValue !== formattedValue) {
+                 let start = e.target.selectionStart; let end = e.target.selectionEnd;
+                 let diff = formattedValue.length - originalValue.length;
+                 e.target.value = formattedValue;
+                 // Intenta restaurar cursor solo si es posible
+                 if (start !== null && end !== null) {
+                     try { e.target.setSelectionRange(start + diff, end + diff); } catch(err){}
+                 }
+            }
+        });
+         rutInput.addEventListener('blur', function(e) { e.target.value = formatRut(e.target.value); });
+    } else {
+         console.error("Listener de RUT no añadido: 'id_username' no encontrado.");
+    }
+
+     // Mejorar la experiencia de los campos de fecha
     const fechaNacimiento = document.getElementById('id_fecha_nacimiento');
-    if (fechaNacimiento) {
-      fechaNacimiento.type = 'date';
-    }
+    if (fechaNacimiento) { fechaNacimiento.type = 'date'; }
+    else { console.warn("Elemento 'id_fecha_nacimiento' no encontrado para mejora."); }
   });
 </script>
 {% endblock %}
