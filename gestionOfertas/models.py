@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.db.models import Avg
 from django.core.validators import MinValueValidator, MaxValueValidator
+import os
 
 # -----------------------------
 # Gestor Personalizado de Usuario
@@ -195,11 +196,35 @@ class Empresa(models.Model):
 # -----------------------------
 # CV
 # -----------------------------
+#-- funcion para el cv_upload_to
+def cv_upload_to(instance, filename):
+    """
+    Genera la ruta y nombre de archivo para el CV subido.
+    Formato: cvs/RUT_nombreoriginal.extension
+    """
+    try:
+        # Accede al RUT a través de CV -> PersonaNatural -> Usuario
+        rut_usuario = instance.persona.usuario.username
+    except AttributeError:
+        rut_usuario = 'sin_rut' # Fallback por si algo falla
+
+    nombre_original, extension = os.path.splitext(filename)
+    nuevo_nombre = f"{rut_usuario}_{nombre_original}{extension}"
+    # Guarda los archivos en una carpeta 'cvs'
+    ruta_final = os.path.join('cvs', nuevo_nombre)
+    return ruta_final
 class CV(models.Model):
     persona = models.OneToOneField(PersonaNatural, on_delete=models.CASCADE, related_name='cv')
     nombre = models.CharField(_('Título del CV'), max_length=100, blank=True)
     correo = models.EmailField(_('Correo de contacto'), blank=True)
-    archivo_cv = models.FileField(_('Archivo CV'), upload_to='cvs/', blank=True, null=True)
+    # --- MODIFICACIÓN AQUÍ ---
+    archivo_cv = models.FileField(
+        _('Archivo CV'),
+        upload_to=cv_upload_to, # <-- Usa la función definida arriba
+        blank=True,
+        null=True
+    )
+    # ---------------------------
     experiencia_resumen = models.TextField(_('Resumen de experiencia'), blank=True)
     habilidades = models.TextField(_('Habilidades destacadas'), blank=True)
     fecha_subida = models.DateTimeField(_('Fecha de subida'), auto_now_add=True, null=True, blank=True)
@@ -210,10 +235,7 @@ class CV(models.Model):
         verbose_name_plural = _('CVs')
 
     def __str__(self):
-        # Accede al nombre de la persona a través de la relación
         return f"CV de {self.persona}"
-
-
 # -----------------------------
 # Experiencia Laboral
 # -----------------------------
