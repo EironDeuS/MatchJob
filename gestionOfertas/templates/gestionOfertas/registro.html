@@ -5,7 +5,7 @@
 
 {% block content %}
 <style>
-  /* --- Tus estilos CSS (sin cambios) --- */
+  /* --- Estilos CSS con ajuste --- */
   .form-control, .form-select {
     border-radius: 8px;
     padding: 12px 15px;
@@ -23,27 +23,39 @@
     border-right: none;
   }
   .input-with-icon {
-    position: relative;
+    position: relative; /* Correcto para contener hijos absolutos */
   }
-  .input-with-icon i {
+
+  /* --- REGLA MODIFICADA --- */
+  /* Aplicar posicionamiento izquierdo SOLO a los iconos que NO tengan la clase 'password-toggle' */
+  /* Usamos '>' para asegurar que sea hijo directo */
+  .input-with-icon > i:not(.password-toggle) {
     position: absolute;
     top: 50%;
-    left: 15px;
+    left: 15px; /* Posición izquierda */
     transform: translateY(-50%);
     color: #6c757d;
+    pointer-events: none; /* Evita que el icono de candado sea clickeable */
+    /* z-index: 1; /* Podría ser útil si hay problemas de capas, pero prueba sin él primero */ */
   }
+  /* ------------------------ */
+
+  /* El padding izquierdo para el input sigue igual */
   .input-with-icon input,
-  .input-with-icon select, /* Aplicar padding también a selects si usan icono */
-  .input-with-icon textarea { /* Y textareas */
-    padding-left: 40px;
+  .input-with-icon select,
+  .input-with-icon textarea {
+    padding-left: 40px; /* Espacio para el icono de la izquierda */
   }
+
+  /* La regla específica para el botón de mostrar/ocultar contraseña sigue igual */
   .password-toggle {
     position: absolute;
     top: 50%;
-    right: 15px;
+    right: 15px; /* Posición derecha */
     transform: translateY(-50%);
     cursor: pointer;
     color: #6c757d;
+    /* z-index: 2; /* Asegura que esté sobre otros elementos si es necesario */ */
   }
 </style>
 
@@ -211,10 +223,10 @@
                 <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
                  {{ form.password.errors }}
                 <div class="input-with-icon position-relative">
-                  <i class="bi bi-lock"></i>
-                   {{ form.password }} {# Asume form-control desde forms.py #}
-                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
-                </div>
+                <i class="bi bi-lock-fill"></i>
+                {{ form.password }}
+                    <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
+                  </div>
                 {# Puedes incluir las validaciones de contraseña aquí si quieres #}
                 {# <small class="text-muted"><ul>...</ul></small> #}
               </div>
@@ -222,9 +234,9 @@
                 <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
                  {{ form.password2.errors }}
                 <div class="input-with-icon position-relative">
-                  <i class="bi bi-lock"></i>
-                   {{ form.password2 }} {# Asume form-control desde forms.py #}
-                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password2', this)"></i>
+                  <i class="bi bi-lock-fill"></i>
+                  {{ form.password }}
+                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
                 </div>
                  {# <small class="text-muted">Ingresa la misma contraseña para verificación</small> #}
               </div>
