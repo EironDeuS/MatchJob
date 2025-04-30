@@ -5,6 +5,11 @@ from django import forms
 from .models import Usuario, PersonaNatural, Empresa, Valoracion # Importa tus modelos
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError # Para validación personalizada
+from django import forms
+from django.utils.translation import gettext_lazy as _
+from .models import OfertaTrabajo, Categoria
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 # --- LoginForm (Sin cambios, parece correcto para login con RUT) ---
 class LoginForm(AuthenticationForm):
@@ -172,11 +177,7 @@ class UsuarioChangeForm(forms.ModelForm):
 
      # def clean_password(self): ... # Ya no es necesario
 
-from django import forms
-from django.utils.translation import gettext_lazy as _
-from .models import OfertaTrabajo, Categoria
-from django.core.exceptions import ValidationError
-from django.utils import timezone
+
 
 
 class OfertaTrabajoForm(forms.ModelForm):
@@ -245,7 +246,50 @@ class OfertaTrabajoForm(forms.ModelForm):
         return instance
 
 
+class EditarPerfilPersonaForm(forms.Form):
+    # Campos del Modelo Usuario (ejemplos)
+    correo = forms.EmailField(
+        label="Correo electrónico",
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control'})
+    )
+    telefono = forms.CharField(
+        label="Teléfono",
+        max_length=20,
+        required=False, # O True si es obligatorio
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    direccion = forms.CharField(
+        label="Dirección",
+        max_length=255,
+        required=False, # O True si es obligatorio
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
 
+    # Campos del Modelo PersonaNatural (ejemplos)
+    nombres = forms.CharField(label="Nombres", max_length=100, required=True, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    apellidos = forms.CharField(label="Apellidos", max_length=100, required=True, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    fecha_nacimiento = forms.DateField(label="Fecha de Nacimiento", required=False, widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date', 'class': 'form-control'}))
+    nacionalidad = forms.CharField(label="Nacionalidad", max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    # --- Campo para actualizar CV ---
+    cv_archivo = forms.FileField(
+        label="Actualizar Currículum Vitae (PDF)",
+        required=False, # IMPORTANTE: No es obligatorio subir uno nuevo cada vez que editan
+        help_text="Sube un nuevo CV en formato PDF si deseas reemplazar el actual.",
+        widget=forms.ClearableFileInput(attrs={'class':'form-control', 'accept': '.pdf'})
+    )
+
+    def clean_cv_archivo(self):
+        # Reutiliza validaciones si es necesario (PDF, tamaño)
+        archivo = self.cleaned_data.get('cv_archivo')
+        if archivo:
+            if not archivo.name.lower().endswith('.pdf'):
+                raise forms.ValidationError("Solo se permiten archivos PDF.")
+            MAX_SIZE_MB = 5
+            if archivo.size > MAX_SIZE_MB * 1024 * 1024:
+                raise forms.ValidationError(f"El archivo no puede superar los {MAX_SIZE_MB}MB.")
+        return archivo
 
 class ValoracionForm(forms.ModelForm):
     class Meta:

@@ -8,12 +8,11 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
-from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm # Usar el nuevo RegistroForm
-from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion
+from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, EditarPerfilPersonaForm
+from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
-from .models import CV
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
 def iniciar_sesion(request):
@@ -207,10 +206,7 @@ def crear_oferta(request):
     
     return render(request, 'gestionOfertas/crear_oferta.html', contexto)
 
-from django.contrib.auth.decorators import login_required
-from django.db.models import Q
-from django.shortcuts import render
-from .models import OfertaTrabajo, Postulacion     # ajusta el import según tu app
+ # ajusta el import según tu app
 
 @login_required
 def mi_perfil(request):
@@ -246,6 +242,102 @@ def mi_perfil(request):
 
     return render(request, 'gestionOfertas/miperfil.html', context)
 
+@login_required # Asegura que solo usuarios logueados accedan
+def editar_perfil(request):
+    # Asumimos que solo las personas naturales pueden editar este perfil específico
+    # Puedes añadir lógica para redirigir a empresas a otro form/view
+    if request.user.tipo_usuario != 'persona':
+        messages.error(request, "Esta sección es solo para personas naturales.")
+        return redirect('inicio') # O a donde corresponda
+
+    # Obtener perfil PersonaNatural asociado al usuario logueado
+    # Usamos get_object_or_404 para manejar el caso raro de que no exista
+    perfil = get_object_or_404(PersonaNatural, usuario=request.user)
+    # Obtener o crear el objeto CV asociado (por si nunca subió uno)
+    cv_obj, created = CV.objects.get_or_create(persona=perfil)
+
+    if request.method == 'POST':
+        # Pasar instance=perfil podría funcionar si usaras ModelForm,
+        # pero con forms.Form, procesamos manualmente. Pasamos request.FILES.
+        form = EditarPerfilPersonaForm(request.POST, request.FILES)
+        if form.is_valid():
+            # Actualizar datos del Usuario
+            request.user.correo = form.cleaned_data['correo']
+            request.user.telefono = form.cleaned_data.get('telefono')
+            request.user.direccion = form.cleaned_data.get('direccion')
+            request.user.save()
+
+            # Actualizar datos del Perfil PersonaNatural
+            perfil.nombres = form.cleaned_data['nombres']
+            perfil.apellidos = form.cleaned_data['apellidos']
+            perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
+            perfil.nacionalidad = form.cleaned_data.get('nacionalidad')
+            perfil.save()
+
+            # --- Procesar actualización de CV ---
+            nuevo_cv_archivo = form.cleaned_data.get('cv_archivo')
+            if nuevo_cv_archivo:
+                # 1. Borrar el archivo antiguo de GCS (si existe)
+                if cv_obj.archivo_cv:
+                    try:
+                        # save=False evita guardar el modelo solo por borrar el archivo
+                        cv_obj.archivo_cv.delete(save=False)
+                        print(f"DEBUG: Archivo CV antiguo borrado de GCS: {cv_obj.archivo_cv.name}")
+                    except Exception as e:
+                         print(f"DEBUG: Error al intentar borrar CV antiguo: {e}")
+                         messages.warning(request, "No se pudo borrar el CV anterior del almacenamiento, pero se intentará subir el nuevo.")
+
+
+                # 2. Asignar el nuevo archivo al campo
+                cv_obj.archivo_cv = nuevo_cv_archivo
+
+                # 3. Guardar el objeto CV (esto subirá el nuevo archivo a GCS y usará tu función de renombrar)
+                try:
+                    cv_obj.save()
+                    print(f"DEBUG: Nuevo CV guardado: {cv_obj.archivo_cv.name}")
+                    messages.success(request, 'Tu CV ha sido actualizado exitosamente.')
+                except Exception as e:
+                    print(f"DEBUG: Error al guardar/subir nuevo CV: {e}")
+                    messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
+            # ------------------------------------
+            elif 'cv_archivo-clear' in request.POST:
+                 # Si el usuario marcó el checkbox "clear" del ClearableFileInput
+                 if cv_obj.archivo_cv:
+                    try:
+                        cv_obj.archivo_cv.delete(save=True) # save=True aquí para guardar el campo vacío
+                        print("DEBUG: CV existente eliminado por petición del usuario.")
+                        messages.info(request, 'Tu CV ha sido eliminado.')
+                    except Exception as e:
+                        print(f"DEBUG: Error al eliminar CV existente: {e}")
+                        messages.error(request, f'Hubo un error al eliminar el CV: {e}')
+
+
+            if not nuevo_cv_archivo and 'cv_archivo-clear' not in request.POST :
+                 messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+
+            return redirect('editar_perfil') # Redirige a la misma página para ver cambios
+
+        else: # Formulario no válido
+             print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
+             messages.error(request, 'Por favor corrige los errores en el formulario.')
+
+    else: # Método GET <--- AQUÍ DENTRO
+        initial_data = {
+            'correo': request.user.correo,
+            'telefono': request.user.telefono,
+            'direccion': request.user.direccion,
+            'nombres': perfil.nombres,
+            'apellidos': perfil.apellidos,
+            'fecha_nacimiento': perfil.fecha_nacimiento,
+            'nacionalidad': perfil.nacionalidad,
+        }
+        form = EditarPerfilPersonaForm(initial=initial_data)
+
+        context = {
+            'form': form,
+            'cv_actual': cv_obj.archivo_cv
+        }
+        return render(request, 'gestionOfertas/editar_perfil.html', context)
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')
