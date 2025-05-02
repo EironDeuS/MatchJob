@@ -1,142 +1,271 @@
 {% extends 'gestionOfertas/base.html' %}
 {% load static %}
 
-{% block title %}Crear Oferta o Servicio{% endblock %}
+{% block title %}Crear Postulación{% endblock %}
 
-{% block extra_css %}
-<link href="{% static 'gestionOfertas/css/select2.min.css' %}" rel="stylesheet">
-<link href="{% static 'gestionOfertas/css/select2-bootstrap4.min.css' %}" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'gestionOfertas/css/ofertas_form.css' %}">
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{% static 'gestionOfertas/css/crear_oferta.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="create-offer-container">
-  <div class="container">
-    <div class="form-card">
-      <h3 class="form-title">Publicar Oferta o Servicio</h3>
+<div class="job-application">
+    <header class="job-application__header">
+        <div class="job-application__header-icon">
+            <i class="fas fa-briefcase"></i>
+        </div>
+        <h1 class="job-application__title">Crear Postulación de Trabajo</h1>
+        <p class="job-application__subtitle">Complete los detalles de la oferta laboral</p>
+    </header>
 
-      <div class="step-indicators">
-        <div class="step-label active-step" data-step="1">1</div>
-        <div class="step-label" data-step="2">2</div>
-        <div class="step-label" data-step="3">3</div>
-      </div>
-
-      <div class="progress mb-4">
-        <div class="progress-bar" role="progressbar" style="width: 33%;" id="progress-bar"></div>
-      </div>
-
-      <form method="post" id="ofertaForm" novalidate>
+    <form method="post" class="job-application__form" enctype="multipart/form-data">
         {% csrf_token %}
+        
+        <div class="form-grid">
+            <!-- Categoría -->
+            <div class="form-group">
+                <label for="{{ form.categoria.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-tag form-group__icon"></i> {{ form.categoria.label }}
+                </label>
+                <div class="form-group__input-container">
+                    <select id="{{ form.categoria.id_for_label }}" name="{{ form.categoria.name }}" class="form-select">
+                        {% for value, text in form.categoria.field.choices %}
+                            <option value="{{ value }}">{{ text }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down form-group__select-icon"></i>
+                </div>
+                {% if form.categoria.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.categoria.errors }}
+                    </div>
+                {% endif %}
+            </div>
 
-        <!-- Paso 1 -->
-        <div class="step active" id="step-1">
-          <h5 class="text-primary mb-3"><i class="fas fa-info-circle me-2"></i>Información Básica</h5>
-          <div class="mb-3">
-            <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
-            {{ form.categoria }}
-            <div class="invalid-feedback">Por favor selecciona una categoría</div>
-          </div>
-          <div class="mb-3">
-            <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
-            {{ form.nombre }}
-            <div class="char-counter-container">
-              <span class="char-counter"><span id="nombre-counter">0</span>/100</span>
+            <!-- Nombre -->
+            <div class="form-group">
+                <label for="{{ form.nombre.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-heading form-group__icon"></i> {{ form.nombre.label }}
+                </label>
+                <div class="form-group__input-container">
+                    <input type="text" id="{{ form.nombre.id_for_label }}" name="{{ form.nombre.name }}" 
+                           value="{{ form.nombre.value|default:'' }}" class="form-control" 
+                           placeholder="Ej: Desarrollador Frontend Senior">
+                    <i class="fas fa-pencil-alt form-group__input-icon"></i>
+                </div>
+                {% if form.nombre.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.nombre.errors }}
+                    </div>
+                {% endif %}
             </div>
-            <div class="invalid-feedback">Este campo es requerido</div>
-          </div>
-          <div class="mb-3">
-            <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
-            {{ form.descripcion }}
-            <div class="char-counter-container">
-              <span class="char-counter"><span id="descripcion-counter">0</span>/500</span>
+
+            <!-- Descripción -->
+            <div class="form-group form-group--full">
+                <label for="{{ form.descripcion.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-align-left form-group__icon"></i> {{ form.descripcion.label }}
+                </label>
+                <textarea id="{{ form.descripcion.id_for_label }}" name="{{ form.descripcion.name }}" 
+                          class="form-control" rows="4">{{ form.descripcion.value|default:'' }}</textarea>
+                <div class="form-group__char-counter" data-target="{{ form.descripcion.id_for_label }}">0/1000</div>
+                {% if form.descripcion.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.descripcion.errors }}
+                    </div>
+                {% endif %}
             </div>
-            <div class="invalid-feedback">Por favor proporciona una descripción</div>
-          </div>
-          <div class="d-flex justify-content-end">
-            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
-          </div>
+
+            <!-- Requisitos -->
+            <div class="form-group form-group--full">
+                <label for="{{ form.requisitos.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-list-check form-group__icon"></i> {{ form.requisitos.label }}
+                </label>
+                <textarea id="{{ form.requisitos.id_for_label }}" name="{{ form.requisitos.name }}" 
+                          class="form-control" rows="3">{{ form.requisitos.value|default:'' }}</textarea>
+                <div class="form-group__help-text">
+                    <i class="fas fa-info-circle"></i> Enumere los requisitos separados por puntos
+                </div>
+                {% if form.requisitos.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.requisitos.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Beneficios -->
+            <div class="form-group form-group--full">
+                <label for="{{ form.beneficios.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-gift form-group__icon"></i> {{ form.beneficios.label }}
+                </label>
+                <textarea id="{{ form.beneficios.id_for_label }}" name="{{ form.beneficios.name }}" 
+                          class="form-control" rows="3">{{ form.beneficios.value|default:'' }}</textarea>
+                {% if form.beneficios.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.beneficios.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Salario -->
+            <div class="form-group">
+                <label for="{{ form.salario.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-money-bill-wave form-group__icon"></i> {{ form.salario.label }}
+                </label>
+                <div class="form-group__input-container">
+                    <input type="number" id="{{ form.salario.id_for_label }}" name="{{ form.salario.name }}" 
+                           value="{{ form.salario.value|default:'' }}" class="form-control" 
+                           placeholder="Ej: 50000">
+                    <span class="form-group__currency">$</span>
+                </div>
+                {% if form.salario.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.salario.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Ubicación -->
+            <div class="form-group">
+                <label for="{{ form.ubicacion.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-map-marker-alt form-group__icon"></i> {{ form.ubicacion.label }}
+                </label>
+                <div class="form-group__input-container">
+                    <input type="text" id="{{ form.ubicacion.id_for_label }}" name="{{ form.ubicacion.name }}" 
+                           value="{{ form.ubicacion.value|default:'' }}" class="form-control" 
+                           placeholder="Ej: Buenos Aires, Argentina">
+                    <i class="fas fa-map-pin form-group__input-icon"></i>
+                </div>
+                {% if form.ubicacion.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.ubicacion.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Tipo de Contrato (solo para empresas) -->
+            {% if form.tipo_contrato %}
+            <div class="form-group">
+                <label for="{{ form.tipo_contrato.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-file-contract form-group__icon"></i> {{ form.tipo_contrato.label }}
+                </label>
+                <div class="form-group__input-container">
+                    <select id="{{ form.tipo_contrato.id_for_label }}" name="{{ form.tipo_contrato.name }}" class="form-select">
+                        {% for value, text in form.tipo_contrato.field.choices %}
+                            <option value="{{ value }}" {% if form.tipo_contrato.value == value %}selected{% endif %}>{{ text }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="fas fa-chevron-down form-group__select-icon"></i>
+                </div>
+                {% if form.tipo_contrato.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.tipo_contrato.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Fecha de Cierre -->
+            <div class="form-group">
+                <label for="{{ form.fecha_cierre.id_for_label }}" class="form-group__label">
+                    <i class="fas fa-calendar-alt form-group__icon"></i> {{ form.fecha_cierre.label }}
+                </label>
+                <div class="form-group__input-container">
+                    <input type="date" id="{{ form.fecha_cierre.id_for_label }}" name="{{ form.fecha_cierre.name }}" 
+                           value="{{ form.fecha_cierre.value|date:'Y-m-d'|default:'' }}" class="form-control">
+                    <i class="fas fa-calendar-day form-group__input-icon"></i>
+                </div>
+                {% if form.fecha_cierre.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.fecha_cierre.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Publicar inmediatamente -->
+            <div class="form-group form-group--checkbox">
+                <label class="form-group__checkbox-label">
+                    <input type="checkbox" id="{{ form.esta_activa.id_for_label }}" name="{{ form.esta_activa.name }}" 
+                           {% if form.esta_activa.value %}checked{% endif %} class="form-checkbox">
+                    <span class="form-group__checkbox-custom">
+                        <i class="fas fa-check form-group__checkbox-icon"></i>
+                    </span>
+                    <span class="form-group__checkbox-text">
+                        <i class="fas fa-paper-plane form-group__icon"></i> {{ form.esta_activa.label }}
+                    </span>
+                </label>
+                {% if form.esta_activa.errors %}
+                    <div class="form-group__error">
+                        <i class="fas fa-exclamation-circle"></i> {{ form.esta_activa.errors }}
+                    </div>
+                {% endif %}
+            </div>
         </div>
 
-        <!-- Paso 2 -->
-        <div class="step" id="step-2">
-          <h5 class="text-primary mb-3"><i class="fas fa-list-check me-2"></i>Detalles</h5>
-          <div class="mb-3">
-            <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
-            {{ form.requisitos }}
-            <div class="char-counter-container">
-              <span class="char-counter"><span id="requisitos-counter">0</span>/1000</span>
-            </div>
-            <div class="invalid-feedback">Por favor indica los requisitos</div>
-          </div>
-          <div class="mb-3">
-            <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
-            {{ form.beneficios }}
-            <div class="char-counter-container">
-              <span class="char-counter"><span id="beneficios-counter">0</span>/500</span>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label for="{{ form.salario.id_for_label }}" class="form-label">{{ form.salario.label }}</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-dollar-sign"></i></span>
-                {{ form.salario }}
-              </div>
-            </div>
-            <div class="col-md-6 mb-3">
-              <label for="{{ form.ubicacion.id_for_label }}" class="form-label">{{ form.ubicacion.label }}</label>
-              <div class="input-group">
-                <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
-                {{ form.ubicacion }}
-              </div>
-            </div>
-          </div>
-          {% if form.tipo_contrato %}
-          <div class="mb-3">
-            <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
-            {{ form.tipo_contrato }}
-            <div class="invalid-feedback">Por favor selecciona un tipo de contrato</div>
-          </div>
-          {% endif %}
-          <div class="d-flex justify-content-between">
-            <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-2"></i> Anterior</button>
-            <button type="button" class="btn btn-primary" onclick="nextStep()">Siguiente <i class="fas fa-arrow-right ms-2"></i></button>
-          </div>
+        <div class="form-actions">
+            <button type="submit" class="form-actions__button form-actions__button--submit">
+                <i class="fas fa-save form-actions__icon"></i> Guardar Postulación
+            </button>
+            <button type="button" class="form-actions__button form-actions__button--cancel" onclick="window.history.back()">
+                <i class="fas fa-times form-actions__icon"></i> Cancelar
+            </button>
         </div>
-
-        <!-- Paso 3 -->
-        <div class="step" id="step-3">
-          <h5 class="text-primary mb-3"><i class="fas fa-paper-plane me-2"></i>Publicar</h5>
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i> Estas a un paso de publicar tu oferta. Revisa la información antes de continuar.
-          </div>
-          <div class="mb-4">
-            <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
-            <div class="input-group">
-              <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-              {{ form.fecha_cierre }}
-            </div>
-            <div class="invalid-feedback">Por favor selecciona una fecha válida</div>
-            <small class="text-muted">La oferta dejará de mostrarse después de esta fecha</small>
-          </div>
-          <div class="form-check form-switch mb-4">
-            {{ form.esta_activa }}
-            <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">{{ form.esta_activa.label }}</label>
-            <small class="d-block text-muted mt-1">Si no activas esta opción, la oferta quedará guardada como borrador</small>
-          </div>
-          <div class="d-flex justify-content-between">
-            <button type="button" class="btn btn-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-2"></i> Anterior</button>
-            <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-2"></i> Publicar Oferta</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
+    </form>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{% static 'js/select2.min.js' %}"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-<script src="{% static 'gestionOfertas/js/ofertas_form.js' %}"></script>
+<!-- Toast Notification (hidden by default) -->
+<div class="toast" id="saveToast">
+    <div class="toast__icon">
+        <i class="fas fa-check-circle"></i>
+    </div>
+    <div class="toast__content">
+        <p class="toast__message">Postulación guardada exitosamente!</p>
+    </div>
+    <button class="toast__close">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+
+<script>
+// Mostrar toast cuando el formulario se envía correctamente
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.job-application__form');
+    const toast = document.getElementById('saveToast');
+    
+    if (form && toast) {
+        form.addEventListener('submit', function(e) {
+            // Simulamos el éxito (en producción, esto debería ser manejado por Django)
+            setTimeout(() => {
+                toast.classList.add('toast--show');
+                setTimeout(() => {
+                    toast.classList.remove('toast--show');
+                }, 5000);
+            }, 1000);
+        });
+        
+        // Cerrar toast manualmente
+        const closeBtn = toast.querySelector('.toast__close');
+        closeBtn.addEventListener('click', () => {
+            toast.classList.remove('toast--show');
+        });
+    }
+    
+    // Contador de caracteres para descripción
+    const descripcion = document.getElementById('{{ form.descripcion.id_for_label }}');
+    const charCounter = document.querySelector('.form-group__char-counter[data-target="{{ form.descripcion.id_for_label }}"]');
+    
+    if (descripcion && charCounter) {
+        descripcion.addEventListener('input', function() {
+            const currentLength = this.value.length;
+            charCounter.textContent = `${currentLength}/1000`;
+            
+            if (currentLength > 1000) {
+                charCounter.style.color = 'var(--error-color)';
+            } else {
+                charCounter.style.color = 'var(--text-light)';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

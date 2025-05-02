@@ -2,29 +2,30 @@
 {% load static %}
 
 {% block content %}
-<div class="container my-4">
+<div class="container py-5">
+
     <!-- Barra de búsqueda y filtros -->
-    <div class="row mb-4">
+    <div class="row g-3 align-items-end mb-5">
         <div class="col-md-8">
             <form method="get" action="{% url 'inicio' %}">
-                <div class="input-group">
-                    <input type="text" 
-                           name="q" 
-                           class="form-control" 
-                           placeholder="Buscar ofertas..."
+                <label class="form-label fw-bold">🔎 Buscar ofertas</label>
+                <div class="input-group input-group-lg shadow-sm">
+                    <input type="text"
+                           name="q"
+                           class="form-control border-primary"
+                           placeholder="Ej: Diseñador gráfico, programador, etc."
                            value="{{ busqueda_actual }}">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-search"></i>
-                    </button>
+                    <button type="submit" class="btn btn-primary">Buscar</button>
                 </div>
             </form>
         </div>
         <div class="col-md-4">
             <form method="get" action="{% url 'inicio' %}" id="categoriaForm">
                 <input type="hidden" name="q" value="{{ busqueda_actual }}">
-                <select name="categoria" 
-                        class="form-select" 
-                        onchange="document.getElementById('categoriaForm').submit()">
+                <label class="form-label fw-bold">🎯 Filtrar por categoría</label>
+                <select name="categoria"
+                        class="form-select form-select-lg border-success"
+                        onchange="this.form.submit()">
                     <option value="">Todas las categorías</option>
                     {% for cat in categorias %}
                     <option value="{{ cat.id }}"
@@ -37,30 +38,43 @@
         </div>
     </div>
 
+    <!-- Título -->
+    <h2 class="mb-4 fw-bold text-primary text-center">🚀 Ofertas destacadas</h2>
+
     <!-- Ofertas -->
-    <div class="row row-cols-1 row-cols-md-3 g-4">
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         {% for oferta in ofertas %}
         <div class="col">
-            <div class="card h-100 shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="card-title mb-0">{{ oferta.nombre }}</h5>
+            <div class="card h-100 border-0 shadow-lg rounded-4 bg-light">
+                <div class="card-header text-white bg-gradient bg-primary rounded-top-4">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bi bi-briefcase-fill me-2"></i>{{ oferta.nombre }}
+                    </h5>
                 </div>
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-2 text-muted">
-                        {{ oferta.empresa.nombre_empresa }}
-                    </h6>
-                    <p class="card-text">{{ oferta.descripcion|truncatewords:20 }}</p>
-                    <span class="badge bg-secondary">{{ oferta.categoria.nombre_categoria }}</span>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <p class="text-muted mb-1">
+                            <i class="bi bi-building me-1"></i> {{ oferta.empresa.nombre_empresa }}
+                        </p>
+                        <p class="card-text small">{{ oferta.descripcion|truncatewords:25 }}</p>
+                        <span class="badge bg-success mt-2">
+                            <i class="bi bi-tag-fill me-1"></i>{{ oferta.categoria.nombre_categoria }}
+                        </span>
+                    </div>
                 </div>
-                <div class="card-footer bg-transparent">
-                    <small class="text-muted">Publicado: {{ oferta.fecha_oferta|date:"d/m/Y" }}</small>
-                    <a href="#" class="btn btn-sm btn-outline-primary float-end">Ver detalles</a>
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center rounded-bottom-4 border-top">
+                    <small class="text-muted"><i class="bi bi-calendar me-1"></i>{{ oferta.fecha_oferta|date:"d/m/Y" }}</small>
+                    <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-sm btn-outline-primary fw-semibold">
+                        Ver detalles
+                    </a>
                 </div>
             </div>
         </div>
         {% empty %}
         <div class="col-12">
-            <div class="alert alert-warning">No se encontraron ofertas</div>
+            <div class="alert alert-warning text-center">
+                😕 No se encontraron ofertas
+            </div>
         </div>
         {% endfor %}
     </div>

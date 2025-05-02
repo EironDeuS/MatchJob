@@ -1,6 +1,7 @@
 # En tu_app/views.py
 
 
+from datetime import datetime, timedelta
 from django.forms import ValidationError
 
 from django.shortcuts import render, get_object_or_404, redirect
@@ -161,27 +162,87 @@ def registro(request):
     return render(request, 'gestionOfertas/registro.html', {'form': form})
 
 
-# --- Otras vistas (inicio, mi_perfil, base - Sin cambios necesarios para el registro) ---
+
 def inicio(request):
+    # Obtener parámetros de búsqueda y filtros
     busqueda = request.GET.get('q', '')
     categoria_id = request.GET.get('categoria', '')
-    ofertas = OfertaTrabajo.objects.filter(esta_activa=True) # Filtrar activas
+    tipo_contrato = request.GET.get('tipo_contrato', '')
+    ubicacion_id = request.GET.get('ubicacion', '')
+    modalidad = request.GET.get('modalidad', '')
+    salario_min = request.GET.get('salario_min', '')
+    salario_max = request.GET.get('salario_max', '')
+    experiencia = request.GET.get('experiencia', '')
+    fecha_filtro = request.GET.get('fecha', '')
+    
+    # Iniciar con todas las ofertas activas
+    ofertas = OfertaTrabajo.objects.filter(esta_activa=True)
+    
+    # Aplicar filtro de búsqueda por texto
     if busqueda:
         ofertas = ofertas.filter(
             Q(nombre__icontains=busqueda) |
             Q(descripcion__icontains=busqueda) |
-            Q(creador__empresa__nombre_empresa__icontains=busqueda) | # Buscar por nombre empresa
-            Q(creador__personanatural__nombres__icontains=busqueda) | # Buscar por nombre persona
+            Q(empresa__nombre_empresa__icontains=busqueda) |  # Asegúrate de ajustar estos campos según tu modelo
+            Q(creador__personanatural__nombres__icontains=busqueda) |
             Q(creador__personanatural__apellidos__icontains=busqueda)
         ).distinct()
+    
+    # Aplicar filtro por categoría
     if categoria_id:
         ofertas = ofertas.filter(categoria_id=categoria_id)
+    
+    # Aplicar filtro por tipo de contrato
+    if tipo_contrato:
+        ofertas = ofertas.filter(tipo_contrato=tipo_contrato)
+    
+    # Aplicar filtro por ubicación
+    if ubicacion_id:
+        ofertas = ofertas.filter(ubicacion_id=ubicacion_id)
+    
+    # Aplicar filtro por modalidad de trabajo
+    if modalidad:
+        ofertas = ofertas.filter(modalidad=modalidad)
+    
+    # Aplicar filtros de salario
+    if salario_min:
+        ofertas = ofertas.filter(salario_min__gte=float(salario_min))
+    if salario_max:
+        ofertas = ofertas.filter(salario_max__lte=float(salario_max))
+    
+    # Aplicar filtro por experiencia mínima
+    if experiencia:
+        ofertas = ofertas.filter(experiencia_requerida__gte=int(experiencia))
+    
+    # Aplicar filtro por fecha de publicación
+    if fecha_filtro:
+        hoy = datetime.now().date()
+        if fecha_filtro == 'hoy':
+            ofertas = ofertas.filter(fecha_oferta__date=hoy)
+        elif fecha_filtro == '3dias':
+            tres_dias_atras = hoy - timedelta(days=3)
+            ofertas = ofertas.filter(fecha_oferta__date__gte=tres_dias_atras)
+        elif fecha_filtro == '7dias':
+            semana_atras = hoy - timedelta(days=7)
+            ofertas = ofertas.filter(fecha_oferta__date__gte=semana_atras)
+        elif fecha_filtro == '30dias':
+            mes_atras = hoy - timedelta(days=30)
+            ofertas = ofertas.filter(fecha_oferta__date__gte=mes_atras)
+    
+    # Preparar contexto para la plantilla
     context = {
-        'ofertas': ofertas.select_related('creador', 'categoria'), # Optimizar consulta
-        'categorias': Categoria.objects.filter(activa=True), # Solo activas
+        'ofertas': ofertas.select_related('creador', 'categoria', 'empresa'),
+        'categorias': Categoria.objects.filter(activa=True),  # Debes reemplazar esto con tu modelo de ubicaciones
         'busqueda_actual': busqueda,
-        'categoria_actual': categoria_id if categoria_id else ''
+        'categoria_actual': categoria_id,
+        'tipo_contrato_actual': tipo_contrato,
+        'modalidad_actual': modalidad,
+        'salario_min_actual': salario_min,
+        'salario_max_actual': salario_max,
+        'experiencia_actual': experiencia,
+        'fecha_actual': fecha_filtro
     }
+    
     return render(request, 'gestionOfertas/inicio.html', context)
 
 @login_required
@@ -352,6 +413,12 @@ def salir(request):
 def demo_valoracion(request):
     form = ValoracionForm()
     return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
+
+
+#DETALLE DE LA OFERTA PUBLICADA
+def detalle_oferta(request, oferta_id):
+    oferta = get_object_or_404(OfertaTrabajo, id=oferta_id)
+    return render(request, 'gestionOfertas/detalle_oferta.html', {'oferta': oferta})
 
 
 @login_required

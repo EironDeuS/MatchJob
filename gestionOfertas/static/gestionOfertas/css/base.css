@@ -1,0 +1,188 @@
+   /* Estilos optimizados */
+   :root {
+    --primary-gradient: linear-gradient(135deg, #2563eb, #1e40af);
+    --navbar-height: 70px;
+    --navbar-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --dropdown-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+    --highlight: rgba(255, 255, 255, 0.15);
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    padding-top: var(--navbar-height); /* Espacio para navbar fixed */
+    background-color: #f8f9fa;
+}
+
+/* Navbar principal */
+.navbar-main {
+    height: var(--navbar-height);
+    background: var(--primary-gradient);
+    box-shadow: var(--navbar-shadow);
+    padding: 0;
+    z-index: 1030;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: var(--transition);
+}
+
+.navbar-brand:hover {
+    background-color: var(--highlight);
+    transform: translateY(-2px);
+}
+
+.brand-icon {
+    font-size: 1.6rem;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+/* Enlaces de navegación */
+.nav-link {
+    font-weight: 500;
+    padding: 0.75rem 1.2rem;
+    margin: 0 0.3rem;
+    border-radius: 8px;
+    position: relative;
+    transition: var(--transition);
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.nav-link:hover {
+    color: #ffffff !important;
+    background-color: var(--highlight);
+    transform: translateY(-2px);
+}
+
+.nav-link.active {
+    color: #ffffff !important;
+    background-color: var(--highlight);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+}
+
+/* Iconos en la navbar */
+.nav-icon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+    vertical-align: -2px;
+}
+
+/* Botón login */
+.btn-login {
+    background: transparent;
+    border: 2px solid #ffffff;
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+    transition: var(--transition);
+}
+
+.btn-login:hover {
+    background-color: #ffffff;
+    color: #2563eb !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Efecto de marca activa debajo de los enlaces */
+.nav-indicator {
+    position: absolute;
+    height: 3px;
+    width: 0;
+    background-color: #ffffff;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.nav-link:hover .nav-indicator,
+.nav-link.active .nav-indicator {
+    width: 70%;
+}
+
+/* Estilo para dropdown */
+.dropdown-menu {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    padding: 0.75rem 0;
+    margin-top: 0.75rem;
+}
+
+.dropdown-item {
+    padding: 0.6rem 1.5rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.dropdown-item:hover {
+    background-color: #f0f7ff;
+    color: #2563eb;
+}
+
+/* Estilo para avatar de usuario */
+.user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    transition: var(--transition);
+}
+
+.nav-link:hover .user-avatar {
+    border-color: #ffffff;
+    transform: scale(1.05);
+}
+
+/* Ajustes para móvil */
+@media (max-width: 991.98px) {
+    .navbar-collapse {
+        background-color: #2563eb;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 0.75rem;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+    
+    .nav-link {
+        margin: 0.3rem 0;
+    }
+    
+    .dropdown-menu {
+        background-color: rgba(0, 0, 0, 0.1);
+        margin-left: 0.5rem;
+        border-radius: 8px;
+        box-shadow: none;
+        padding: 0.5rem 0;
+    }
+    
+    .dropdown-item {
+        color: #ffffff;
+    }
+    
+    .dropdown-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+    }
+    
+    .btn-login {
+        margin: 0.5rem 0;
+        width: 100%;
+    }
+}
+
+/* Contenido principal */
+main.container {
+    padding-top: 20px;
+    padding-bottom: 40px;
+}

@@ -1,0 +1,105 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Detalle Oferta{% endblock %}
+
+{% block head %}
+<!-- Aquí puedes cargar tu archivo de CSS personalizado si es necesario -->
+<link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    <!-- ENCABEZADO -->
+    <div style="background-color: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border: 1px solid #dcd6f7; margin-bottom: 40px;">
+        <div>
+            <h1 style="font-size: 2.5rem; font-weight: bold; color: #5c6ac4;">{{ oferta.nombre }}</h1>
+            <p style="margin-top: 10px; font-size: 1.2rem; color: #6b7280;">
+                <span style="background-color: #e0e7ff; color: #3b82f6; padding: 8px 12px; border-radius: 16px; font-size: 1rem;">
+                    {{ oferta.get_tipo_contrato_display }}
+                </span>
+                <span style="background-color: #fef2c7; color: #f59e0b; padding: 8px 12px; border-radius: 16px; font-size: 1rem;">
+                    {{ oferta.tipo_oferta }}
+                </span>
+            </p>
+        </div>
+        {% if oferta.empresa %}
+        <div style="text-align: right;">
+            <p style="color: #6b7280; font-size: 1rem;">Publicado por:</p>
+            <p style="font-size: 1.5rem; font-weight: bold; color: #1e3a8a;">{{ oferta.empresa.nombre }}asdasdas</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- DETALLE PRINCIPAL -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
+        <!-- Descripción -->
+        <div style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #5c6ac4;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #5c6ac4;">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                Descripción
+            </h2>
+            <p style="color: #4b5563; white-space: pre-line;">{{ oferta.descripcion }}</p>
+        </div>
+
+        <!-- Requisitos -->
+        {% if oferta.requisitos %}
+        <div style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #3b82f6;">
+            <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #3b82f6;">
+                    <path d="M9 12l2 2l4 -4"/>
+                </svg>
+                Requisitos
+            </h2>
+            <p style="color: #4b5563; white-space: pre-line;">{{ oferta.requisitos }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Beneficios -->
+    {% if oferta.beneficios %}
+    <div style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #10b981; margin-bottom: 32px;">
+        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #10b981;">
+                <path d="M12 8v4l3 3"/>
+            </svg>
+            Beneficios
+        </h2>
+        <p style="color: #4b5563; white-space: pre-line;">{{ oferta.beneficios }}</p>
+    </div>
+    {% endif %}
+
+    <!-- INFO ADICIONAL -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-size: 0.875rem; color: #4b5563;">
+        <div style="background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <p><strong>📍 Ubicación:</strong> {{ oferta.ubicacion }}</p>
+            <p><strong>💵 Salario:</strong> {{ oferta.salario }}</p>
+            <p><strong>🗓 Publicado:</strong> {{ oferta.fecha_publicacion|date:"d/m/Y" }}</p>
+            {% if oferta.fecha_cierre %}
+            <p><strong>⏰ Cierra:</strong> {{ oferta.fecha_cierre|date:"d/m/Y" }}</p>
+            {% endif %}
+        </div>
+
+        <div style="background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+            <p><strong>🏷 Categoría:</strong> {{ oferta.categoria.nombre }}</p>
+            <p><strong>🔒 Estado:</strong>
+                {% if oferta.esta_activa %}
+                <span style="color: #16a34a; font-weight: 500;">Activa</span>
+                {% else %}
+                <span style="color: #ef4444; font-weight: 500;">Cerrada</span>
+                {% endif %}
+            </p>
+            <p><strong>🧰 Tipo:</strong> {{ oferta.tipo_oferta }}</p>
+        </div>
+    </div>
+
+    <!-- BOTÓN DE POSTULACIÓN -->
+    <div style="margin-top: 40px; text-align: center;">
+        <a href="{% url 'inicio' %}" style="display: inline-block; background-color: #4338ca; color: white; font-size: 1.125rem; font-weight: 600; padding: 16px 32px; border-radius: 9999px; box-shadow: 0 6px 10px rgba(0,0,0,0.2); transition: background-color 0.3s;">
+            🚀 Postular a esta oferta
+        </a>
+    </div>
+</div>
+{% endblock %}
