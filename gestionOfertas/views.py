@@ -485,12 +485,24 @@ def valorar_postulacion(request, postulacion_id):
     # 👇 ESTA línea es la que estaba mal
     return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
 
+from django.shortcuts import render, get_object_or_404
+from .models import Usuario, Valoracion, Postulacion
+from django.db.models import Q
+
 def historial_valoraciones(request, usuario_id):
-    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)  # Usa tu modelo Usuario
+    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)
     valoraciones_recibidas = Valoracion.objects.filter(receptor=usuario_perfil).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
+
+    # Obtener postulaciones 'contratadas' que NO tienen una valoración asociada
+    postulaciones_contratadas_sin_valorar = Postulacion.objects.filter(
+        oferta__creador=usuario_perfil,  # O receptor=usuario_perfil, dependiendo de la lógica
+        estado='contratado',
+        valoraciones__isnull=True  # Filtra las postulaciones SIN valoraciones
+    ).select_related('persona', 'oferta')
 
     context = {
         'usuario_perfil': usuario_perfil,
         'valoraciones': valoraciones_recibidas,
+        'postulaciones_pendientes': postulaciones_contratadas_sin_valorar,
     }
     return render(request, 'gestionOfertas/historial_valoraciones.html', context)

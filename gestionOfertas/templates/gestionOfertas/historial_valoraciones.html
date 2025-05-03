@@ -1,6 +1,7 @@
 {% extends 'gestionOfertas/base.html' %}
 
-{% block title %}Historial de Valoraciones de
+{% block title %}
+    Historial de Valoraciones de
     {% if usuario_perfil.personanatural %}
         {{ usuario_perfil.personanatural.nombres }} {{ usuario_perfil.personanatural.apellidos }}
     {% elif usuario_perfil.empresa %}
@@ -23,7 +24,32 @@
         {% endif %}
     </h1>
 
-    {% if valoraciones %}
+    {% if postulaciones_pendientes %}
+        <h2>Valoraciones Pendientes</h2>
+        <p>Tienes las siguientes postulaciones contratadas pendientes de valoración:</p>
+        <ul class="list-group">
+            {% for postulacion in postulaciones_pendientes %}
+                <li class="list-group-item">
+                    <p>
+                        Postulación #{{ postulacion.id }} - 
+                        {% if usuario_perfil == postulacion.oferta.creador %}
+                            A: {{ postulacion.persona }}
+                        {% else %}
+                            De: {{ postulacion.oferta.creador }}
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'demo_valoracion' postulacion.id %}" class="btn btn-primary btn-sm">
+                        Valorar
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No tienes valoraciones pendientes en este momento.</p>
+    {% endif %}
+
+    <hr>  {% if valoraciones %}
+        <h2>Historial de Valoraciones</h2>
         <ul class="list-group">
             {% for valoracion in valoraciones %}
                 <li class="list-group-item">
