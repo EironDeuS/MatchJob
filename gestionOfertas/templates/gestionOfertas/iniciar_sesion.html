@@ -4,50 +4,392 @@
 {% block title %}Iniciar Sesión | MatchJob{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'gestionOfertas/css/iniciar_sesion.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --primary-dark: #224abe;
+        --secondary-color: #f8f9fc;
+        --text-color: #5a5c69;
+        --success-color: #1cc88a;
+        --danger-color: #e74a3b;
+    }
+    
+    .login-container {
+        background: url('{% static "gestionOfertas/img/auth-bg.jpg" %}') no-repeat center center;
+        background-size: cover;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        position: relative;
+    }
+    
+    .login-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(78, 115, 223, 0.85);
+    }
+    
+    .login-card {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        position: relative;
+        background: white;
+    }
+    
+    .login-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .login-header {
+        background: var(--primary-color);
+        color: white;
+        padding: 2.5rem;
+        text-align: center;
+        position: relative;
+    }
+    
+    .login-header::after {
+        content: '';
+        position: absolute;
+        bottom: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 20px solid transparent;
+        border-right: 20px solid transparent;
+        border-top: 20px solid var(--primary-color);
+    }
+    
+    .login-body {
+        padding: 2.5rem;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        padding: 14px 16px;
+        border: 1px solid #e0e0e0;
+        font-size: 0.95rem;
+        transition: all 0.3s;
+    }
+    
+    .form-control.is-valid {
+        border-color: var(--success-color);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%231cc88a' d='M2.3 6.73L.6 4.53c-.4-1.04.46-1.4 1.1-.8l1.1 1.4 3.4-3.8c.6-.63 1.6-.27 1.2.7l-4 4.6c-.43.5-.8.4-1.1.1z'/%3e%3c/svg%3e");
+    }
+    
+    .form-control.is-invalid {
+        border-color: var(--danger-color);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23e74a3b'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23e74a3b' stroke='none'/%3e%3c/svg%3e");
+    }
+    
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.2);
+    }
+    
+    .input-group-text {
+        background-color: #f8f9fc;
+        border-right: none;
+    }
+    
+    .input-group .form-control {
+        border-left: none;
+    }
+    
+    .btn-login {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 14px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+    }
+    
+    .btn-login:hover {
+        background: linear-gradient(135deg, var(--primary-dark) 0%, #1a3aa8 100%);
+        transform: translateY(-2px);
+    }
+    
+    .btn-login:active {
+        transform: translateY(0);
+    }
+    
+    .rut-help-text {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+        display: block;
+    }
+    
+    .login-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #eee;
+        font-size: 0.9rem;
+    }
+    
+    .brand-logo {
+        width: 100px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: var(--text-color);
+    }
+    
+    .alert-danger {
+        border-radius: 8px;
+    }
+    
+    @media (max-width: 768px) {
+        .login-card {
+            margin: 20px;
+        }
+        
+        .login-header, .login-body {
+            padding: 1.5rem;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h1 class="card-title text-center">Iniciar Sesión</h1>
-
-                    <form method="POST">
-                        {% csrf_token %}
-
-                        <div class="mb-3">
-                            <label for="{{ form.username.id_for_label }}" class="form-label">RUT</label>
-                            {{ form.username }}
-                            {% for error in form.username.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
-                            {{ form.password }}
-                            {% for error in form.password.errors %}
-                                <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-
-                        {% if form.non_field_errors %}
-                            <div class="alert alert-danger" role="alert">
-                                {% for error in form.non_field_errors %}
-                                    {{ error }}
+<div class="login-container animate__animated animate__fadeIn">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6 col-xl-5">
+                <div class="login-card animate__animated animate__fadeInUp">
+                    <div class="login-header">
+                        <img src="{% static 'gestionOfertas/img/logo-white.png' %}" alt="MatchJob" class="brand-logo">
+                        <h2 class="mb-3">Bienvenido a MatchJob</h2>
+                        <p class="mb-0">Ingresa para acceder a tu cuenta</p>
+                    </div>
+                    
+                    <div class="login-body">
+                        <form method="POST" id="loginForm" novalidate>
+                            {% csrf_token %}
+                            
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    {% for error in form.non_field_errors %}
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+                                    {% endfor %}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endif %}
+                            
+                            <div class="mb-4 position-relative">
+                                <label for="{{ form.username.id_for_label }}" class="form-label fw-semibold">RUT</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                                    <input 
+                                        type="text" 
+                                        name="{{ form.username.name }}" 
+                                        id="{{ form.username.id_for_label }}" 
+                                        class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                                        value="{{ form.username.value|default:'' }}" 
+                                        placeholder="12345678-9"
+                                        autocomplete="rut"
+                                        required
+                                        pattern="\d{7,8}-[\dKk]"
+                                        title="Ingrese su RUT con guión (ej: 12345678-9)"
+                                    >
+                                </div>
+                                <small class="rut-help-text">Ingresa tu RUT con guión (ej: 12345678-9)</small>
+                                {% for error in form.username.errors %}
+                                    <div class="invalid-feedback d-block text-danger mt-1">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>{{ error }}
+                                    </div>
                                 {% endfor %}
                             </div>
-                        {% endif %}
-
-                        <button type="submit" class="btn btn-primary w-100">Entrar</button>
-                    </form>
+                            
+                            <div class="mb-4 position-relative">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label for="{{ form.password.id_for_label }}" class="form-label fw-semibold">Contraseña</label>
+                                    <a href="{% url 'inicio' %}" class="text-decoration-none small text-primary">¿Olvidaste tu contraseña?</a>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                    <input 
+                                        type="password" 
+                                        name="{{ form.password.name }}" 
+                                        id="{{ form.password.id_for_label }}" 
+                                        class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                                        placeholder="Ingresa tu contraseña"
+                                        autocomplete="current-password"
+                                        required
+                                    >
+                                    <span class="password-toggle" id="togglePassword">
+                                        <i class="bi bi-eye"></i>
+                                    </span>
+                                </div>
+                                {% for error in form.password.errors %}
+                                    <div class="invalid-feedback d-block text-danger mt-1">
+                                        <i class="bi bi-exclamation-circle-fill me-1"></i>{{ error }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="d-grid gap-2 mb-4">
+                                <button type="submit" class="btn btn-login text-white py-3">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
+                                </button>
+                            </div>
+                            
+                            <div class="login-footer">
+                                <p class="mb-0">¿No tienes una cuenta? <a href="{% url 'registro' %}" class="text-decoration-none fw-semibold text-primary">Regístrate aquí</a></p>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rutInput = document.getElementById('{{ form.username.id_for_label }}');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('{{ form.password.id_for_label }}');
+    
+    // Función para validar RUT chileno (con guión pero sin puntos)
+    function validarRUT(rut) {
+        // Validar formato básico (permite ceros al inicio para empresas)
+        if (!/^0*\d{7,8}-[\dKk]$/i.test(rut)) {
+            return false;
+        }
+        
+        // Limpiar RUT (solo quitar guión)
+        const cleanRUT = rut.replace("-", "");
+        const cuerpo = cleanRUT.slice(0, -1);
+        const dv = cleanRUT.slice(-1).toUpperCase();
+        
+        // Validar que el cuerpo sean solo números
+        if (!/^\d+$/.test(cuerpo)) {
+            return false;
+        }
+        
+        // Calcular DV esperado
+        let suma = 0;
+        let multiplo = 2;
+        
+        for (let i = cuerpo.length - 1; i >= 0; i--) {
+            suma += parseInt(cuerpo.charAt(i)) * multiplo;
+            multiplo = multiplo === 7 ? 2 : multiplo + 1;
+        }
+        
+        const dvEsperado = 11 - (suma % 11);
+        let dvCalculado = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
+        
+        return dvCalculado === dv;
+    }
+    
+    // Manejar entrada del RUT
+    rutInput.addEventListener('input', function(e) {
+        // Mantener posición del cursor
+        const startPos = this.selectionStart;
+        const endPos = this.selectionEnd;
+        
+        // Eliminar caracteres no válidos (solo números, k/K y un guión)
+        let value = this.value.replace(/[^0-9kK-]/g, '');
+        
+        // Asegurar que solo haya un guión
+        const parts = value.split('-');
+        if (parts.length > 2) {
+            value = parts[0] + '-' + parts.slice(1).join('');
+        }
+        
+        // Mover el guión a la posición correcta si es necesario
+        if (parts.length === 2 && parts[1].length > 1) {
+            value = parts[0] + parts[1].slice(0,1) + '-' + parts[1].slice(1);
+        }
+        
+        // Limitar longitud antes del guión (8 dígitos para empresas)
+        if (parts[0].length > 8) {
+            value = parts[0].substring(0,8) + (parts[1] ? '-' + parts[1] : '');
+        }
+        
+        // Limitar longitud después del guión (1 carácter para DV)
+        if (parts.length > 1 && parts[1].length > 1) {
+            value = parts[0] + '-' + parts[1].substring(0,1);
+        }
+        
+        // Convertir a mayúsculas
+        this.value = value.toUpperCase();
+        
+        // Restaurar posición del cursor
+        this.setSelectionRange(startPos, endPos);
+        
+        // Validación en tiempo real
+        if (value.length > 3 && validarRUT(value)) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        } else if (value.length > 0) {
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
+        } else {
+            this.classList.remove('is-valid', 'is-invalid');
+        }
+    });
+    
+    // Mostrar/ocultar contraseña
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+    });
+    
+    // Validar RUT al enviar el formulario
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        if (!validarRUT(rutInput.value)) {
+            e.preventDefault();
+            
+            // Crear mensaje de error si no existe
+            if (!rutInput.parentElement.querySelector('.invalid-feedback')) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback d-block text-danger mt-1';
+                errorDiv.innerHTML = '<i class="bi bi-exclamation-circle-fill me-1"></i>El RUT ingresado no es válido';
+                rutInput.parentElement.appendChild(errorDiv);
+            }
+            
+            rutInput.classList.add('is-invalid');
+            rutInput.focus();
+            
+            // Animación de error
+            rutInput.classList.add('animate__animated', 'animate__headShake');
+            setTimeout(() => {
+                rutInput.classList.remove('animate__animated', 'animate__headShake');
+            }, 1000);
+        }
+    });
+    
+    // Animación para errores existentes
+    const errors = document.querySelectorAll('.invalid-feedback');
+    errors.forEach(error => {
+        error.classList.add('animate__animated', 'animate__headShake');
+    });
+});
+</script>
 {% endblock %}

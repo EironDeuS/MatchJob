@@ -52,6 +52,12 @@
                                     <span class="nav-indicator"></span>
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.url_name == 'mis_ofertas' %}active{% endif %}" href="{% url 'mis_ofertas' %}">
+                                    <i class="bi bi-card-list nav-icon"></i> Mis Ofertas
+                                    <span class="nav-indicator"></span>
+                                </a>
+                            </li>
                         {% elif user.tipo_usuario == 'empresa' %}
                             <li class="nav-item">
                                 <a class="nav-link {% if '/ofertas/crear/' in request.path %}active{% endif %}" href="{% url 'inicio' %}">

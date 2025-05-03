@@ -1,82 +1,473 @@
 {% extends 'gestionOfertas/base.html' %}
+{% load custom_filters %}
 {% load static %}
 
-{% block content %}
-<div class="container py-5">
 
-    <!-- Barra de búsqueda y filtros -->
-    <div class="row g-3 align-items-end mb-5">
-        <div class="col-md-8">
-            <form method="get" action="{% url 'inicio' %}">
-                <label class="form-label fw-bold">🔎 Buscar ofertas</label>
-                <div class="input-group input-group-lg shadow-sm">
-                    <input type="text"
-                           name="q"
-                           class="form-control border-primary"
-                           placeholder="Ej: Diseñador gráfico, programador, etc."
-                           value="{{ busqueda_actual }}">
-                    <button type="submit" class="btn btn-primary">Buscar</button>
+{% block content %}
+<div class="container-fluid py-5 px-lg-5">
+    <!-- HERO SECTION -->
+    <div class="bg-gradient-primary text-white text-center p-5 rounded-4 shadow-lg mb-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold"><i class="bi bi-briefcase-fill me-2"></i>Encuentra trabajos esporádicos</h1>
+                <p class="lead fs-5">Descubre oportunidades según tus habilidades y disponibilidad en tu zona</p>
+                <div class="mt-4">
+                    <a href="#seccion-filtros" class="btn btn-light btn-lg fw-semibold text-primary px-4 me-2">
+                        <i class="bi bi-search me-2"></i>Buscar ahora
+                    </a>
+                    <a href="#seccion-ofertas" class="btn btn-outline-light btn-lg fw-semibold px-4">
+                        <i class="bi bi-fire me-2"></i>Ver ofertas
+                    </a>
                 </div>
-            </form>
-        </div>
-        <div class="col-md-4">
-            <form method="get" action="{% url 'inicio' %}" id="categoriaForm">
-                <input type="hidden" name="q" value="{{ busqueda_actual }}">
-                <label class="form-label fw-bold">🎯 Filtrar por categoría</label>
-                <select name="categoria"
-                        class="form-select form-select-lg border-success"
-                        onchange="this.form.submit()">
-                    <option value="">Todas las categorías</option>
-                    {% for cat in categorias %}
-                    <option value="{{ cat.id }}"
-                            {% if categoria_actual == cat.id|stringformat:"s" %}selected{% endif %}>
-                        {{ cat.nombre_categoria }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- Título -->
-    <h2 class="mb-4 fw-bold text-primary text-center">🚀 Ofertas destacadas</h2>
-
-    <!-- Ofertas -->
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% for oferta in ofertas %}
-        <div class="col">
-            <div class="card h-100 border-0 shadow-lg rounded-4 bg-light">
-                <div class="card-header text-white bg-gradient bg-primary rounded-top-4">
-                    <h5 class="card-title mb-0 fw-bold">
-                        <i class="bi bi-briefcase-fill me-2"></i>{{ oferta.nombre }}
-                    </h5>
-                </div>
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <div>
-                        <p class="text-muted mb-1">
-                            <i class="bi bi-building me-1"></i> {{ oferta.empresa.nombre_empresa }}
-                        </p>
-                        <p class="card-text small">{{ oferta.descripcion|truncatewords:25 }}</p>
-                        <span class="badge bg-success mt-2">
-                            <i class="bi bi-tag-fill me-1"></i>{{ oferta.categoria.nombre_categoria }}
-                        </span>
+    <!-- BÚSQUEDA Y FILTROS -->
+    <div id="seccion-filtros" class="card shadow rounded-4 mb-5 border-0">
+        <div class="card-header bg-light py-3 border-0">
+            <h4 class="mb-0 fw-bold text-primary"><i class="bi bi-funnel-fill me-2"></i>Filtros de búsqueda</h4>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{% url 'inicio' %}" class="row g-3">
+                <!-- Fila 1: Búsqueda básica -->
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">Palabra clave</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-primary"></i></span>
+                        <input type="text" name="q" class="form-control form-control-lg" placeholder="Ej: Electricista, Gasfiter, Programador..." value="{{ busqueda_actual }}">
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold">Buscar</button>
                     </div>
                 </div>
-                <div class="card-footer bg-white d-flex justify-content-between align-items-center rounded-bottom-4 border-top">
-                    <small class="text-muted"><i class="bi bi-calendar me-1"></i>{{ oferta.fecha_oferta|date:"d/m/Y" }}</small>
-                    <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-sm btn-outline-primary fw-semibold">
-                        Ver detalles
-                    </a>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Categoría</label>
+                    <select name="categoria" class="form-select form-select-lg" onchange="this.form.submit()">
+                        <option value="">Todas las categorías</option>
+                        {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_actual == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nombre_categoria }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Botón para mostrar/ocultar filtros avanzados -->
+                <div class="col-12 text-center mt-3">
+                    <button type="button" class="btn btn-link text-decoration-none fw-semibold" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados" aria-expanded="false">
+                        <i class="bi bi-sliders me-1"></i> Filtros avanzados <i class="bi bi-chevron-down ms-1"></i>
+                    </button>
+                </div>
+
+                <!-- Filtros avanzados (colapsables) -->
+                <div class="collapse col-12" id="filtrosAvanzados">
+                    <div class="card card-body border-0 bg-light rounded-3 mt-2">
+                        <div class="row g-3">
+                            <!-- Fila 2: Más filtros -->
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Tipo de contrato</label>
+                                <select name="tipo_contrato" class="form-select">
+                                    <option value="">Todos los contratos</option>
+                                    <option value="temporal" {% if tipo_contrato_actual == 'temporal' %}selected{% endif %}>Temporal</option>
+                                    <option value="indefinido" {% if tipo_contrato_actual == 'indefinido' %}selected{% endif %}>Indefinido</option>
+                                    <option value="freelance" {% if tipo_contrato_actual == 'freelance' %}selected{% endif %}>Freelance</option>
+                                    <option value="practicas" {% if tipo_contrato_actual == 'practicas' %}selected{% endif %}>Prácticas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Modalidad</label>
+                                <select name="modalidad" class="form-select">
+                                    <option value="">Todas las modalidades</option>
+                                    <option value="presencial" {% if modalidad_actual == 'presencial' %}selected{% endif %}>Presencial</option>
+                                    <option value="remoto" {% if modalidad_actual == 'remoto' %}selected{% endif %}>Remoto</option>
+                                    <option value="hibrido" {% if modalidad_actual == 'hibrido' %}selected{% endif %}>Híbrido</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Experiencia mínima</label>
+                                <select name="experiencia" class="form-select">
+                                    <option value="">Cualquier experiencia</option>
+                                    <option value="0" {% if experiencia_actual == '0' %}selected{% endif %}>Sin experiencia</option>
+                                    <option value="1" {% if experiencia_actual == '1' %}selected{% endif %}>1 año</option>
+                                    <option value="2" {% if experiencia_actual == '2' %}selected{% endif %}>2 años</option>
+                                    <option value="3" {% if experiencia_actual == '3' %}selected{% endif %}>3 años</option>
+                                    <option value="5" {% if experiencia_actual == '5' %}selected{% endif %}>5+ años</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Fecha de publicación</label>
+                                <select name="fecha" class="form-select">
+                                    <option value="">Todas las fechas</option>
+                                    <option value="hoy" {% if fecha_actual == 'hoy' %}selected{% endif %}>Hoy</option>
+                                    <option value="3dias" {% if fecha_actual == '3dias' %}selected{% endif %}>Últimos 3 días</option>
+                                    <option value="7dias" {% if fecha_actual == '7dias' %}selected{% endif %}>Última semana</option>
+                                    <option value="30dias" {% if fecha_actual == '30dias' %}selected{% endif %}>Último mes</option>
+                                </select>
+                            </div>
+
+                            <!-- Fila 3: Ubicación y salario -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Rango salarial</label>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white">$</span>
+                                            <input type="number" name="salario_min" class="form-control" placeholder="Mínimo" value="{{ salario_min_actual }}">
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white">$</span>
+                                            <input type="number" name="salario_max" class="form-control" placeholder="Máximo" value="{{ salario_max_actual }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 d-grid">
+                                <button type="submit" class="btn btn-primary fw-semibold mt-4">
+                                    <i class="bi bi-filter-square me-2"></i>Aplicar todos los filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Filtros activos -->
+        {% if busqueda_actual or categoria_actual or tipo_contrato_actual or modalidad_actual or salario_min_actual or salario_max_actual or experiencia_actual or fecha_actual %}
+        <div class="card-footer bg-light py-3 border-top">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-semibold text-secondary me-2"><i class="bi bi-tag-fill me-1"></i>Filtros activos:</span>
+                    {% if busqueda_actual %}
+                        <span class="badge bg-primary rounded-pill py-2 px-3 me-1 mb-1">{{ busqueda_actual }} <a href="?{% for key, value in request.GET.items %}{% if key != 'q' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-white ms-1"><i class="bi bi-x-circle"></i></a></span>
+                    {% endif %}
+                    
+                    {% if categoria_actual %}
+                        {% for cat in categorias %}
+                            {% if cat.id|stringformat:"s" == categoria_actual %}
+                                <span class="badge bg-success rounded-pill py-2 px-3 me-1 mb-1">{{ cat.nombre_categoria }} <a href="?{% for key, value in request.GET.items %}{% if key != 'categoria' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-white ms-1"><i class="bi bi-x-circle"></i></a></span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if tipo_contrato_actual %}
+                        <span class="badge bg-info rounded-pill py-2 px-3 me-1 mb-1">{{ tipo_contrato_actual|title }} <a href="?{% for key, value in request.GET.items %}{% if key != 'tipo_contrato' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-white ms-1"><i class="bi bi-x-circle"></i></a></span>
+                    {% endif %}
+                    
+                    {% if modalidad_actual %}
+                        <span class="badge bg-secondary rounded-pill py-2 px-3 me-1 mb-1">{{ modalidad_actual|title }} <a href="?{% for key, value in request.GET.items %}{% if key != 'modalidad' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-white ms-1"><i class="bi bi-x-circle"></i></a></span>
+                    {% endif %}
+                    
+                    {% if experiencia_actual %}
+                        <span class="badge bg-warning text-dark rounded-pill py-2 px-3 me-1 mb-1">{{ experiencia_actual }} año(s) exp. <a href="?{% for key, value in request.GET.items %}{% if key != 'experiencia' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-dark ms-1"><i class="bi bi-x-circle"></i></a></span>
+                    {% endif %}
+                    
+                    {% if fecha_actual %}
+                        <span class="badge bg-dark rounded-pill py-2 px-3 me-1 mb-1">
+                            {% if fecha_actual == 'hoy' %}Hoy
+                            {% elif fecha_actual == '3dias' %}Últimos 3 días
+                            {% elif fecha_actual == '7dias' %}Última semana
+                            {% elif fecha_actual == '30dias' %}Último mes
+                            {% endif %}
+                            <a href="?{% for key, value in request.GET.items %}{% if key != 'fecha' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-white ms-1"><i class="bi bi-x-circle"></i></a>
+                        </span>
+                    {% endif %}
+                    
+                    {% if salario_min_actual or salario_max_actual %}
+                        <span class="badge bg-danger rounded-pill py-2 px-3 me-1 mb-1">
+                            Salario: 
+                            {% if salario_min_actual %}${{ salario_min_actual }}{% else %}$0{% endif %} - 
+                            {% if salario_max_actual %}${{ salario_max_actual }}{% else %}+{% endif %}
+                            <a href="?{% for key, value in request.GET.items %}{% if key != 'salario_min' and key != 'salario_max' %}{{ key }}={{ value }}{% if not forloop.last %}&{% endif %}{% endif %}{% endfor %}" class="text-white ms-1"><i class="bi bi-x-circle"></i></a>
+                        </span>
+                    {% endif %}
+                </div>
+                <a href="{% url 'inicio' %}" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i>Limpiar todos
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- CONTADOR DE RESULTADOS -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 id="seccion-ofertas" class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-briefcase-fill me-2 text-primary"></i>Ofertas disponibles
+                </h2>
+                <span class="badge bg-primary rounded-pill px-3 py-2 fs-6">
+                    {{ ofertas.count }} resultado{{ ofertas.count|pluralize:",s" }} encontrado{{ ofertas.count|pluralize:",s" }}
+                </span>
+            </div>
+            <hr class="text-muted">
+        </div>
+    </div>
+
+    <!-- SECCIÓN DE OFERTAS -->
+    <div class="row g-4">
+        {% for oferta in ofertas %}
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 hover-card transition-all position-relative">
+                <!-- Badge destacado si es servicio -->
+                {% if oferta.es_servicio %}
+                <div class="position-absolute top-0 end-0 bg-success text-white px-3 py-1 fw-bold rounded-bl-4">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>Servicio
+                </div>
+                {% else %}
+                <div class="position-absolute top-0 end-0 bg-primary text-white px-3 py-1 fw-bold rounded-bl-4">
+                    <i class="bi bi-briefcase-fill me-1"></i>Empleo
+                </div>
+                {% endif %}
+                
+                <div class="card-body p-4">
+                    <div class="row g-4 align-items-center">
+                        <!-- Columna izquierda - Información principal -->
+                        <div class="col-lg-8">
+                            <div class="d-flex align-items-start gap-3 mb-3">
+                                <!-- Logo/avatar empresa -->
+                                <div class="flex-shrink-0">
+                                    <div class="bg-{% if oferta.es_servicio %}success{% else %}primary{% endif %} bg-opacity-10 text-{% if oferta.es_servicio %}success{% else %}primary{% endif %} rounded-3 p-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                        <i class="bi bi-{% if oferta.es_servicio %}tools{% else %}building{% endif %} fs-4"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Título y detalles principales -->
+                                <div class="flex-grow-1">
+                                    <h3 class="h5 fw-bold mb-1">{{ oferta.nombre }}</h3>
+                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                        {% if oferta.empresa %}
+                                        <span class="text-muted">
+                                            <i class="bi bi-building me-1"></i>{{ oferta.empresa.nombre_empresa }}
+                                        </span>
+                                        {% endif %}
+                                        
+                                        {% if oferta.ubicacion %}
+                                        <span class="text-muted d-flex align-items-center">
+                                            <i class="bi bi-geo-alt me-1"></i>{{ oferta.ubicacion }}
+                                        </span>
+                                        {% endif %}
+                                        
+                                        <span class="text-muted d-flex align-items-center">
+                                            <i class="bi bi-clock-history me-1"></i>
+                                            {{ oferta.fecha_publicacion|timesince }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Badges de categorías y características -->
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
+                                            <i class="bi bi-tag-fill me-1"></i>{{ oferta.categoria.nombre_categoria }}
+                                        </span>
+                                        
+                                        {% if oferta.tipo_contrato %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                                            <i class="bi bi-file-earmark-text me-1"></i>
+                                            {{ oferta.get_tipo_contrato_display }}
+                                        </span>
+                                        {% endif %}
+                                        
+                                        {% if oferta.salario %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+                                            <i class="bi bi-cash-coin me-1"></i>
+                                            {{ oferta.salario }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Extracto de descripción -->
+                                    <p class="text-secondary mb-0">{{ oferta.descripcion|truncatewords:25 }}</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Requisitos destacados -->
+                            {% if oferta.requisitos %}
+                            <div class="mt-3">
+                                <h6 class="fw-semibold mb-2 text-dark">
+                                    <i class="bi bi-list-check me-1"></i>Requisitos clave:
+                                </h6>
+                                <p class="text-muted small mb-0">{{ oferta.requisitos|truncatewords:15 }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Columna derecha - Acciones y detalles adicionales -->
+                        <div class="col-lg-4">
+                            <div class="d-flex flex-column h-100">
+                                <!-- Fecha de cierre (si existe) -->
+                                {% if oferta.fecha_cierre %}
+                                <div class="alert alert-warning alert-dismissible fade show p-2 mb-3" role="alert">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-hourglass-split me-2"></i>
+                                        <div>
+                                            <strong>Cierre:</strong> {{ oferta.fecha_cierre|date:"d/m/Y" }}
+                                            <small class="d-block">({{ oferta.fecha_cierre|timeuntil }})</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Beneficios destacados -->
+                                {% if oferta.beneficios %}
+                                <div class="mb-3">
+                                    <h6 class="fw-semibold mb-2 text-dark">
+                                        <i class="bi bi-stars me-1"></i>Beneficios:
+                                    </h6>
+                                    <p class="text-muted small mb-0">{{ oferta.beneficios|truncatewords:10 }}</p>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Botones de acción -->
+                                <div class="mt-auto d-grid gap-2">
+                                    <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
+                                        <i class="bi bi-eye-fill me-1"></i> Ver detalles
+                                    </a>
+                                    
+                                    {% if user.is_authenticated %}
+                                        
+                                        <a href="{% url 'inicio' %}" class="btn btn-outline-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
+                                            <i class="bi bi-send-fill me-1"></i> Postular ahora
+                                        </a>
+                                       
+                                        <button class="btn btn-outline-secondary fw-semibold" disabled>
+                                            <i class="bi bi-lock me-1"></i> No puedes postular
+                                        </button>
+                                        
+                                    {% else %}
+                                        <a href="{% url 'iniciar_sesion' %}" class="btn btn-outline-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
+                                            <i class="bi bi-box-arrow-in-right me-1"></i> Inicia sesión para postular
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         {% empty %}
         <div class="col-12">
-            <div class="alert alert-warning text-center">
-                😕 No se encontraron ofertas
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="bi bi-search-heart display-4 text-muted opacity-50"></i>
+                    </div>
+                    <h3 class="h4 fw-bold mb-3">No encontramos ofertas</h3>
+                    <p class="text-muted mb-4">Parece que no hay ofertas que coincidan con tus criterios de búsqueda actuales.</p>
+                    <a href="{% url 'inicio' %}" class="btn btn-primary px-4">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reiniciar búsqueda
+                    </a>
+                </div>
             </div>
         </div>
         {% endfor %}
     </div>
+    
+    {% block extra_css %}
+    <style>
+        .hover-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .hover-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1) !important;
+        }
+        
+        .transition-all {
+            transition: all 0.2s ease;
+        }
+        
+        .rounded-bl-4 {
+            border-bottom-left-radius: 0 !important;
+        }
+    </style>
+    {% endblock %}
+    
+
+    <!-- PAGINACIÓN -->
+    {% if ofertas.paginator %}
+    <div class="d-flex justify-content-center mt-5">
+        <nav aria-label="Paginación de ofertas">
+            <ul class="pagination">
+                {% if ofertas.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Primera">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ ofertas.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Anterior">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for i in ofertas.paginator.page_range %}
+                    {% if ofertas.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                    {% elif i > ofertas.number|add:'-3' and i < ofertas.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if ofertas.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ ofertas.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Siguiente">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ ofertas.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Última">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+
+    <!-- BANNER CALL-TO-ACTION -->
+    <div class="card bg-gradient-primary text-white text-center rounded-4 shadow-lg border-0 mt-5">
+        <div class="card-body p-5">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <h3 class="fw-bold mb-3">¿Buscas talento para tu proyecto?</h3>
+                    <p class="lead mb-4">Publica gratis tu oferta de trabajo y encuentra a los mejores profesionales</p>
+                    <a href="#" class="btn btn-light btn-lg fw-semibold text-primary">
+                        <i class="bi bi-plus-circle me-2"></i>Publicar oferta
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- ESTILOS ADICIONALES -->
+<style>
+    .bg-gradient-primary {
+        background: linear-gradient(to right, #4e73df, #224abe);
+    }
+    
+    .hover-card {
+        transition: all 0.3s ease;
+    }
+    
+    .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    .page-link {
+        color: #4e73df;
+    }
+    
+    .page-item.active .page-link {
+        background-color: #4e73df;
+        border-color: #4e73df;
+    }
+</style>
 {% endblock %}

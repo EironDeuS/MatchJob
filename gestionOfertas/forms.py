@@ -10,19 +10,100 @@ from django.utils.translation import gettext_lazy as _
 from .models import OfertaTrabajo, Categoria
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import re
 
 # --- LoginForm (Sin cambios, parece correcto para login con RUT) ---
+from django import forms
+from django.contrib.auth.forms import AuthenticationForm
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+import re
+
+from django import forms
+from django.contrib.auth.forms import AuthenticationForm
+from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
+import re
+
 class LoginForm(AuthenticationForm):
-    username = forms.CharField( # Mantenemos 'username' para el campo de login
+    username = forms.CharField(
         label='RUT',
-        max_length=50, # Ajustar si es necesario
-        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos ni guión)', 'class': 'form-control'})
+        max_length=12,  # Longitud máxima para RUT con guión: 12345678-9
+        widget=forms.TextInput(attrs={
+            'placeholder': '12345678-9',
+            'class': 'form-control',
+            'autocomplete': 'rut'
+        }),
+        help_text="Ingrese su RUT con guión (ej: 12345678-9)"
     )
+    
     password = forms.CharField(
         label='Contraseña',
-        widget=forms.PasswordInput(attrs={'placeholder': 'Contraseña', 'class': 'form-control'})
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'Ingrese su contraseña',
+            'class': 'form-control',
+            'autocomplete': 'current-password'
+        })
     )
-    # __init__ se hereda bien, no necesita cambios si solo ajusta la etiqueta.
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].validators.append(self.validate_rut_format)
+    
+    def validate_rut_format(self, value):
+        """
+        Valida el formato del RUT (con guión pero sin puntos)
+        """
+        rut = value.upper()
+        
+        # Validar formato básico (permite ceros al inicio para empresas)
+        if not re.match(r'^0*\d{7,8}-[\dK]$', rut):
+            raise ValidationError("El formato del RUT es incorrecto. Debe ser: 12345678-9")
+        
+        return rut
+    
+    def clean_rut(self, value):
+        """
+        Valida el dígito verificador del RUT
+        """
+        rut = value.upper().replace("-", "")
+        
+        # Separar cuerpo y dígito verificador
+        cuerpo = rut[:-1]
+        dv = rut[-1]
+        
+        # Calcular dígito verificador esperado
+        suma = 0
+        multiplo = 2
+        
+        for c in reversed(cuerpo):
+            suma += int(c) * multiplo
+            multiplo = multiplo + 1 if multiplo < 7 else 2
+        
+        dv_esperado = 11 - (suma % 11)
+        if dv_esperado == 11:
+            dv_esperado = '0'
+        elif dv_esperado == 10:
+            dv_esperado = 'K'
+        else:
+            dv_esperado = str(dv_esperado)
+        
+        if dv != dv_esperado:
+            raise ValidationError("El RUT ingresado no es válido (dígito verificador incorrecto)")
+        
+        # Retornar RUT con guión (sin puntos)
+        return f"{cuerpo}-{dv}"
+    
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        try:
+            # Primero validar formato
+            rut_formatted = self.validate_rut_format(username)
+            # Luego validar dígito verificador
+            return self.clean_rut(rut_formatted)
+        except ValidationError as e:
+            raise forms.ValidationError(e.message)
+
 
 
 # --- Formulario de Registro Actualizado ---
@@ -244,6 +325,98 @@ class OfertaTrabajoForm(forms.ModelForm):
             instance.save()
         
         return instance
+    
+class EditarOfertaTrabajoForm(forms.ModelForm):
+    class Meta:
+        model = OfertaTrabajo
+        fields = [
+            'categoria', 'nombre', 'descripcion', 'requisitos',
+            'beneficios', 'salario', 'ubicacion', 'tipo_contrato',
+            'fecha_cierre', 'esta_activa'
+        ]
+        widgets = {
+            'descripcion': forms.Textarea(attrs={
+                'rows': 4, 
+                'class': 'form-control',
+                'placeholder': _('Describe detalladamente la oferta')
+            }),
+            'requisitos': forms.Textarea(attrs={
+                'rows': 3, 
+                'class': 'form-control',
+                'placeholder': _('Lista los requisitos necesarios')
+            }),
+            'beneficios': forms.Textarea(attrs={
+                'rows': 3, 
+                'class': 'form-control',
+                'placeholder': _('Menciona los beneficios ofrecidos')
+            }),
+            'fecha_cierre': forms.DateInput(attrs={
+                'type': 'date', 
+                'class': 'form-control',
+                'min': timezone.now().date().isoformat()
+            }),
+            'tipo_contrato': forms.Select(attrs={'class': 'form-select'}),
+            'salario': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('Ej: $1,000,000 - $1,500,000')
+            }),
+            'ubicacion': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': _('Ej: Bogotá, Colombia o Remoto')
+            }),
+        }
+        labels = {
+            'esta_activa': _('Estado de la oferta'),
+            'tipo_contrato': _('Tipo de Contrato'),
+            'fecha_cierre': _('Fecha de cierre (opcional)'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Extraemos el usuario si fue pasado
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Configuración para empresas
+        if self.user and hasattr(self.user, 'empresa'):
+            self.fields['tipo_contrato'].required = True
+            self.fields['ubicacion'].required = True
+            self.fields['nombre'].label = _('Nombre del puesto')
+            
+            # Configurar choices para tipo_contrato si es necesario
+            self.fields['tipo_contrato'].widget.choices = [
+                ('', _('Seleccione un tipo de contrato')),  # Opción vacía
+                *OfertaTrabajo.TIPO_CONTRATO_CHOICES  # Asume que tienes esto en tu modelo
+            ]
+        else:
+            # Para personas naturales, podrías eliminar el campo si no es relevante
+            # o mantenerlo pero hacerlo opcional
+            self.fields['tipo_contrato'].required = False
+            self.fields['nombre'].label = _('Título de tu servicio')
+            self.fields['descripcion'].label = _('Descripción de tu servicio')
+            self.fields['requisitos'].label = _('Qué necesitas para el servicio')
+
+        # Configuración común para todos los usuarios
+        self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
+        self.fields['categoria'].widget.attrs['class'] = 'form-select'
+        
+        # Si estamos editando, establecer mínimo de fecha como hoy o la fecha actual de cierre
+        if self.instance and self.instance.fecha_cierre:
+            min_date = min(timezone.now().date(), self.instance.fecha_cierre)
+            self.fields['fecha_cierre'].widget.attrs['min'] = min_date.isoformat()
+        else:
+            self.fields['fecha_cierre'].widget.attrs['min'] = timezone.now().date().isoformat()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Validación específica para empresas
+        if hasattr(self.user, 'empresa'):
+            if not cleaned_data.get('tipo_contrato'):
+                self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
+            if not cleaned_data.get('ubicacion'):
+                self.add_error('ubicacion', _('Debes especificar una ubicación'))
+        
+        return cleaned_data
 
 
 class EditarPerfilPersonaForm(forms.Form):

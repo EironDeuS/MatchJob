@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
-from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, EditarPerfilPersonaForm
+from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, EditarPerfilPersonaForm,EditarOfertaTrabajoForm
 from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
@@ -267,7 +267,46 @@ def crear_oferta(request):
     
     return render(request, 'gestionOfertas/crear_oferta.html', contexto)
 
- # ajusta el import según tu app
+@login_required
+def mis_ofertas(request):
+    usuario = request.user
+    ofertas = OfertaTrabajo.objects.filter(creador=usuario).select_related('categoria', 'empresa')
+
+    context = {
+        'ofertas': ofertas
+    }
+    return render(request, 'gestionOfertas/mis_ofertas.html', context)
+@login_required
+def editar_oferta(request, oferta_id):
+    oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
+    
+    if request.method == 'POST':
+        form = EditarOfertaTrabajoForm(request.POST, instance=oferta)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Oferta actualizada correctamente')
+            return redirect('mis_ofertas')
+    else:
+        form = EditarOfertaTrabajoForm(instance=oferta)
+    
+    return render(request, 'gestionOfertas/editar_oferta.html', {
+        'form': form,
+        'oferta': oferta
+    })
+
+@login_required
+def eliminar_oferta(request, oferta_id):
+    oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
+    
+    if request.method == 'POST':
+        oferta.delete()
+        messages.success(request, 'Oferta eliminada correctamente')
+        return redirect('mis_ofertas')
+    
+    return render(request, 'gestionOfertas/confirmar_eliminar.html', {
+        'oferta': oferta
+    })
+
 
 @login_required
 def mi_perfil(request):
