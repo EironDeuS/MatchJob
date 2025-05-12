@@ -9,7 +9,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
-MESSAGE_TAGS = {
+MESSAGE_TAGS = {    
     messages.DEBUG: 'secondary',
     messages.INFO: 'info',
     messages.SUCCESS: 'success',
@@ -94,18 +94,19 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 
 
 # --- Google Cloud Storage Configuration ---
+GS_CREDENTIALS_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+GS_CREDENTIALS = service_account.Credentials.from_service_account_file(GS_CREDENTIALS_FILE) if GS_CREDENTIALS_FILE else None
 
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
-            "bucket_name": "matchjob", # Bucket para MEDIA
+            "bucket_name": "matchjob",
+            "credentials": GS_CREDENTIALS,  # Usar las credenciales del .env
         },
     },
     "staticfiles": {
-        # AQUÍ ESTÁ EL CAMBIO: Usar el backend local por defecto para estáticos
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        # No se necesitan OPTIONS especiales aquí para el backend local
     }
 }
 MEDIA_URL = '' # O f'https://storage.googleapis.com/matchjob/media/' si prefieres
