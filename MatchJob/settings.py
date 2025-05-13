@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'gestionOfertas',
     'widget_tweaks',
     'storages',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -68,7 +69,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'BDmatchjob',
         'USER': 'neondb_owner',
-        'PASSWORD': 'npg_lU8ucqsIiP6X', # <-- ¡MOVER A .env!
+        'PASSWORD': 'npg_lU8ucqsIiP6X', 
         'HOST': 'ep-weathered-sunset-ac0mxs0q-pooler.sa-east-1.aws.neon.tech',
         'PORT': '5432',
         'OPTIONS': {
@@ -90,9 +91,16 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'gestionOfertas/static'), 
 ]
+
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'gestionOfertas/static'), 
+]
+
 
 # --- Google Cloud Storage Configuration ---
 GS_CREDENTIALS_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')

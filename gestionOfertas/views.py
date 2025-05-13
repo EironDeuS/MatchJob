@@ -4,6 +4,7 @@
 from datetime import datetime, timedelta
 from django.forms import ValidationError
 
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -380,6 +381,14 @@ def cambiar_estado_postulacion(request, postulacion_id):
             messages.error(request, "Estado no válido.")
 
     return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
+
+def mapa(request):
+    return render(request, 'gestionOfertas/mapa.html')
+
+def ofertas_activas_json(request):
+    ofertas = OfertaTrabajo.objects.filter(esta_activa=True).values('id', 'nombre', 'ubicacion', 'descripcion')
+    return JsonResponse(list(ofertas), safe=False)
+
 
 @login_required # Asegura que solo usuarios logueados accedan
 def editar_perfil(request):

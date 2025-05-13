@@ -1,0 +1,948 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Mapa Interactivo de Ofertas{% endblock %}
+
+{% block content %}
+<div class="map-container">
+  <h1 class="map-title">Explora Ofertas en tu Área</h1>
+  
+  <div class="map-controls">
+    <div class="search-container">
+      <input id="search-box" type="text" placeholder="Buscar lugar...">
+      <i class="fas fa-search search-icon"></i>
+    </div>
+    
+    <div class="route-container">
+      <div class="input-group">
+        <i class="fas fa-map-marker-alt"></i>
+        <input id="origin" type="text" placeholder="Tu ubicación">
+      </div>
+      <div class="input-group">
+        <i class="fas fa-flag"></i>
+        <input id="destination" type="text" placeholder="Destino">
+      </div>
+      <button class="route-button" onclick="calculateRoute()">
+        <i class="fas fa-route"></i> Calcular Ruta
+      </button>
+    </div>
+    
+    <div class="filter-container">
+      <button class="filter-button" data-category="all">
+        <i class="fas fa-th"></i> Todas
+      </button>
+      <button class="filter-button" data-category="services">
+        <i class="fas fa-concierge-bell"></i> Servicios
+      </button>
+    </div>
+  </div>
+
+  <div id="map"></div>
+  
+  <div id="route-info" class="route-info-panel">
+    <h3>Información de Ruta</h3>
+    <div id="route-details">
+      <p>Selecciona un origen y destino para calcular una ruta.</p>
+    </div>
+  </div>
+  
+  <div id="selected-offer-info" class="offer-info-panel">
+    <h3>Detalles de la Oferta</h3>
+    <div id="offer-details">
+      <p>Selecciona una oferta en el mapa para ver sus detalles.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Estilos mejorados -->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+  @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+
+  :root {
+    --primary-color: #4361ee;
+    --secondary-color: #3f37c9;
+    --accent-color: #4cc9f0;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --success-color: #4bb543;
+    --warning-color: #f0ad4e;
+    --danger-color: #d9534f;
+  }
+
+  .map-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Poppins', sans-serif;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(500px, 1fr) auto;
+    gap: 20px;
+  }
+
+  .map-title {
+    text-align: center;
+    color: var(--dark-color);
+    margin-bottom: 25px;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: 10px;
+  }
+
+  .map-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: 3px;
+  }
+
+  .map-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .search-container {
+    position: relative;
+    width: 100%;
+  }
+
+  #search-box {
+    width: 100%;
+    padding: 12px 15px 12px 40px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+  }
+
+  #search-box:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 12px rgba(67, 97, 238, 0.2);
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #777;
+  }
+
+  .route-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .input-group {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+
+  .input-group i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary-color);
+  }
+
+  #origin, #destination {
+    width: 100%;
+    padding: 12px 15px 12px 35px;
+    font-size: 0.95rem;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    transition: all 0.3s;
+  }
+
+  #origin:focus, #destination:focus {
+    outline: none;
+    border-color: var(--primary-color);
+  }
+
+  .route-button {
+    padding: 12px 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.3);
+  }
+
+  .route-button:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.4);
+  }
+
+  .filter-container {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    scrollbar-width: thin;
+  }
+
+  .filter-container::-webkit-scrollbar {
+    height: 5px;
+  }
+
+  .filter-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 5px;
+  }
+
+  .filter-button {
+    padding: 8px 15px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: all 0.3s;
+  }
+
+  .filter-button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+  }
+
+  .filter-button:hover {
+    background-color: #f0f0f0;
+  }
+
+  .filter-button.active:hover {
+    background-color: var(--secondary-color);
+  }
+
+  #map {
+    height: 500px;
+    width: 100%;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border: 1px solid #eee;
+  }
+
+  .route-info-panel, .offer-info-panel {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+  }
+  
+  @media (min-width: 992px) {
+    .map-container {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto minmax(500px, 1fr);
+    }
+    
+    .map-title {
+      grid-column: 1 / -1;
+    }
+    
+    .map-controls {
+      grid-column: 1 / -1;
+    }
+    
+    #map {
+      grid-column: 1 / -1;
+    }
+    
+    .route-info-panel {
+      grid-column: 1;
+    }
+    
+    .offer-info-panel {
+      grid-column: 2;
+    }
+  }
+  
+  .route-info-panel h3, .offer-info-panel h3 {
+    margin: 0 0 10px 0;
+    color: var(--dark-color);
+    font-weight: 600;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 5px;
+  }
+  
+  .offer-details-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    border-left: 4px solid var(--primary-color);
+  }
+  
+  .offer-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  
+  .offer-details-title {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0;
+    color: var(--dark-color);
+  }
+  
+  .offer-details-category {
+    background: var(--primary-color);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .offer-details-address {
+    margin: 5px 0;
+    font-size: 0.9rem;
+    color: #666;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .offer-details-description {
+    margin: 10px 0;
+    font-size: 0.95rem;
+    color: #333;
+  }
+  
+  .offer-details-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+  }
+  
+  .offer-details-link {
+    padding: 8px 15px;
+    background-color: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s;
+  }
+  
+  .offer-details-link:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+  }
+  
+  .route-details-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    border-left: 4px solid var(--accent-color);
+  }
+  
+  .route-details-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  
+  .route-detail-item {
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+    padding: 10px;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    flex: 1;
+    min-width: 120px;
+  }
+  
+  .route-detail-label {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 5px;
+  }
+  
+  .route-detail-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--dark-color);
+  }
+
+  /* InfoWindow personalizado */
+  .gm-style .gm-style-iw-c {
+    padding: 0;
+    border-radius: 10px;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .gm-style .gm-style-iw-d {
+    overflow: hidden !important;
+  }
+
+  .custom-infowindow {
+    width: 250px;
+  }
+
+  .custom-infowindow-image {
+    height: 120px;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .custom-infowindow-content {
+    padding: 12px;
+  }
+
+  .custom-infowindow-title {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .custom-infowindow-description {
+    margin: 0 0 10px 0;
+    font-size: 0.85rem;
+    color: #666;
+  }
+
+  .custom-infowindow-button {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    text-align: center;
+    border: none;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+  }
+
+  .custom-infowindow-button:hover {
+    background-color: var(--secondary-color);
+  }
+
+  @media (max-width: 768px) {
+    .map-container {
+      padding: 15px;
+      grid-template-columns: 1fr;
+    }
+    
+    .route-container {
+      flex-direction: column;
+    }
+    
+    .input-group {
+      width: 100%;
+    }
+    
+    .route-button {
+      width: 100%;
+      justify-content: center;
+    }
+    
+    #map {
+      height: 400px;
+    }
+  }
+  
+  .error-message {
+    color: var(--danger-color);
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 15px;
+    border-radius: 5px;
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  /* Notificación de ruta */
+  .route-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.5s;
+    border-left: 4px solid var(--primary-color);
+  }
+</style>
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places"></script>
+
+<!-- Script mejorado -->
+<script>
+let map;
+let directionsService;
+let directionsRenderer;
+let markers = [];
+let activeOfertas = [];
+let userPosition = null;
+let selectedOferta = null;
+
+// Iconos personalizados para diferentes categorías
+const markerIcons = {
+  default: {
+    url: "{% static 'img/marker-default.png' %}",
+    scaledSize: new google.maps.Size(40, 40)
+  },
+  food: {
+    url: "{% static 'img/marker-food.png' %}",
+    scaledSize: new google.maps.Size(40, 40)
+  },
+  shopping: {
+    url: "{% static 'img/marker-shopping.png' %}",
+    scaledSize: new google.maps.Size(40, 40)
+  },
+  services: {
+    url: "{% static 'img/marker-services.png' %}",
+    scaledSize: new google.maps.Size(40, 40)
+  },
+  highlight: {
+    url: "{% static 'img/marker-highlight.png' %}",
+    scaledSize: new google.maps.Size(50, 50)
+  }
+};
+
+function initMap() {
+  // Inicializar el mapa con estilos personalizados
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: -33.4489, lng: -70.6693 }, // Santiago por defecto
+    zoom: 13,
+    styles: [
+      {
+        featureType: "poi",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "transit",
+        elementType: "labels.icon",
+        stylers: [{ visibility: "off" }]
+      }
+    ]
+  });
+
+  // Servicio de direcciones
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({
+    suppressMarkers: true,
+    polylineOptions: {
+      strokeColor: '#4361ee',
+      strokeOpacity: 0.8,
+      strokeWeight: 4
+    }
+  });
+  directionsRenderer.setMap(map);
+
+  // Autocompletado del campo de búsqueda
+  setupAutocomplete();
+  
+  // Configurar geolocalización
+  setupGeolocation();
+  
+  // Cargar ofertas activas
+  cargarOfertasActivas();
+  
+  // Configurar filtros
+  setupFilters();
+}
+
+function setupAutocomplete() {
+  const searchInput = document.getElementById("search-box");
+  if (!searchInput) {
+    console.warn("Elemento search-box no encontrado");
+    return;
+  }
+  
+  const autocompleteSearch = new google.maps.places.Autocomplete(searchInput);
+  autocompleteSearch.bindTo("bounds", map);
+
+  const searchMarker = new google.maps.Marker({
+    map,
+    icon: {
+      url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+      scaledSize: new google.maps.Size(30, 30)
+    },
+    zIndex: 999
+  });
+
+  autocompleteSearch.addListener("place_changed", () => {
+    const place = autocompleteSearch.getPlace();
+    if (!place.geometry) return;
+
+    if (place.geometry.viewport) {
+      map.fitBounds(place.geometry.viewport);
+    } else {
+      map.setCenter(place.geometry.location);
+      map.setZoom(17);
+    }
+
+    searchMarker.setPosition(place.geometry.location);
+  });
+
+  // Autocompletado en origen y destino
+  const originInput = document.getElementById("origin");
+  const destinationInput = document.getElementById("destination");
+  
+  if (originInput) {
+    new google.maps.places.Autocomplete(originInput);
+  }
+  
+  if (destinationInput) {
+    new google.maps.places.Autocomplete(destinationInput);
+  }
+}
+
+function setupGeolocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        userPosition = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+
+        map.setCenter(userPosition);
+
+        new google.maps.Marker({
+          position: userPosition,
+          map: map,
+          title: "Tu ubicación",
+          icon: {
+            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            scaledSize: new google.maps.Size(40, 40)
+          },
+          zIndex: 998
+        });
+
+        // Usar geocodificación inversa para obtener la dirección
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: userPosition }, (results, status) => {
+          const originInput = document.getElementById("origin");
+          if (!originInput) return;
+          
+          if (status === "OK" && results && results[0]) {
+            originInput.value = results[0].formatted_address;
+          } else {
+            originInput.value = `${userPosition.lat.toFixed(4)}, ${userPosition.lng.toFixed(4)}`;
+          }
+        });
+      },
+      (error) => {
+        console.error("Error de geolocalización:", error);
+        alert("No se pudo obtener tu ubicación. Usando ubicación por defecto.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
+  } else {
+    alert("Tu navegador no soporta geolocalización. Usando ubicación por defecto.");
+  }
+}
+
+function cargarOfertasActivas() {
+  fetch("{% url 'ofertas_activas_json' %}")
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Error al cargar ofertas');
+      }
+      return response.json();
+    })
+    .then(ofertas => {
+      activeOfertas = ofertas;
+      mostrarOfertasEnMapa(ofertas);
+    })
+    .catch(error => {
+      console.error("Error al cargar las ofertas activas:", error);
+      // Mostrar mensaje al usuario
+      const mapElement = document.getElementById('map');
+      if (mapElement) {
+        const errorElement = document.createElement('div');
+        errorElement.className = 'error-message';
+        errorElement.textContent = 'No se pudieron cargar las ofertas. Por favor, intenta nuevamente.';
+        mapElement.appendChild(errorElement);
+      }
+    });
+}
+
+function mostrarOfertasEnMapa(ofertas) {
+  // Limpiar marcadores anteriores
+  clearMarkers();
+  
+  if (!ofertas || !Array.isArray(ofertas) || ofertas.length === 0) {
+    console.warn("No hay ofertas para mostrar");
+    return;
+  }
+
+  const geocoder = new google.maps.Geocoder();
+  const bounds = new google.maps.LatLngBounds();
+  let pendingGeocodes = ofertas.length;
+
+  ofertas.forEach((oferta) => {
+    if (!oferta.ubicacion) {
+      console.warn(`Oferta ${oferta.id} no tiene ubicación`);
+      pendingGeocodes--;
+      return;
+    }
+
+    geocoder.geocode({ address: oferta.ubicacion }, (results, status) => {
+      pendingGeocodes--;
+      
+      if (status !== "OK" || !results || !results[0]) {
+        console.error(`Error geocodificando: ${oferta.ubicacion}`);
+        if (pendingGeocodes === 0 && !bounds.isEmpty()) {
+          map.fitBounds(bounds);
+        }
+        return;
+      }
+
+      const location = results[0].geometry.location;
+      bounds.extend(location);
+      
+      // Guardar las coordenadas en el objeto oferta para referencia futura
+      oferta.lat = location.lat();
+      oferta.lng = location.lng();
+      
+      const icon = markerIcons[oferta.categoria] || markerIcons.default;
+      
+      const marker = new google.maps.Marker({
+        map,
+        position: location,
+        title: oferta.nombre,
+        icon: icon,
+        animation: google.maps.Animation.DROP,
+        ofertaId: oferta.id
+      });
+      
+      markers.push(marker);
+      
+      const infoWindowContent = `
+        <div class="custom-infowindow">
+          <div class="custom-infowindow-image" style="background-image: url('${oferta.imagen || '{% static "img/default-offer.jpg" %}'}')"></div>
+          <div class="custom-infowindow-content">
+            <h3 class="custom-infowindow-title">${oferta.nombre}</h3>
+            <p class="custom-infowindow-description">${oferta.descripcion_corta || (oferta.descripcion ? oferta.descripcion.substring(0, 100) + '...' : '')}</p>
+            <a href="/oferta/${oferta.id}" class="custom-infowindow-button">Ver Detalles</a>
+          </div>
+        </div>
+      `;
+      
+      const infoWindow = new google.maps.InfoWindow({
+        content: infoWindowContent,
+        maxWidth: 300
+      });
+      
+      // Eventos del marcador
+      marker.addListener("click", () => {
+        // Cerrar otros infowindows abiertos
+        markers.forEach(m => m.infoWindow && m.infoWindow.close());
+        
+        // Abrir este infowindow
+        infoWindow.open(map, marker);
+        marker.infoWindow = infoWindow;
+        marker.setIcon(markerIcons.highlight);
+        marker.setZIndex(1000);
+        
+        // Centrar mapa ligeramente por encima del marcador para mejor visualización
+        map.panTo({ lat: location.lat() - 0.002, lng: location.lng() });
+        
+        // Actualizar panel de detalles de oferta
+        mostrarDetallesOferta(oferta);
+        
+        // Guardar referencia a la oferta seleccionada
+        selectedOferta = oferta;
+        
+        // Auto-completar el destino para el cálculo de ruta
+        const destinationInput = document.getElementById("destination");
+        if (destinationInput) {
+          destinationInput.value = oferta.ubicacion;
+        }
+      });
+      
+      infoWindow.addListener("closeclick", () => {
+        marker.setIcon(icon);
+        marker.setZIndex(null);
+      });
+
+      if (pendingGeocodes === 0 && !bounds.isEmpty()) {
+        map.fitBounds(bounds);
+      }
+    });
+  });
+}
+
+function mostrarDetallesOferta(oferta) {
+  const offerDetailsContainer = document.getElementById("offer-details");
+  if (!offerDetailsContainer) return;
+  
+  let distance = "";
+  if (userPosition && oferta.lat && oferta.lng) {
+    const distanceValue = calcularDistancia(
+      userPosition.lat, 
+      userPosition.lng,
+      parseFloat(oferta.lat),
+      parseFloat(oferta.lng)
+    );
+    distance = `${distanceValue.toFixed(1)} km`;
+  }
+  
+  offerDetailsContainer.innerHTML = `
+    <div class="offer-details-card">
+      <div class="offer-details-header">
+        <h4 class="offer-details-title">${oferta.nombre}</h4>
+        <span class="offer-details-category">${oferta.categoria || 'Oferta'}</span>
+      </div>
+      <div class="offer-details-address">
+        <i class="fas fa-map-marker-alt"></i> ${oferta.ubicacion}
+        ${distance ? `<span class="offer-details-distance">(${distance})</span>` : ''}
+      </div>
+      <p class="offer-details-description">
+        ${oferta.descripcion || oferta.descripcion_corta || 'No hay descripción disponible'}
+      </p>
+      <div class="offer-details-actions">
+        <a href="/oferta/${oferta.id}" class="offer-details-link">
+          <i class="fas fa-external-link-alt"></i> Ver Oferta Completa
+        </a>
+        <button onclick="calcularRutaHaciaOferta(${oferta.id})" class="offer-details-link">
+          <i class="fas fa-route"></i> Calcular Ruta
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function setupFilters() {
+  const filterButtons = document.querySelectorAll(".filter-button");
+  if (!filterButtons.length) return;
+  
+  filterButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      filterButtons.forEach(btn => btn.classList.remove("active"));
+      button.classList.add("active");
+      
+      const category = button.dataset.category;
+      if (category === "all") {
+        mostrarOfertasEnMapa(activeOfertas);
+      } else {
+        const filteredOfertas = activeOfertas.filter(
+          oferta => oferta.categoria === category
+        );
+        mostrarOfertasEnMapa(filteredOfertas);
+      }
+    });
+  });
+}
+
+function calculateRoute() {
+  const originInput = document.getElementById("origin");
+  const destinationInput = document.getElementById("destination");
+  
+  if (!originInput || !destinationInput) {
+    console.error("Elementos de origen o destino no encontrados");
+    return;
+  }
+  
+  const origin = originInput.value;
+  const destination = destinationInput.value;
+
+  if (!origin || !destination) {
+    alert("Por favor, completa ambas direcciones.");
+    return;
+  }
+
+  directionsService.route(
+    {
+      origin: origin,
+      destination: destination,
+      travelMode: google.maps.TravelMode.DRIVING,
+      provideRouteAlternatives: true
+    },
+    (response, status) => {
+      if (status === "OK") {
+        directionsRenderer.setDirections(response);
+        
+        const route = response.routes[0];
+        const distance = route.legs[0].distance.text;
+        const duration = route.legs[0].duration.text;
+        
+        showRouteInfo(origin, destination, distance, duration, route);
+      } else {
+        alert("No se pudo calcular la ruta: " + status);
+      }
+    }
+  );
+}
+
+function calcularRutaHaciaOferta(ofertaId) {
+  const oferta = activeOfertas.find(o => o.id === ofertaId);
+  if (!oferta) return;
+  
+  const originInput = document.getElementById("origin");
+  if (!originInput || !originInput.value) {
+    alert("Por favor, selecciona un punto de origen.");
+    return;
+  }
+}
+  
+  const destination = `${oferta.ubicacion}, ${oferta.ciudad}`;
+  directionsService.route(
+    {
+      origin: originInput.value,
+      destination: destination,
+      travelMode: google.maps.TravelMode.DRIVING
+    },
+    (response, status) => {
+      if (status === "OK") {
+        directionsRenderer.setDirections(response);
+        
+        const route = response.routes[0];
+        const distance = route.legs[0].distance.text;
+        const duration = route.legs[0].duration.text;
+        
+        showRouteInfo(originInput.value, destination, distance, duration, route);
+      } else {
+        alert("No se pudo calcular la ruta: " + status);
+      }
+    }
+  );
+
+</script>
+{% endblock %}

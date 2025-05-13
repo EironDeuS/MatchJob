@@ -57,11 +57,9 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     )
     correo = models.EmailField(_('Correo electrónico'), unique=True)
     telefono = models.CharField(_('Teléfono'), max_length=20, blank=True, null=True)
-    # Dirección ahora está aquí
     direccion = models.CharField(
         _('Dirección'), max_length=255, blank=True, null=True
     )
-    # No va valoracion_id aquí
     tipo_usuario = models.CharField(
         _('Tipo de usuario'), max_length=20, choices=TIPO_USUARIO_CHOICES, default='persona'
     )
