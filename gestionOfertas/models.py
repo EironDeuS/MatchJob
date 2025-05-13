@@ -389,10 +389,11 @@ class OfertaTrabajo(models.Model):
 class Postulacion(models.Model):
     ESTADOS = [
         ('pendiente', _('Pendiente')),
-        ('revisado', _('Revisado')),
-        ('entrevista', _('Entrevista')),
+        ('filtrado', _('Filtrado')),
+        ('match', _('Match')),
         ('contratado', _('Contratado')),
         ('rechazado', _('Rechazado')),
+        ('finalizado', _('Finalizado')),
     ]
     persona = models.ForeignKey(PersonaNatural, on_delete=models.CASCADE, related_name='postulaciones')
     oferta = models.ForeignKey(OfertaTrabajo, on_delete=models.CASCADE, related_name='postulaciones_recibidas')
@@ -403,6 +404,8 @@ class Postulacion(models.Model):
     mensaje = models.TextField(_('Mensaje del postulante'), blank=True)
     estado = models.CharField(_('Estado'), max_length=20, choices=ESTADOS, default='pendiente')
     feedback = models.TextField(_('Feedback'), blank=True)
+    # --- CAMBIO AÑADIDO ---
+    filtrada = models.BooleanField(_('Filtrada'), default=False, help_text=_('Indica si la postulación ha sido filtrada manualmente'))
 
     class Meta:
         verbose_name = _('Postulación')
@@ -413,6 +416,7 @@ class Postulacion(models.Model):
             models.Index(fields=['persona']),
             models.Index(fields=['oferta']),
             models.Index(fields=['estado']),
+            models.Index(fields=['filtrada']), # Añadimos un índice para el nuevo campo
         ]
 
     def __str__(self):
@@ -426,18 +430,18 @@ class Postulacion(models.Model):
             self.cv_enviado = self.persona.cv
 
     def puede_valorar(self, usuario_actual: Usuario) -> tuple[bool, Usuario | None]:
-        # Lógica Ejemplo: Solo valorar si está 'contratado' o 'rechazado' (ajusta esto!)
-        if self.estado not in ['contratado', 'rechazado']:
-             return False, None
+        if self.estado != 'finalizado':  # <-- CAMBIO CLAVE
+            return False, None
         emisor = usuario_actual
         receptor = None
-        # Compara con el usuario asociado a la persona y el creador de la oferta
         if emisor == self.persona.usuario:
             receptor = self.oferta.creador
         elif emisor == self.oferta.creador:
             receptor = self.persona.usuario
-        else: return False, None
-        if receptor is None: return False, None
+        else:
+            return False, None
+        if receptor is None:
+            return False, None
         valoracion_existente = Valoracion.objects.filter(
             emisor=emisor, receptor=receptor, postulacion=self
         ).exists()

@@ -1,7 +1,13 @@
 {% extends 'gestionOfertas/base.html' %}
-{% load custom_filters %}
+
 {% load static %}
 
+
+{% block title %}Inicio - MatchJob{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/inicio.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-5 px-lg-5">
@@ -319,26 +325,31 @@
                                 
                                 <!-- Botones de acción -->
                                 <div class="mt-auto d-grid gap-2">
-                                    <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
+                                    <a href="{% url 'detalle_oferta' oferta.id %}"
+                                       class="btn btn-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
                                         <i class="bi bi-eye-fill me-1"></i> Ver detalles
                                     </a>
-                                    
+                                
                                     {% if user.is_authenticated %}
-                                        
-                                        <a href="{% url 'inicio' %}" class="btn btn-outline-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
-                                            <i class="bi bi-send-fill me-1"></i> Postular ahora
-                                        </a>
-                                       
+                                    <button class="btn btn-outline-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold"
+                                        id="btn-postular-{{ oferta.id }}" data-bs-toggle="modal"
+                                        data-bs-target="#confirmarPostulacionModal"
+                                        data-oferta-id="{{ oferta.id }}"> <i class="bi bi-send-fill me-1"></i> Postular ahora
+                                </button>
+                                
                                         <button class="btn btn-outline-secondary fw-semibold" disabled>
                                             <i class="bi bi-lock me-1"></i> No puedes postular
                                         </button>
-                                        
+                                
                                     {% else %}
-                                        <a href="{% url 'iniciar_sesion' %}" class="btn btn-outline-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
+                                        <a href="{% url 'iniciar_sesion' %}"
+                                           class="btn btn-outline-{% if oferta.es_servicio %}success{% else %}primary{% endif %} fw-semibold">
                                             <i class="bi bi-box-arrow-in-right me-1"></i> Inicia sesión para postular
                                         </a>
                                     {% endif %}
                                 </div>
+                                
+                            
                             </div>
                         </div>
                     </div>
@@ -362,27 +373,26 @@
         </div>
         {% endfor %}
     </div>
+
+    <div class="modal fade" id="confirmarPostulacionModal" tabindex="-1" aria-labelledby="confirmarPostulacionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmarPostulacionModalLabel">Confirmar Postulación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    ¿Estás seguro de que deseas postular a esta oferta?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <a id="btn-confirmar-postulacion" href="#" class="btn btn-primary">Sí, Postular</a>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    {% block extra_css %}
-    <style>
-        .hover-card {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-        
-        .hover-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1) !important;
-        }
-        
-        .transition-all {
-            transition: all 0.2s ease;
-        }
-        
-        .rounded-bl-4 {
-            border-bottom-left-radius: 0 !important;
-        }
-    </style>
-    {% endblock %}
+    
     
 
     <!-- PAGINACIÓN -->
@@ -446,28 +456,25 @@
     </div>
 </div>
 
-<!-- ESTILOS ADICIONALES -->
-<style>
-    .bg-gradient-primary {
-        background: linear-gradient(to right, #4e73df, #224abe);
-    }
-    
-    .hover-card {
-        transition: all 0.3s ease;
-    }
-    
-    .hover-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
-    }
-    
-    .page-link {
-        color: #4e73df;
-    }
-    
-    .page-item.active .page-link {
-        background-color: #4e73df;
-        border-color: #4e73df;
-    }
-</style>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const confirmarPostulacionModal = document.getElementById('confirmarPostulacionModal');
+                const btnConfirmarPostulacion = confirmarPostulacionModal.querySelector('#btn-confirmar-postulacion');
+                const botonesPostular = document.querySelectorAll('[data-bs-toggle="modal"][data-bs-target="#confirmarPostulacionModal"]');
+
+                botonesPostular.forEach(boton => {
+                    boton.addEventListener('click', function() {
+                        const ofertaId = this.dataset.ofertaId;
+                        const url = `oferta/${ofertaId}/postular/`;  //  <---  ¡AJUSTE AQUÍ!
+                        console.log('Oferta ID:', ofertaId);
+                        console.log('URL de postulación:', url);
+                        btnConfirmarPostulacion.href = url;
+                    });
+                });
+
+                confirmarPostulacionModal.addEventListener('hidden.bs.modal', function () {
+                    btnConfirmarPostulacion.href = '#';
+                });
+            });
+        </script>
 {% endblock %}

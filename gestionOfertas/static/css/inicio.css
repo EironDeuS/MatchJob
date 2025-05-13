@@ -1,0 +1,130 @@
+.hover-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1) !important;
+}
+
+.transition-all {
+    transition: all 0.2s ease;
+}
+
+.rounded-bl-4 {
+    border-bottom-left-radius: 0 !important;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(to right, #4e73df, #224abe);
+}
+
+.hover-card {
+    transition: all 0.3s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.page-link {
+    color: #4e73df;
+}
+
+.page-item.active .page-link {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+/* Estilos Básicos del Modal */
+#confirmarPostulacionModal .modal-content {
+    border-radius: 1rem;       /* Bordes redondeados */
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15); /* Sombra suave */
+    border: none;             /* Elimina el borde predeterminado de Bootstrap */
+}
+
+#confirmarPostulacionModal .modal-header {
+    background-color: #f8f9fa; /* Fondo gris claro */
+    border-bottom: 1px solid #dee2e6; /* Borde inferior sutil */
+    padding: 1.5rem 2rem;       /* Espaciado interno */
+}
+
+#confirmarPostulacionModal .modal-title {
+    font-size: 1.25rem;       /* Tamaño de la fuente del título */
+    font-weight: bold;        /* Texto en negrita */
+    color: #343a40;          /* Color gris oscuro del título */
+}
+
+#confirmarPostulacionModal .modal-body {
+    padding: 2rem;             /* Espaciado interno */
+    font-size: 1rem;           /* Tamaño de la fuente del cuerpo */
+    color: #495057;          /* Color gris medio del texto */
+}
+
+#confirmarPostulacionModal .modal-footer {
+    background-color: #f8f9fa; /* Fondo gris claro */
+    border-top: 1px solid #dee2e6; /* Borde superior sutil */
+    padding: 1.5rem 2rem;       /* Espaciado interno */
+    display: flex;             /* Usamos Flexbox para alinear los botones */
+    justify-content: flex-end; /* Alinea los botones a la derecha */
+}
+
+#confirmarPostulacionModal .btn-secondary {
+    background-color: #6c757d; /* Color gris de "Cancelar" */
+    border-color: #6c757d;
+    color: white;             /* Color del texto blanco */
+    transition: all 0.2s ease-in-out; /* Transición suave */
+}
+
+#confirmarPostulacionModal .btn-secondary:hover {
+    background-color: #545b62; /* Gris más oscuro al pasar el ratón */
+    border-color: #545b62;
+}
+
+#confirmarPostulacionModal .btn-primary {
+    background-color: #007bff; /* Color azul de "Postular" */
+    border-color: #007bff;
+    color: white;
+    transition: all 0.2s ease-in-out;
+}
+
+#confirmarPostulacionModal .btn-primary:hover {
+    background-color: #0069d9; /* Azul más oscuro al pasar el ratón */
+    border-color: #0062cc;
+}
+
+/* Animación (Aparecer Suavemente) */
+#confirmarPostulacionModal.fade .modal-dialog {
+    transition: opacity 0.3s ease-in-out; /* Transición de opacidad */
+    opacity: 0;                       /* Inicialmente invisible */
+}
+
+#confirmarPostulacionModal.show .modal-dialog {
+    opacity: 1;                       /* Totalmente visible al mostrarse */
+}
+
+/* Animación (Escalar hacia arriba) - Alternativa */
+/* #confirmarPostulacionModal.fade .modal-dialog {
+     transform: scale(0.8);          /* Inicialmente más pequeño */
+     /* transition: transform 0.3s ease-out, opacity 0.3s ease-out;  /* Transición de escala y opacidad */
+     /* opacity: 0;
+}
+
+#confirmarPostulacionModal.show .modal-dialog {
+     transform: scale(1);          /* Tamaño normal al mostrarse */
+     /* opacity: 1;
+}
+*/
+
+/* Botón de Cerrar Personalizado */
+#confirmarPostulacionModal .btn-close {
+    background-color: transparent; /* Fondo transparente */
+    border: none;                /* Sin borde */
+    opacity: 0.7;                /* Opacidad inicial */
+    transition: opacity 0.2s ease-in-out;
+}
+
+#confirmarPostulacionModal .btn-close:hover {
+    opacity: 1;                /* Opacidad total al pasar el ratón */
+}

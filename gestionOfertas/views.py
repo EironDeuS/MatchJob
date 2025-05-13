@@ -13,6 +13,9 @@ from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, E
 from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from django.db.models import Avg, Count, F, Window
+from django.db.models.functions import Rank
 from django.db.models import Q
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
@@ -316,15 +319,18 @@ def mi_perfil(request):
     # Ofertas creadas por este usuario (empresa o persona)
     ofertas_creadas = usuario.ofertas_creadas.order_by('-fecha_publicacion')
 
-    # Postulaciones:
+    # Todas las Postulaciones:
     if usuario.tipo_usuario == 'empresa':
-        postulaciones = Postulacion.objects.filter(
+        todas_las_postulaciones = Postulacion.objects.filter(
             oferta__creador=usuario
-        ).select_related('persona', 'oferta')  # Cambiado de 'postulante' a 'persona' para coincidir con tu modelo
+        ).select_related('persona', 'oferta')
     else:  # persona natural
-        postulaciones = Postulacion.objects.filter(
-            persona=perfil  # Cambiado de 'postulante' a 'persona'
+        todas_las_postulaciones = Postulacion.objects.filter(
+            persona=perfil
         ).select_related('oferta', 'oferta__creador')
+
+    # Postulaciones Filtradas:
+    postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado')
 
     context = {
         'usuario': usuario,
@@ -333,14 +339,47 @@ def mi_perfil(request):
         'cantidad_valoraciones': usuario.cantidad_valoraciones,
         'ofertas_creadas': ofertas_creadas,
         'tiene_ofertas': ofertas_creadas.exists(),
-        'postulaciones': postulaciones,
-        'tiene_postulaciones': postulaciones.exists(),
+        'todas_las_postulaciones': todas_las_postulaciones,
+        'tiene_todas_las_postulaciones': todas_las_postulaciones.exists(),
+        'postulaciones_filtradas': postulaciones_filtradas,
+        'tiene_postulaciones_filtradas': postulaciones_filtradas.exists(),
         'valoraciones_recibidas': usuario.valoraciones_recibidas
-                                     .select_related('emisor')  # Cambiado de 'autor' a 'emisor'
-                                     .order_by('-fecha_creacion')[:3],  # Cambiado de 'fecha' a 'fecha_creacion'
+                                     .select_related('emisor')
+                                     .order_by('-fecha_creacion')[:3],
     }
 
     return render(request, 'gestionOfertas/miperfil.html', context)
+
+@login_required
+def cambiar_estado_postulacion(request, postulacion_id):
+    """
+    Cambia el estado de una postulación específica.
+
+    Args:
+        request: La solicitud HTTP.
+        postulacion_id: El ID de la postulación a cambiar.
+
+    Returns:
+        Una redirección a la página del perfil.
+    """
+    postulacion = get_object_or_404(
+        Postulacion,
+        id=postulacion_id,
+        oferta__creador=request.user  # ¡SEGURIDAD!
+    )
+
+    if request.method == 'POST':
+        nuevo_estado = request.POST.get('nuevo_estado')
+        estados_validos = ['pendiente', 'filtrado', 'match', 'contratado', 'rechazado', 'finalizado']  # Ajusta esto a tus estados
+
+        if nuevo_estado in estados_validos:
+            postulacion.estado = nuevo_estado
+            postulacion.save()
+            messages.success(request, "Estado de la postulación actualizado.")
+        else:
+            messages.error(request, "Estado no válido.")
+
+    return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
 
 @login_required # Asegura que solo usuarios logueados accedan
 def editar_perfil(request):
@@ -449,15 +488,59 @@ def salir(request):
     return redirect('inicio')
 
 
-def demo_valoracion(request):
-    form = ValoracionForm()
-    return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
+def demo_valoracion(request, postulacion_id):
+    postulacion = get_object_or_404(Postulacion, id=postulacion_id)
 
+    # --- Lógica de seguridad (importante) ---
+    puede_valorar, receptor = postulacion.puede_valorar(request.user)
+    if not puede_valorar:
+        messages.error(request, "No tienes permiso para valorar esta postulación.")
+        return redirect('miperfil')  # O a donde sea apropiado
+
+    if request.method == 'POST':
+        form = ValoracionForm(request.POST)
+        if form.is_valid():
+            valoracion = form.save(commit=False)
+            valoracion.emisor = request.user
+            valoracion.receptor = receptor  # Usar el receptor obtenido de puede_valorar
+            valoracion.postulacion = postulacion
+            valoracion.save()
+            messages.success(request, "¡Valoración enviada con éxito!")
+            return redirect('historial_valoraciones', usuario_id=request.user.id) # Redirige al historial
+        else:
+            messages.error(request, "Por favor, corrige los errores en el formulario.")
+    else:
+        form = ValoracionForm()
+
+    context = {
+        'form': form,
+        'postulacion': postulacion,  # Pasar la postulación al template
+    }
+    return render(request, 'gestionOfertas/demo_valoracion.html', context)
 
 #DETALLE DE LA OFERTA PUBLICADA
 def detalle_oferta(request, oferta_id):
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id)
     return render(request, 'gestionOfertas/detalle_oferta.html', {'oferta': oferta})
+
+@login_required  # Asegura que solo usuarios logueados puedan postular
+def realizar_postulacion(request, oferta_id):
+    oferta = get_object_or_404(OfertaTrabajo, pk=oferta_id)
+    try:
+        persona = request.user.personanatural  # Asume que solo 'persona' puede postular
+    except PersonaNatural.DoesNotExist:
+        messages.error(request, "Debes ser una persona natural para postular.")
+        return redirect('inicio')  # Redirige a donde corresponda
+
+    # Verificar si ya existe una postulación para evitar duplicados
+    if Postulacion.objects.filter(persona=persona, oferta=oferta).exists():
+        messages.warning(request, "Ya has postulado a esta oferta.")
+        return redirect('inicio')  # Redirige a donde corresponda
+
+    postulacion = Postulacion(persona=persona, oferta=oferta)
+    postulacion.save()
+    messages.success(request, "Postulación realizada con éxito.")
+    return redirect('miperfil')  # Redirige al perfil del usuario
 
 
 @login_required
@@ -485,24 +568,72 @@ def valorar_postulacion(request, postulacion_id):
     # 👇 ESTA línea es la que estaba mal
     return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
 
-from django.shortcuts import render, get_object_or_404
-from .models import Usuario, Valoracion, Postulacion
-from django.db.models import Q
 
 def historial_valoraciones(request, usuario_id):
     usuario_perfil = get_object_or_404(Usuario, id=usuario_id)
-    valoraciones_recibidas = Valoracion.objects.filter(receptor=usuario_perfil).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
+    valoraciones_recibidas = Valoracion.objects.filter(
+        receptor=usuario_perfil
+    ).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
 
-    # Obtener postulaciones 'contratadas' que NO tienen una valoración asociada
-    postulaciones_contratadas_sin_valorar = Postulacion.objects.filter(
-        oferta__creador=usuario_perfil,  # O receptor=usuario_perfil, dependiendo de la lógica
-        estado='contratado',
-        valoraciones__isnull=True  # Filtra las postulaciones SIN valoraciones
-    ).select_related('persona', 'oferta')
+    # Obtener postulaciones PENDIENTES de valoración (ajuste importante)
+    postulaciones_pendientes = []
+    if usuario_perfil.tipo_usuario == 'empresa':
+        postulaciones = Postulacion.objects.filter(
+            oferta__creador=usuario_perfil
+        ).select_related('persona', 'oferta')
+    elif usuario_perfil.tipo_usuario == 'persona':
+        postulaciones = usuario_perfil.personanatural.postulaciones.all()
+    else:
+        postulaciones = []  # Manejar otros tipos de usuario si es necesario
+
+    for postulacion in postulaciones:
+        puede_valorar, _ = postulacion.puede_valorar(request.user)  # Usar request.user
+        if puede_valorar:
+            postulaciones_pendientes.append(postulacion)
 
     context = {
         'usuario_perfil': usuario_perfil,
         'valoraciones': valoraciones_recibidas,
-        'postulaciones_pendientes': postulaciones_contratadas_sin_valorar,
+        'postulaciones_pendientes': postulaciones_pendientes,
     }
     return render(request, 'gestionOfertas/historial_valoraciones.html', context)
+
+def ranking_usuarios(request):
+    tipo_usuario = request.GET.get('tipo', 'empresa')  # 'empresa' o 'persona'
+    periodo = request.GET.get('periodo', 'semanal')  # 'semanal' o 'mensual'
+
+    # --- Calcular el inicio del periodo ---
+    if periodo == 'semanal':
+        inicio_periodo = timezone.now() - timedelta(weeks=1)
+    else:  # 'mensual'
+        inicio_periodo = timezone.now() - timedelta(days=30)  # Aproximación a un mes
+
+    # --- Filtrar valoraciones por periodo ---
+    valoraciones_periodo = Valoracion.objects.filter(fecha_creacion__gte=inicio_periodo)
+
+    # --- Anotar usuarios con su valoración promedio y cantidad (dentro del periodo) ---
+    usuarios = Usuario.objects.filter(tipo_usuario=tipo_usuario).annotate(
+        promedio_periodo=Avg('valoraciones_recibidas__puntuacion', filter=Q(valoraciones_recibidas__fecha_creacion__gte=inicio_periodo)),
+        cantidad_periodo=Count('valoraciones_recibidas', filter=Q(valoraciones_recibidas__fecha_creacion__gte=inicio_periodo))
+    ).filter(cantidad_periodo__gt=0).order_by('-promedio_periodo', '-cantidad_periodo') # Ordenar primero por promedio, luego por cantidad
+
+    # --- Calcular el ranking usando Window function ---
+    usuarios = usuarios.annotate(
+        ranking=Window(
+            expression=Rank(),
+            order_by=(F('promedio_periodo').desc(nulls_last=True), F('cantidad_periodo').desc())
+        )
+    )
+
+    # --- Preparar los datos para el template ---
+    top_3 = list(usuarios[:3])
+    resto = list(usuarios[3:10])
+
+    context = {
+        'tipo_usuario': tipo_usuario,
+        'periodo': periodo,
+        'top_3': top_3,
+        'resto': resto,
+    }
+
+    return render(request, 'gestionOfertas/ranking.html', context)

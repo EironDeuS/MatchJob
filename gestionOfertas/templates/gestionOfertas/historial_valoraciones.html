@@ -1,4 +1,9 @@
 {% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/historial_valoraciones.css' %}">
+{% endblock %}
 
 {% block title %}
     Historial de Valoraciones de
@@ -13,8 +18,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <h1>Historial de Valoraciones de
+<div class="container historial-valoraciones-container">
+    <h1 class="historial-valoraciones-title">
+        <i class="bi bi-star-fill text-warning me-2"></i> Historial de Valoraciones de
         {% if usuario_perfil.personanatural %}
             {{ usuario_perfil.personanatural.nombres }} {{ usuario_perfil.personanatural.apellidos }}
         {% elif usuario_perfil.empresa %}
@@ -25,70 +31,83 @@
     </h1>
 
     {% if postulaciones_pendientes %}
-        <h2>Valoraciones Pendientes</h2>
+        <h2 class="valoraciones-pendientes-title">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Valoraciones Pendientes
+        </h2>
         <p>Tienes las siguientes postulaciones contratadas pendientes de valoración:</p>
-        <ul class="list-group">
+        <ul class="list-group valoraciones-pendientes-list">
             {% for postulacion in postulaciones_pendientes %}
                 <li class="list-group-item">
                     <p>
-                        Postulación #{{ postulacion.id }} - 
+                        <i class="bi bi-briefcase-fill text-primary me-2"></i> Postulación #{{ postulacion.id }} -
                         {% if usuario_perfil == postulacion.oferta.creador %}
-                            A: {{ postulacion.persona }}
+                            <i class="bi bi-person-fill text-info me-2"></i> A: {{ postulacion.persona }}
                         {% else %}
-                            De: {{ postulacion.oferta.creador }}
+                            <i class="bi bi-building-fill text-success me-2"></i> De: {{ postulacion.oferta.creador }}
                         {% endif %}
                     </p>
                     <a href="{% url 'demo_valoracion' postulacion.id %}" class="btn btn-primary btn-sm">
-                        Valorar
+                        <i class="bi bi-pencil-square me-1"></i> Valorar
                     </a>
                 </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>No tienes valoraciones pendientes en este momento.</p>
+        <p><i class="bi bi-check-circle-fill text-success me-2"></i> No tienes valoraciones pendientes en este momento.</p>
     {% endif %}
 
-    <hr>  {% if valoraciones %}
-        <h2>Historial de Valoraciones</h2>
-        <ul class="list-group">
+    <hr>
+    {% if valoraciones %}
+        <h2 class="historial-title">
+            <i class="bi bi-archive-fill text-primary me-2"></i> Historial de Valoraciones
+        </h2>
+        <div class="row row-cols-1 g-3">
             {% for valoracion in valoraciones %}
-                <li class="list-group-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>
-                                {% if valoracion.emisor.personanatural %}
-                                    {{ valoracion.emisor.personanatural.nombres }} {{ valoracion.emisor.personanatural.apellidos }}
-                                {% elif valoracion.emisor.empresa %}
-                                    {{ valoracion.emisor.empresa.nombre_empresa }}
-                                {% else %}
-                                    {{ valoracion.emisor.username }}
-                                {% endif %}
-                            </strong> valoró con:
-                            {% for i in "12345" %}
-                                {% if forloop.counter <= valoracion.puntuacion %}
-                                    <i class="bi bi-star-fill text-warning"></i>
-                                {% else %}
-                                    <i class="bi bi-star text-warning"></i>
-                                {% endif %}
-                            {% endfor %}
+                <div class="col">
+                    <div class="card valoracion-card">
+                        <div class="card-body valoracion-card-body">
+                            <div class="valoracion-header">
+                                <h6 class="card-subtitle mb-0 text-muted valoracion-emisor">
+                                    {% if valoracion.emisor.personanatural %}
+                                        <i class="bi bi-person-circle text-info me-2"></i> {{ valoracion.emisor.personanatural.nombres }} {{ valoracion.emisor.personanatural.apellidos }}
+                                    {% elif valoracion.emisor.empresa %}
+                                        <i class="bi bi-building text-success me-2"></i> {{ valoracion.emisor.empresa.nombre_empresa }}
+                                    {% else %}
+                                        <i class="bi bi-person-circle text-info me-2"></i> {{ valoracion.emisor.username }}
+                                    {% endif %}
+                                </h6>
+                                <div class="valoracion-puntuacion">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= valoracion.puntuacion %}
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                        {% else %}
+                                            <i class="bi bi-star text-warning"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if valoracion.comentario %}
+                                <p class="card-text valoracion-comentario"><i class="bi bi-chat-left-text-fill text-secondary me-2"></i> {{ valoracion.comentario }}</p>
+                            {% else %}
+                                <p class="card-text text-muted valoracion-comentario"><i class="bi bi-chat-left-text text-secondary me-2"></i> Sin comentario.</p>
+                            {% endif %}
+                            <p class="card-text valoracion-meta">
+                                <i class="bi bi-tag-fill text-dark me-2"></i> En la postulación #{{ valoracion.postulacion.id }} -
+                                <i class="bi bi-calendar-fill text-info me-2"></i> {{ valoracion.fecha_creacion|date:"d/m/Y H:i" }}
+                            </p>
                         </div>
-                        <small class="text-muted">{{ valoracion.fecha_creacion|date:"d/m/Y H:i" }}</small>
                     </div>
-                    {% if valoracion.comentario %}
-                        <p class="mt-2">{{ valoracion.comentario }}</p>
-                    {% else %}
-                        <p class="mt-2 text-muted">Sin comentario.</p>
-                    {% endif %}
-                    <small class="text-muted">En la postulación #{{ valoracion.postulacion.id }}</small>
-                </li>
+                </div>
             {% endfor %}
-        </ul>
+        </div>
     {% else %}
-        <p>Este usuario no ha recibido valoraciones aún.</p>
+        <p><i class="bi bi-info-circle-fill text-info me-2"></i> Este usuario no ha recibido valoraciones aún.</p>
     {% endif %}
 
-    <div class="mt-3">
-        <a href="{% url 'miperfil' %}" class="btn btn-outline-secondary">Volver al Perfil</a>
+    <div class="volver-perfil-btn">
+        <a href="{% url 'miperfil' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle-fill me-1"></i> Volver al Perfil
+        </a>
     </div>
 </div>
 {% endblock %}

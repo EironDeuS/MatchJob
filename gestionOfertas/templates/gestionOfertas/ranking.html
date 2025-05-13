@@ -1,0 +1,106 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/ranking.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container ranking-container py-5">
+    <h1 class="ranking-title text-center mb-4">
+        <i class="bi bi-podium-fill text-success me-2"></i> <span class="fw-bold">Ranking de Usuarios</span>
+    </h1>
+
+    <div class="filter-buttons-container d-flex justify-content-center mb-4">
+        <div class="btn-group shadow-sm" role="group">
+            <a href="{% url 'ranking' %}?tipo=empresa&periodo={{ periodo }}"
+               class="btn btn-outline-primary {% if tipo_usuario == 'empresa' %}active{% endif %}">
+                <i class="bi bi-building me-1"></i> <span class="d-none d-md-inline">Empresas</span>
+            </a>
+            <a href="{% url 'ranking' %}?tipo=persona&periodo={{ periodo }}"
+               class="btn btn-outline-primary {% if tipo_usuario == 'persona' %}active{% endif %}">
+                <i class="bi bi-person-fill me-1"></i> <span class="d-none d-md-inline">Trabajadores</span>
+            </a>
+        </div>
+        <div class="btn-group ms-3 shadow-sm" role="group">
+            <a href="{% url 'ranking' %}?tipo={{ tipo_usuario }}&periodo=semanal"
+               class="btn btn-outline-info {% if periodo == 'semanal' %}active{% endif %}">
+                <i class="bi bi-calendar-week me-1"></i> <span class="d-none d-md-inline">Semanal</span>
+            </a>
+            <a href="{% url 'ranking' %}?tipo={{ tipo_usuario }}&periodo=mensual"
+               class="btn btn-outline-info {% if periodo == 'mensual' %}active{% endif %}">
+                <i class="bi bi-calendar-month me-1"></i> <span class="d-none d-md-inline">Mensual</span>
+            </a>
+        </div>
+    </div>
+
+    <h2 class="ranking-subtitle mb-4"><i class="bi bi-star-half text-warning me-2"></i> Top 3 Destacados</h2>
+    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 top-3-cards">
+        {% for usuario in top_3 %}
+            <div class="col">
+                <div class="card h-100 shadow-lg ranking-card top-{{ forloop.counter }} text-center">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold">
+                            {% if forloop.counter == 1 %}
+                                <i class="bi bi-trophy-fill text-warning me-2"></i> #{{ usuario.ranking }}
+                            {% elif forloop.counter == 2 %}
+                                <i class="bi bi-award-fill text-secondary me-2"></i> #{{ usuario.ranking }}
+                            {% elif forloop.counter == 3 %}
+                                <i class="bi bi-award text-bronze me-2"></i> #{{ usuario.ranking }}
+                            {% endif %}
+                        </h5>
+                        <div class="avatar-container rounded-circle mx-auto mb-2">
+                            <i class="bi bi-person-circle avatar-icon"></i>
+                            {% if tipo_usuario == 'empresa' %}
+                                <i class="bi bi-building avatar-icon-secondary"></i>
+                            {% else %}
+                                <i class="bi bi-briefcase-fill avatar-icon-secondary"></i>
+                            {% endif %}
+                        </div>
+                        <p class="card-text nombre fw-semibold">
+                            {% if tipo_usuario == 'empresa' %}
+                                {{ usuario.empresa.nombre_empresa|default:usuario.username }}
+                            {% else %}
+                                {{ usuario.personanatural.nombre_completo|default:usuario.username }}
+                            {% endif %}
+                        </p>
+                        <p class="card-text"><i class="bi bi-star-fill text-warning me-1"></i> <span class="fw-medium">Promedio:</span> {{ usuario.promedio_periodo|default_if_none:"Sin valoraciones" }}</p>
+                        <p class="card-text"><i class="bi bi-chat-dots-fill text-muted me-1"></i> <span class="fw-medium">Valoraciones:</span> {{ usuario.cantidad_periodo }}</p>
+                    </div>
+                    <div class="card-footer bg-light border-top-0">
+                        <small class="text-muted">Posición actual</small>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col">
+                <div class="alert alert-warning shadow-sm" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> No hay usuarios con suficientes valoraciones para mostrar el Top 3 en este periodo.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="ranking-subtitle mb-3"><i class="bi bi-list-ol text-primary me-2"></i> Resto del Ranking</h2>
+    <ol class="list-group list-group-numbered shadow-sm">
+        {% for usuario in resto %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span class="d-flex align-items-center">
+                    <span class="me-2 fw-semibold">#{{ forloop.counter|add:3 }}</span>
+                    {% if tipo_usuario == 'empresa' %}
+                        <i class="bi bi-building text-primary me-1"></i> {{ usuario.empresa.nombre_empresa|default:usuario.username }}
+                    {% else %}
+                        <i class="bi bi-person-fill text-info me-1"></i> {{ usuario.personanatural.nombre_completo|default:usuario.username }}
+                    {% endif %}
+                </span>
+                <span class="text-muted">
+                    <i class="bi bi-star-fill text-warning me-1"></i> {{ usuario.promedio_periodo|default_if_none:"Sin valoraciones" }}
+                    <span class="small">({{ usuario.cantidad_periodo }} valoraciones)</span>
+                </span>
+            </li>
+        {% empty %}
+            <li class="list-group-item">No hay más usuarios con valoraciones en este periodo.</li>
+        {% endfor %}
+    </ol>
+</div>
+{% endblock %}
