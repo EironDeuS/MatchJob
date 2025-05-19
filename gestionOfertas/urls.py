@@ -22,7 +22,6 @@ urlpatterns = [
     path('cambiar_estado_postulacion/<int:postulacion_id>/', views.cambiar_estado_postulacion, name='cambiar_estado_postulacion'),
     path('ranking/', views.ranking_usuarios, name='ranking'),
     path('mapa/', views.mapa, name='mapa'),
-    path('api/ofertas-activas/', views.ofertas_activas_json, name='ofertas_activas_json'),
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
     # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),

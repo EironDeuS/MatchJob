@@ -623,7 +623,7 @@
                 <div class="form-group__input-container">
                     <input type="text" id="autocomplete-ubicacion" name="{{ form.ubicacion.name }}" 
                            value="{{ form.ubicacion.value|default:'' }}" class="form-control" 
-                           placeholder="Ej: Buenos Aires, Argentina">
+                           placeholder="Ej: Santiago, Chile">
                     <i class="fas fa-map-pin form-group__input-icon"></i>
                 </div>
                 {% if form.ubicacion.errors %}
@@ -634,7 +634,7 @@
             </div>
 
             <!-- Tipo de Contrato (solo para empresas) -->
-            {% if form.tipo_contrato %}
+           
             <div class="form-group">
                 <label for="{{ form.tipo_contrato.id_for_label }}" class="form-group__label">
                     <i class="fas fa-file-contract form-group__icon"></i> {{ form.tipo_contrato.label }}
@@ -653,7 +653,6 @@
                     </div>
                 {% endif %}
             </div>
-            {% endif %}
 
             <!-- Fecha de Cierre -->
             <div class="form-group">

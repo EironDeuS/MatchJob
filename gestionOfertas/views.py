@@ -2,7 +2,14 @@
 
 
 from datetime import datetime, timedelta
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+import json
+import logging
+from django.conf import settings
 from django.forms import ValidationError
+from django.utils.safestring import mark_safe
 
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
@@ -18,6 +25,10 @@ from django.utils import timezone
 from django.db.models import Avg, Count, F, Window
 from django.db.models.functions import Rank
 from django.db.models import Q
+import requests
+from urllib.parse import quote
+from django.core.mail import send_mail
+
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
 def iniciar_sesion(request):
@@ -382,12 +393,177 @@ def cambiar_estado_postulacion(request, postulacion_id):
 
     return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
 
-def mapa(request):
-    return render(request, 'gestionOfertas/mapa.html')
+# Configuración del logger
+logger = logging.getLogger(__name__)
 
-def ofertas_activas_json(request):
-    ofertas = OfertaTrabajo.objects.filter(esta_activa=True).values('id', 'nombre', 'ubicacion', 'descripcion')
-    return JsonResponse(list(ofertas), safe=False)
+@login_required
+def mapa(request):
+    """
+    Vista principal para mostrar el mapa con ofertas de trabajo
+    """
+    # Verificar que el token de Mapbox está configurado
+    mapbox_token = getattr(settings, 'MAPBOX_TOKEN', '')
+    if not mapbox_token:
+        logger.error("MAPBOX_TOKEN no está configurado en settings")
+        return render(request, 'gestionOfertas/mapa.html', {
+            'error': 'Configuración del mapa no disponible',
+            'ofertas': [],
+            'titulo': 'Error en el mapa'
+        })
+
+    try:
+        # Obtener ofertas activas con prefetch para optimizar
+        ofertas_activas = OfertaTrabajo.objects.filter(
+            esta_activa=True
+        ).select_related('empresa').only(
+            'id', 'nombre', 'ubicacion', 'empresa__nombre'
+        )
+        
+        ofertas_con_coordenadas = []
+        geocodificaciones_fallidas = 0
+        
+        for oferta in ofertas_activas:
+            # Validar que la ubicación no esté vacía
+            if not oferta.ubicacion or not oferta.ubicacion.strip():
+                logger.warning(f"Oferta ID {oferta.id} no tiene ubicación definida")
+                continue
+                
+            # Geocodificar la ubicación
+            coords = geocode_direccion(oferta.ubicacion.strip(), mapbox_token)
+            
+            if coords and len(coords) == 2:
+                ofertas_con_coordenadas.append({
+                    'id': oferta.id,
+                    'nombre': oferta.nombre,
+                    'empresa': oferta.empresa.nombre if oferta.empresa else 'Empresa no especificada',
+                    'ubicacion': oferta.ubicacion,
+                    'coords': coords  # [longitud, latitud]
+                })
+            else:
+                geocodificaciones_fallidas += 1
+                logger.warning(f"No se pudo geocodificar: {oferta.ubicacion}")
+
+        # Log de resultados
+        logger.info(f"Ofertas procesadas: {len(ofertas_con_coordenadas)}. Fallos: {geocodificaciones_fallidas}")
+
+        context = {
+            'mapbox_token': mapbox_token,
+            'ofertas': ofertas_con_coordenadas,
+            'titulo': 'Mapa de Ofertas',
+            'debug_info': {
+                'total_ofertas': len(ofertas_activas),
+                'ofertas_con_coords': len(ofertas_con_coordenadas),
+                'geocodificaciones_fallidas': geocodificaciones_fallidas
+            }
+        }
+        
+        return render(request, 'gestionOfertas/mapa.html', context)
+
+    except Exception as e:
+        logger.error(f"Error en vista mapa: {str(e)}", exc_info=True)
+        return render(request, 'gestionOfertas/mapa.html', {
+            'error': 'Error al cargar el mapa. Por favor intente más tarde.',
+            'ofertas': [],
+            'titulo': 'Error en el mapa'
+        })
+
+def geocode_direccion(direccion, access_token):
+    """Geocodifica una dirección usando Mapbox"""
+    if not direccion or not access_token:
+        logger.warning("Geocodificación: Dirección o token vacío")
+        return None
+        
+    try:
+        # Limpiar y preparar la dirección
+        direccion_limpia = direccion.strip()
+        if not direccion_limpia:
+            return None
+            
+        # Codificar la dirección para URL
+        direccion_codificada = quote(direccion_limpia)
+        
+        # Construir URL de la API
+        url = f'https://api.mapbox.com/geocoding/v5/mapbox.places/{direccion_codificada}.json'
+        
+        # Parámetros de la solicitud
+        params = {
+            'access_token': access_token,
+            'country': 'CL',  # Filtra por Chile
+            'limit': 1,
+            'language': 'es'  # Resultados en español
+        }
+        
+        # Realizar la solicitud con timeout
+        response = requests.get(url, params=params, timeout=15)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Verificar resultados
+        if data.get('features') and len(data['features']) > 0:
+            coordenadas = data['features'][0]['center']
+            
+            # Validar que las coordenadas sean números válidos
+            if (isinstance(coordenadas, list) and len(coordenadas) == 2 and
+                all(isinstance(coord, (int, float)) for coord in coordenadas)):
+                return coordenadas
+            else:
+                logger.error(f"Coordenadas inválidas recibidas para: {direccion_limpia}")
+                return None
+                
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error de conexión geocodificando {direccion_limpia}: {str(e)}")
+        return None
+    except ValueError as e:
+        logger.error(f"Error parseando JSON para {direccion_limpia}: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Error inesperado geocodificando {direccion_limpia}: {str(e)}")
+        return None
+
+
+@login_required
+def buscar_direccion(request):
+    """
+    API View para buscar direcciones con la API de Mapbox (auto-complete).
+    """
+    if request.method == 'GET':
+        try:
+            query = request.GET.get('q', '')
+            if not query:
+                return JsonResponse({'error': 'Se requiere un término de búsqueda'}, status=400)
+
+            mapbox_token = getattr(settings, 'MAPBOX_TOKEN', '')
+            url = f'https://api.mapbox.com/geocoding/v5/mapbox.places/{quote(query)}.json'
+            params = {
+                'access_token': mapbox_token,
+                'limit': 5,
+                'country': 'cl',
+                'types': 'address,place'
+            }
+
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                resultados = [
+                    {
+                        'nombre': feature.get('place_name', ''),
+                        'lng': feature['center'][0],
+                        'lat': feature['center'][1],
+                    } for feature in data.get('features', [])
+                ]
+                return JsonResponse({'resultados': resultados})
+
+            return JsonResponse({'error': 'Error en la búsqueda de direcciones'}, status=response.status_code)
+
+        except Exception as e:
+            logger.exception("Error en la búsqueda de direcciones")
+            return JsonResponse({'error': 'Error al procesar la solicitud'}, status=500)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
 
 
 @login_required # Asegura que solo usuarios logueados accedan
@@ -532,24 +708,101 @@ def detalle_oferta(request, oferta_id):
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id)
     return render(request, 'gestionOfertas/detalle_oferta.html', {'oferta': oferta})
 
-@login_required  # Asegura que solo usuarios logueados puedan postular
+
+
+
+@login_required
 def realizar_postulacion(request, oferta_id):
+    """
+    Vista para que un usuario de tipo Persona Natural pueda postularse a una oferta de trabajo.
+    
+    Validaciones:
+    - Usuario debe estar autenticado (garantizado por @login_required)
+    - Usuario debe ser una Persona Natural
+    - Usuario no puede postularse a su propia oferta
+    - La oferta debe estar activa y no vencida
+    - El usuario no debe haber postulado previamente a esta oferta
+    """
+    # Obtenemos la oferta o devolvemos 404 si no existe
     oferta = get_object_or_404(OfertaTrabajo, pk=oferta_id)
+    
+    # Verificamos que el usuario sea una Persona Natural
     try:
-        persona = request.user.personanatural  # Asume que solo 'persona' puede postular
+        persona = request.user.personanatural
     except PersonaNatural.DoesNotExist:
-        messages.error(request, "Debes ser una persona natural para postular.")
-        return redirect('inicio')  # Redirige a donde corresponda
-
-    # Verificar si ya existe una postulación para evitar duplicados
+        messages.error(request, "Solo los usuarios de tipo Persona Natural pueden postular a ofertas.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Verificamos que el usuario no sea el creador de la oferta
+    if oferta.creador == request.user:
+        messages.error(request, "No puedes postularte a una oferta que tú mismo has creado.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Verificamos que la oferta esté activa y no vencida
+    if not oferta.esta_activa:
+        messages.error(request, "No es posible postular a una oferta inactiva.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    if oferta.fecha_cierre and oferta.fecha_cierre < timezone.now().date():
+        messages.error(request, "No es posible postular a una oferta vencida.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Verificamos que el usuario no haya postulado previamente
     if Postulacion.objects.filter(persona=persona, oferta=oferta).exists():
-        messages.warning(request, "Ya has postulado a esta oferta.")
-        return redirect('inicio')  # Redirige a donde corresponda
-
-    postulacion = Postulacion(persona=persona, oferta=oferta)
-    postulacion.save()
-    messages.success(request, "Postulación realizada con éxito.")
-    return redirect('miperfil')  # Redirige al perfil del usuario
+        messages.warning(request, "Ya has postulado a esta oferta anteriormente.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Creamos la postulación
+    try:
+        postulacion = Postulacion(persona=persona, oferta=oferta)
+        postulacion.save()
+        
+        # Obtenemos el nombre del creador según su tipo de usuario
+        nombre_creador = oferta.creador.username
+        
+        if oferta.creador.tipo_usuario == 'persona':
+            try:
+                creador_persona = oferta.creador.personanatural
+                nombre_creador = creador_persona.nombre_completo or oferta.creador.username
+            except:
+                pass
+        elif oferta.creador.tipo_usuario == 'empresa':
+            try:
+                nombre_creador = oferta.creador.empresa.nombre
+            except:
+                pass
+        
+        # Preparamos el contexto para el template
+        context = {
+            'nombre_postulante': persona.nombre_completo or request.user.username,
+            'oferta': oferta,
+            'nombre_creador': nombre_creador,
+            'url_perfil': request.build_absolute_uri('/perfil/'),  # Ajusta según tu URL
+            'year': datetime.now().year,
+            'company_name': getattr(settings, 'SITE_NAME', 'Portal de Empleos'),
+            'logo_url': request.build_absolute_uri(settings.STATIC_URL + 'img/logo.png') if hasattr(settings, 'STATIC_URL') else None,
+        }
+        
+        # Renderizamos el template HTML
+        html_content = render_to_string('gestionOfertas/emails/confirmacion_postulacion.html', context)
+        text_content = strip_tags(html_content)  # Versión de texto plano para clientes que no soportan HTML
+        
+        # Enviamos el correo con contenido HTML
+        subject = f"Confirmación de postulación: {oferta.nombre}"
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+        to_email = request.user.correo
+        
+        # Creamos el mensaje con contenido alternativo (HTML y texto plano)
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        
+        messages.success(request, "¡Tu postulación ha sido enviada con éxito! Hemos enviado un correo de confirmación.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    except Exception as e:
+        messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
 
 
 @login_required

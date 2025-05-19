@@ -96,6 +96,13 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'gestionOfertas/static'), 
 ]
 
+# settings.py
+MAPBOX_TOKEN = "pk.eyJ1IjoiYWFtdW5venAiLCJhIjoiY21hbjk0NTc2MHQwbjJ4b2ppcGtwcWVyYiJ9.fjKCOM0r_euWhIprM9crfQ"
+
+
+
+
+
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'gestionOfertas/static'), 
@@ -133,7 +140,14 @@ AUTH_USER_MODEL = 'gestionOfertas.Usuario'
 # --- Default primary key field type ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- Opcional: URLs de Login/Logout ---
-# LOGIN_URL = 'nombre_url_login'
-# LOGOUT_REDIRECT_URL = 'inicio'
-# LOGIN_REDIRECT_URL = 'inicio' 
+
+
+# Configuración de Email
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Ejemplo para Gmail
+EMAIL_PORT = 587  # Puerto para TLS
+EMAIL_USE_TLS = True  # Usar TLS (seguridad)
+EMAIL_HOST_USER = 'matchjobbeta@gmail.com'  # Tu email completo
+EMAIL_HOST_PASSWORD = 'rbxf vwqk yhxv yyxp'  # Tu contraseña o contraseña de aplicación
+DEFAULT_FROM_EMAIL = 'matchjobbeta@gmail.com'  # Email que aparece como remitente
+SITE_NAME = 'MatchJob'  # Nombre de tu aplicación/sitio
