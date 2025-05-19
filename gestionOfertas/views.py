@@ -1,6 +1,6 @@
 # En tu_app/views.py
 
-
+from gestionOfertas.utils import notificar_oferta_urgente
 from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -259,6 +259,7 @@ def inicio(request):
     }
     
     return render(request, 'gestionOfertas/inicio.html', context)
+  # Asegúrate de tener esta función en utils.py (o donde esté)
 
 @login_required
 def crear_oferta(request):
@@ -266,21 +267,26 @@ def crear_oferta(request):
         form = OfertaTrabajoForm(request.POST, user=request.user)
         if form.is_valid():
             oferta = form.save()
-            
+
+            # 📢 Verifica si la oferta es urgente y envía la notificación
+            if oferta.urgente:
+                notificar_oferta_urgente(oferta)
+
             msg = _('¡Oferta de empleo creada!') if hasattr(request.user, 'empresa') else _('¡Servicio publicado!')
             messages.success(request, msg)
-            
+
             return redirect('miperfil')
     else:
         form = OfertaTrabajoForm(user=request.user)
-    
+
     contexto = {
         'form': form,
         'es_empresa': hasattr(request.user, 'empresa'),
         'es_persona': hasattr(request.user, 'personanatural')
     }
-    
+
     return render(request, 'gestionOfertas/crear_oferta.html', contexto)
+
 
 @login_required
 def mis_ofertas(request):
@@ -392,6 +398,19 @@ def cambiar_estado_postulacion(request, postulacion_id):
             messages.error(request, "Estado no válido.")
 
     return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
+
+
+
+@login_required
+def actualizar_modo_urgente(request):
+    if request.method == 'POST':
+        persona = request.user.personanatural
+        persona.modo_urgente = 'modo_urgente' in request.POST
+        persona.recibir_ofertas_urgentes = 'recibir_ofertas_urgentes' in request.POST
+        persona.save()
+        messages.success(request, "Tus preferencias de urgencia han sido actualizadas.")
+    return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
+
 
 # Configuración del logger
 logger = logging.getLogger(__name__)
