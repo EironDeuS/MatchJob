@@ -91,22 +91,21 @@ TIME_ZONE = 'America/Santiago'
 USE_I18N = True
 USE_TZ = True
 
-<<<<<<< Updated upstream
+
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
 
 # --- Google Cloud Storage Configuration ---
-=======
-# STATIC_URL = '/static/'
 
-# STATICFILES_DIRS = [
-#     os.path.join(BASE_DIR, 'gestionOfertas/static'), 
-# ]
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'gestionOfertas/static'), 
+]
 
 # settings.py
 MAPBOX_TOKEN = "pk.eyJ1IjoiYWFtdW5venAiLCJhIjoiY21hbjk0NTc2MHQwbjJ4b2ppcGtwcWVyYiJ9.fjKCOM0r_euWhIprM9crfQ"
-
 
 
 
@@ -120,18 +119,16 @@ STATICFILES_DIRS = [
 # --- Google Cloud Storage Configuration ---
 GS_CREDENTIALS_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '/app/matchjob-458200-6a0cfe7aa83a.json')
 GS_CREDENTIALS = service_account.Credentials.from_service_account_file(GS_CREDENTIALS_FILE) if GS_CREDENTIALS_FILE else None
->>>>>>> Stashed changes
 
 STORAGES = {
     "default": {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
-<<<<<<< Updated upstream
-            "bucket_name": "matchjob", # Bucket para MEDIA
-=======
+
+
             "bucket_name": "matchjob",
             "credentials": GS_CREDENTIALS,
->>>>>>> Stashed changes
+
         },
     },
     "staticfiles": {
@@ -154,12 +151,6 @@ AUTH_USER_MODEL = 'gestionOfertas.Usuario'
 # --- Default primary key field type ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-<<<<<<< Updated upstream
-# --- Opcional: URLs de Login/Logout ---
-# LOGIN_URL = 'nombre_url_login'
-# LOGOUT_REDIRECT_URL = 'inicio'
-# LOGIN_REDIRECT_URL = 'inicio' 
-=======
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles') # Añade esta línea
@@ -176,4 +167,4 @@ EMAIL_HOST_USER = 'matchjobbeta@gmail.com'  # Tu email completo
 EMAIL_HOST_PASSWORD = 'rbxf vwqk yhxv yyxp'  # Tu contraseña o contraseña de aplicación
 DEFAULT_FROM_EMAIL = 'matchjobbeta@gmail.com'  # Email que aparece como remitente
 SITE_NAME = 'MatchJob'  # Nombre de tu aplicación/sitio
->>>>>>> Stashed changes
+
