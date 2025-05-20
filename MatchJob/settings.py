@@ -9,7 +9,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
-MESSAGE_TAGS = {    
+MESSAGE_TAGS = {
     messages.DEBUG: 'secondary',
     messages.INFO: 'info',
     messages.SUCCESS: 'success',
@@ -31,7 +31,6 @@ INSTALLED_APPS = [
     'gestionOfertas',
     'widget_tweaks',
     'storages',
-    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -49,7 +48,7 @@ ROOT_URLCONF = 'MatchJob.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [BASE_DIR / 'templates'], # Esto podría ser problemático en Docker
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -69,7 +68,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'BDmatchjob',
         'USER': 'neondb_owner',
-        'PASSWORD': 'npg_lU8ucqsIiP6X', 
+        'PASSWORD': 'npg_lU8ucqsIiP6X', # <-- ¡MOVER A .env!
         'HOST': 'ep-weathered-sunset-ac0mxs0q-pooler.sa-east-1.aws.neon.tech',
         'PORT': '5432',
         'OPTIONS': {
@@ -91,26 +90,16 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
-
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'gestionOfertas/static'), 
+    os.path.join(BASE_DIR, 'gestionOfertas/static'),
 ]
 
 # settings.py
 MAPBOX_TOKEN = "pk.eyJ1IjoiYWFtdW5venAiLCJhIjoiY21hbjk0NTc2MHQwbjJ4b2ppcGtwcWVyYiJ9.fjKCOM0r_euWhIprM9crfQ"
 
-
-
-
-
-
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'gestionOfertas/static'), 
-]
-
-
 # --- Google Cloud Storage Configuration ---
-GS_CREDENTIALS_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+GS_CREDENTIALS_FILE = os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '/app/matchjob-458200-6a0cfe7aa83a.json')
 GS_CREDENTIALS = service_account.Credentials.from_service_account_file(GS_CREDENTIALS_FILE) if GS_CREDENTIALS_FILE else None
 
 STORAGES = {
@@ -118,16 +107,15 @@ STORAGES = {
         "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
         "OPTIONS": {
             "bucket_name": "matchjob",
-            "credentials": GS_CREDENTIALS,  # Usar las credenciales del .env
+            "credentials": GS_CREDENTIALS,
         },
     },
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     }
 }
-MEDIA_URL = '' # O f'https://storage.googleapis.com/matchjob/media/' si prefieres
+MEDIA_URL = ''
 MEDIA_ROOT = BASE_DIR / 'media_files_temp_no_usar'
-
 # --- Autenticación ---
 
 AUTHENTICATION_BACKENDS = [
@@ -140,14 +128,12 @@ AUTH_USER_MODEL = 'gestionOfertas.Usuario'
 # --- Default primary key field type ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
 # Configuración de Email
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Ejemplo para Gmail
-EMAIL_PORT = 587  # Puerto para TLS
-EMAIL_USE_TLS = True  # Usar TLS (seguridad)
-EMAIL_HOST_USER = 'matchjobbeta@gmail.com'  # Tu email completo
-EMAIL_HOST_PASSWORD = 'rbxf vwqk yhxv yyxp'  # Tu contraseña o contraseña de aplicación
-DEFAULT_FROM_EMAIL = 'matchjobbeta@gmail.com'  # Email que aparece como remitente
-SITE_NAME = 'MatchJob'  # Nombre de tu aplicación/sitio
+EMAIL_HOST = 'smtp.gmail.com' # Ejemplo para Gmail
+EMAIL_PORT = 587 # Puerto para TLS
+EMAIL_USE_TLS = True # Usar TLS (seguridad)
+EMAIL_HOST_USER = 'matchjobbeta@gmail.com' # Tu email completo
+EMAIL_HOST_PASSWORD = 'rbxf vwqk yhxv yyxp' # Tu contraseña o contraseña de aplicación
+DEFAULT_FROM_EMAIL = 'matchjobbeta@gmail.com' # Email que aparece como remitente
+SITE_NAME = 'MatchJob' # Nombre de tu aplicación/sitio
