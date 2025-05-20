@@ -1,0 +1,143 @@
+/* perfil.css */
+
+/* Estilos generales para el contenedor principal */
+.container.py-4 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+}
+
+/* Estilos para la columna izquierda (información del perfil) */
+.col-lg-4.col-md-5.mb-4 .card.shadow-sm.h-100 {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.col-lg-4.col-md-5.mb-4 .card-body.text-center .rounded-circle {
+    object-fit: cover;
+}
+
+.col-lg-4.col-md-5.mb-4 .card-body.text-center h4.mb-1.fw-bold i {
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card-body.text-center a.text-decoration-none .mb-2 i {
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card-body.text-center p.text-muted.mb-3 i {
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card-body.text-center .d-flex.justify-content-center.gap-2.flex-wrap .btn {
+    font-size: 0.85rem;
+}
+
+/* Estilos para la sección de últimas valoraciones */
+.col-lg-4.col-md-5.mb-4 .card.shadow-sm.mt-4 .card-body h5.card-title i {
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card.shadow-sm.mt-4 .card-body .list-group.list-group-flush .list-group-item strong i {
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card.shadow-sm.mt-4 .card-body .list-group.list-group-flush .list-group-item p.mb-0.small i {
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card.shadow-sm.mt-4 .card-body .list-group.list-group-flush .list-group-item small.text-muted i {
+    vertical-align: middle;
+}
+
+.col-lg-4.col-md-5.mb-4 .card.shadow-sm.mt-4 .card-body a.btn.btn-sm.btn-outline-primary.w-100.mt-2 i {
+    vertical-align: middle;
+}
+
+/* Estilos para la columna derecha (contenido principal) */
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body h3.card-title.border-bottom.pb-2 i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .row.g-3 .form-label i {
+    vertical-align: middle;
+    margin-right: 0.2rem;
+}
+
+/* Estilos para la sección de ofertas creadas/publicadas */
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .d-flex.justify-content-between.align-items-center.mb-3 h3.card-title.mb-0 i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .d-flex.justify-content-between.align-items-center.mb-3 a.btn.btn-sm.btn-success i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .list-group .list-group-item h5.mb-1 i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .list-group .list-group-item small i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .list-group .list-group-item .d-flex.justify-content-between.align-items-center.mt-2 .badge i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .list-group .list-group-item .d-flex.justify-content-between.align-items-center.mt-2 div a.btn.btn-sm i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm.mb-4 .card-body .alert.alert-info.mb-0 i {
+    vertical-align: middle;
+}
+
+/* Estilos para la sección de postulaciones */
+.col-lg-8.col-md-7 .card.shadow-sm .card-body h3.card-title.border-bottom.pb-2.mb-3 i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table thead th i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table tbody td .d-flex.align-items-center i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table tbody td a i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table tbody td small i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table tbody td span.badge i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table tbody td form select.form-select-sm {
+    max-width: 120px;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .table-responsive table tbody td form button.btn.btn-sm i {
+    vertical-align: middle;
+}
+
+.col-lg-8.col-md-7 .card.shadow-sm .card-body .alert.alert-info.mb-0 i {
+    vertical-align: middle;
+}
+
+/* Estilos para la sección de postulaciones filtradas (si es necesario diferenciarlos) */
+.col-lg-8.col-md-7 .card.shadow-sm.mt-4 .card-body h3.card-title.border-bottom.pb-2.mb-3 i {
+    vertical-align: middle;
+}

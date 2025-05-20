@@ -1,271 +1,187 @@
 {% extends 'gestionOfertas/base.html' %}
 {% load static %}
-
-{% block title %}Crear Postulación{% endblock %}
-
-{% block head %}
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="{% static 'gestionOfertas/css/crear_oferta.css' %}">
-{% endblock %}
+{% load widget_tweaks %}
 
 {% block content %}
-<div class="job-application">
-    <header class="job-application__header">
-        <div class="job-application__header-icon">
-            <i class="fas fa-briefcase"></i>
-        </div>
-        <h1 class="job-application__title">Crear Postulación de Trabajo</h1>
-        <p class="job-application__subtitle">Complete los detalles de la oferta laboral</p>
-    </header>
-
-    <form method="post" class="job-application__form" enctype="multipart/form-data">
-        {% csrf_token %}
-        
-        <div class="form-grid">
-            <!-- Categoría -->
-            <div class="form-group">
-                <label for="{{ form.categoria.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-tag form-group__icon"></i> {{ form.categoria.label }}
-                </label>
-                <div class="form-group__input-container">
-                    <select id="{{ form.categoria.id_for_label }}" name="{{ form.categoria.name }}" class="form-select">
-                        {% for value, text in form.categoria.field.choices %}
-                            <option value="{{ value }}">{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                    <i class="fas fa-chevron-down form-group__select-icon"></i>
-                </div>
-                {% if form.categoria.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.categoria.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Nombre -->
-            <div class="form-group">
-                <label for="{{ form.nombre.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-heading form-group__icon"></i> {{ form.nombre.label }}
-                </label>
-                <div class="form-group__input-container">
-                    <input type="text" id="{{ form.nombre.id_for_label }}" name="{{ form.nombre.name }}" 
-                           value="{{ form.nombre.value|default:'' }}" class="form-control" 
-                           placeholder="Ej: Desarrollador Frontend Senior">
-                    <i class="fas fa-pencil-alt form-group__input-icon"></i>
-                </div>
-                {% if form.nombre.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.nombre.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Descripción -->
-            <div class="form-group form-group--full">
-                <label for="{{ form.descripcion.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-align-left form-group__icon"></i> {{ form.descripcion.label }}
-                </label>
-                <textarea id="{{ form.descripcion.id_for_label }}" name="{{ form.descripcion.name }}" 
-                          class="form-control" rows="4">{{ form.descripcion.value|default:'' }}</textarea>
-                <div class="form-group__char-counter" data-target="{{ form.descripcion.id_for_label }}">0/1000</div>
-                {% if form.descripcion.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.descripcion.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Requisitos -->
-            <div class="form-group form-group--full">
-                <label for="{{ form.requisitos.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-list-check form-group__icon"></i> {{ form.requisitos.label }}
-                </label>
-                <textarea id="{{ form.requisitos.id_for_label }}" name="{{ form.requisitos.name }}" 
-                          class="form-control" rows="3">{{ form.requisitos.value|default:'' }}</textarea>
-                <div class="form-group__help-text">
-                    <i class="fas fa-info-circle"></i> Enumere los requisitos separados por puntos
-                </div>
-                {% if form.requisitos.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.requisitos.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Beneficios -->
-            <div class="form-group form-group--full">
-                <label for="{{ form.beneficios.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-gift form-group__icon"></i> {{ form.beneficios.label }}
-                </label>
-                <textarea id="{{ form.beneficios.id_for_label }}" name="{{ form.beneficios.name }}" 
-                          class="form-control" rows="3">{{ form.beneficios.value|default:'' }}</textarea>
-                {% if form.beneficios.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.beneficios.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Salario -->
-            <div class="form-group">
-                <label for="{{ form.salario.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-money-bill-wave form-group__icon"></i> {{ form.salario.label }}
-                </label>
-                <div class="form-group__input-container">
-                    <input type="number" id="{{ form.salario.id_for_label }}" name="{{ form.salario.name }}" 
-                           value="{{ form.salario.value|default:'' }}" class="form-control" 
-                           placeholder="Ej: 50000">
-                    <span class="form-group__currency">$</span>
-                </div>
-                {% if form.salario.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.salario.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Ubicación -->
-            <div class="form-group">
-                <label for="{{ form.ubicacion.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-map-marker-alt form-group__icon"></i> {{ form.ubicacion.label }}
-                </label>
-                <div class="form-group__input-container">
-                    <input type="text" id="{{ form.ubicacion.id_for_label }}" name="{{ form.ubicacion.name }}" 
-                           value="{{ form.ubicacion.value|default:'' }}" class="form-control" 
-                           placeholder="Ej: Buenos Aires, Argentina">
-                    <i class="fas fa-map-pin form-group__input-icon"></i>
-                </div>
-                {% if form.ubicacion.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.ubicacion.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Tipo de Contrato (solo para empresas) -->
-            {% if form.tipo_contrato %}
-            <div class="form-group">
-                <label for="{{ form.tipo_contrato.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-file-contract form-group__icon"></i> {{ form.tipo_contrato.label }}
-                </label>
-                <div class="form-group__input-container">
-                    <select id="{{ form.tipo_contrato.id_for_label }}" name="{{ form.tipo_contrato.name }}" class="form-select">
-                        {% for value, text in form.tipo_contrato.field.choices %}
-                            <option value="{{ value }}" {% if form.tipo_contrato.value == value %}selected{% endif %}>{{ text }}</option>
-                        {% endfor %}
-                    </select>
-                    <i class="fas fa-chevron-down form-group__select-icon"></i>
-                </div>
-                {% if form.tipo_contrato.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.tipo_contrato.errors }}
-                    </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <!-- Fecha de Cierre -->
-            <div class="form-group">
-                <label for="{{ form.fecha_cierre.id_for_label }}" class="form-group__label">
-                    <i class="fas fa-calendar-alt form-group__icon"></i> {{ form.fecha_cierre.label }}
-                </label>
-                <div class="form-group__input-container">
-                    <input type="date" id="{{ form.fecha_cierre.id_for_label }}" name="{{ form.fecha_cierre.name }}" 
-                           value="{{ form.fecha_cierre.value|date:'Y-m-d'|default:'' }}" class="form-control">
-                    <i class="fas fa-calendar-day form-group__input-icon"></i>
-                </div>
-                {% if form.fecha_cierre.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.fecha_cierre.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Publicar inmediatamente -->
-            <div class="form-group form-group--checkbox">
-                <label class="form-group__checkbox-label">
-                    <input type="checkbox" id="{{ form.esta_activa.id_for_label }}" name="{{ form.esta_activa.name }}" 
-                           {% if form.esta_activa.value %}checked{% endif %} class="form-checkbox">
-                    <span class="form-group__checkbox-custom">
-                        <i class="fas fa-check form-group__checkbox-icon"></i>
-                    </span>
-                    <span class="form-group__checkbox-text">
-                        <i class="fas fa-paper-plane form-group__icon"></i> {{ form.esta_activa.label }}
-                    </span>
-                </label>
-                {% if form.esta_activa.errors %}
-                    <div class="form-group__error">
-                        <i class="fas fa-exclamation-circle"></i> {{ form.esta_activa.errors }}
-                    </div>
-                {% endif %}
-            </div>
+<div class="container py-5">
+    <div class="mx-auto shadow-lg rounded-4 bg-white p-4 p-md-5" style="max-width: 1000px;">
+        <div class="text-center mb-5">
+            <h1 class="display-5 fw-bold text-primary"><i class="bi bi-briefcase-fill me-2"></i>Publica una oferta</h1>
+            <p class="lead text-muted">Conecta con el mejor talento para tu empresa o proyecto en Chile</p>
         </div>
 
-        <div class="form-actions">
-            <button type="submit" class="form-actions__button form-actions__button--submit">
-                <i class="fas fa-save form-actions__icon"></i> Guardar Postulación
-            </button>
-            <button type="button" class="form-actions__button form-actions__button--cancel" onclick="window.history.back()">
-                <i class="fas fa-times form-actions__icon"></i> Cancelar
-            </button>
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
         </div>
-    </form>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" id="jobOfferForm">
+            {% csrf_token %}
+
+            <!-- Información básica -->
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>Información básica</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
+                            {{ form.categoria|add_class:"form-select" }}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+                            {{ form.nombre|add_class:"form-control" }}
+                        </div>
+                        <div class="col-12">
+                            <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+                            {{ form.descripcion|add_class:"form-control" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detalles -->
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-map-fill me-2"></i>Ubicación y detalles</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="{{ form.salario.id_for_label }}" class="form-label">{{ form.salario.label }} (CLP)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.salario|add_class:"form-control" }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="ubicacionInput" class="form-label">{{ form.ubicacion.label }}</label>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="ubicacionInput" placeholder="Ej: Santiago, Chile">
+                                <i class="bi bi-geo-alt position-absolute top-50 end-0 translate-middle-y me-3 text-primary"></i>
+                                {{ form.ubicacion.as_hidden }}
+                            </div>
+                            <div class="mt-2 rounded overflow-hidden border" style="height: 200px;">
+                                <div id="map" style="height: 100%;"></div>
+                            </div>
+                        </div>
+
+                        {% if form.tipo_contrato %}
+                        <div class="col-md-4">
+                            <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
+                            {{ form.tipo_contrato|add_class:"form-select" }}
+                        </div>
+                        {% endif %}
+
+                        <div class="col-md-6">
+                            <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
+                            {{ form.fecha_cierre|add_class:"form-control" }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.esta_activa.label }}</label>
+                            <div class="form-check form-switch">
+                                {{ form.esta_activa }}
+                                <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">Visible</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Requisitos y beneficios -->
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Requisitos y beneficios</h5>
+                </div>
+                <div class="card-body row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
+                        {{ form.requisitos|add_class:"form-control" }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
+                        {{ form.beneficios|add_class:"form-control" }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Urgente -->
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-diamond me-2"></i>Urgencia</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch">
+                        {{ form.urgente }}
+                        <label class="form-check-label" for="{{ form.urgente.id_for_label }}">
+                            ¿Deseas marcar esta oferta como urgente?
+                        </label>
+                    </div>
+                    <small class="text-muted">Las ofertas urgentes aparecerán destacadas.</small>
+                </div>
+            </div>
+
+            <!-- Enviar -->
+            <div class="text-end">
+                <button type="submit" class="btn btn-lg btn-primary shadow-sm px-4">
+                    <i class="bi bi-send-check me-2"></i>Publicar oferta
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
-<!-- Toast Notification (hidden by default) -->
-<div class="toast" id="saveToast">
-    <div class="toast__icon">
-        <i class="fas fa-check-circle"></i>
-    </div>
-    <div class="toast__content">
-        <p class="toast__message">Postulación guardada exitosamente!</p>
-    </div>
-    <button class="toast__close">
-        <i class="fas fa-times"></i>
-    </button>
-</div>
+<!-- Google Maps -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
 
 <script>
-// Mostrar toast cuando el formulario se envía correctamente
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('.job-application__form');
-    const toast = document.getElementById('saveToast');
-    
-    if (form && toast) {
-        form.addEventListener('submit', function(e) {
-            // Simulamos el éxito (en producción, esto debería ser manejado por Django)
-            setTimeout(() => {
-                toast.classList.add('toast--show');
-                setTimeout(() => {
-                    toast.classList.remove('toast--show');
-                }, 5000);
-            }, 1000);
+    let map, marker, autocomplete;
+    const defaultLocation = { lat: -33.4489, lng: -70.6693 };
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: defaultLocation,
+            zoom: 6
         });
-        
-        // Cerrar toast manualmente
-        const closeBtn = toast.querySelector('.toast__close');
-        closeBtn.addEventListener('click', () => {
-            toast.classList.remove('toast--show');
+
+        marker = new google.maps.Marker({
+            map: map,
+            draggable: true,
+            animation: google.maps.Animation.DROP
         });
+
+        autocomplete = new google.maps.places.Autocomplete(document.getElementById("ubicacionInput"), {
+            componentRestrictions: { country: "cl" }
+        });
+
+        autocomplete.addListener("place_changed", fillInAddress);
+        marker.addListener("dragend", () => updateLocationFields(marker.getPosition()));
     }
-    
-    // Contador de caracteres para descripción
-    const descripcion = document.getElementById('{{ form.descripcion.id_for_label }}');
-    const charCounter = document.querySelector('.form-group__char-counter[data-target="{{ form.descripcion.id_for_label }}"]');
-    
-    if (descripcion && charCounter) {
-        descripcion.addEventListener('input', function() {
-            const currentLength = this.value.length;
-            charCounter.textContent = `${currentLength}/1000`;
-            
-            if (currentLength > 1000) {
-                charCounter.style.color = 'var(--error-color)';
-            } else {
-                charCounter.style.color = 'var(--text-light)';
-            }
-        });
+
+    function fillInAddress() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) return;
+
+        map.setCenter(place.geometry.location);
+        map.setZoom(15);
+        marker.setPosition(place.geometry.location);
+        marker.setVisible(true);
+
+        updateLocationFields(place.geometry.location);
+        document.getElementById("ubicacionInput").value = place.formatted_address;
     }
-});
+
+    function updateLocationFields(latLng) {
+        document.getElementById("{{ form.ubicacion.id_for_label }}").value = `${latLng.lat()},${latLng.lng()}`;
+    }
 </script>
 {% endblock %}

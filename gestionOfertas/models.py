@@ -57,11 +57,9 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     )
     correo = models.EmailField(_('Correo electrónico'), unique=True)
     telefono = models.CharField(_('Teléfono'), max_length=20, blank=True, null=True)
-    # Dirección ahora está aquí
     direccion = models.CharField(
         _('Dirección'), max_length=255, blank=True, null=True
     )
-    # No va valoracion_id aquí
     tipo_usuario = models.CharField(
         _('Tipo de usuario'), max_length=20, choices=TIPO_USUARIO_CHOICES, default='persona'
     )
@@ -130,6 +128,8 @@ class PersonaNatural(models.Model):
     apellidos = models.CharField(_('Apellidos'), max_length=100, blank=True)
     fecha_nacimiento = models.DateField(_('Fecha de nacimiento'), blank=True, null=True)
     nacionalidad = models.CharField(_('Nacionalidad'), max_length=50, default='Chilena')
+    modo_urgente = models.BooleanField(default=False)
+    recibir_ofertas_urgentes = models.BooleanField(default=False, verbose_name="Recibir ofertas urgentes por correo")
 
     class Meta:
         verbose_name = _('Persona Natural')
@@ -155,6 +155,21 @@ class PersonaNatural(models.Model):
 
     def get_ofertas_creadas_activas(self):
         return self.usuario.ofertas_creadas.filter(esta_activa=True) # Usa related_name de OfertaTrabajo.creador
+    
+    def activar_modo_urgente(self):
+        """Activa el modo urgente para esta persona."""
+        self.modo_urgente = True
+        self.save(update_fields=['modo_urgente'])
+
+    def desactivar_modo_urgente(self):
+        """Desactiva el modo urgente para esta persona."""
+        self.modo_urgente = False
+        self.save(update_fields=['modo_urgente'])
+
+    def esta_en_modo_urgente(self):
+        """Retorna True si la persona está en modo urgente."""
+        return self.modo_urgente
+
 
 
 # -----------------------------
@@ -336,11 +351,12 @@ class OfertaTrabajo(models.Model):
         blank=True
     )
     
-    # Fechas y estado
+    # Fechas y estadoX
     fecha_publicacion = models.DateTimeField(_('Publicación'), default=timezone.now)
     fecha_cierre = models.DateField(_('Cierre'), blank=True, null=True)
     esta_activa = models.BooleanField(_('Activa'), default=True)
     es_servicio = models.BooleanField(_('Es servicio'), default=False)
+    urgente = models.BooleanField(default=False)
     
     class Meta:
         verbose_name = _('Oferta de trabajo')
@@ -382,6 +398,19 @@ class OfertaTrabajo(models.Model):
             return usuario != self.creador and hasattr(usuario, 'empresa')
         else:
             return usuario != self.creador and hasattr(usuario, 'personanatural')
+    def marcar_como_urgente(self):
+        """Marca esta oferta como urgente."""
+        self.urgente = True
+        self.save(update_fields=['urgente'])
+
+    def desmarcar_urgencia(self):
+        """Desactiva el estado urgente de esta oferta."""
+        self.urgente = False
+        self.save(update_fields=['urgente'])
+
+    def es_urgente(self):
+        """Indica si la oferta está marcada como urgente."""
+        return self.urgente
 
 # -----------------------------
 # Postulación
@@ -389,10 +418,11 @@ class OfertaTrabajo(models.Model):
 class Postulacion(models.Model):
     ESTADOS = [
         ('pendiente', _('Pendiente')),
-        ('revisado', _('Revisado')),
-        ('entrevista', _('Entrevista')),
+        ('filtrado', _('Filtrado')),
+        ('match', _('Match')),
         ('contratado', _('Contratado')),
         ('rechazado', _('Rechazado')),
+        ('finalizado', _('Finalizado')),
     ]
     persona = models.ForeignKey(PersonaNatural, on_delete=models.CASCADE, related_name='postulaciones')
     oferta = models.ForeignKey(OfertaTrabajo, on_delete=models.CASCADE, related_name='postulaciones_recibidas')
@@ -403,6 +433,8 @@ class Postulacion(models.Model):
     mensaje = models.TextField(_('Mensaje del postulante'), blank=True)
     estado = models.CharField(_('Estado'), max_length=20, choices=ESTADOS, default='pendiente')
     feedback = models.TextField(_('Feedback'), blank=True)
+    # --- CAMBIO AÑADIDO ---
+    filtrada = models.BooleanField(_('Filtrada'), default=False, help_text=_('Indica si la postulación ha sido filtrada manualmente'))
 
     class Meta:
         verbose_name = _('Postulación')
@@ -413,6 +445,7 @@ class Postulacion(models.Model):
             models.Index(fields=['persona']),
             models.Index(fields=['oferta']),
             models.Index(fields=['estado']),
+            models.Index(fields=['filtrada']), # Añadimos un índice para el nuevo campo
         ]
 
     def __str__(self):
@@ -426,18 +459,18 @@ class Postulacion(models.Model):
             self.cv_enviado = self.persona.cv
 
     def puede_valorar(self, usuario_actual: Usuario) -> tuple[bool, Usuario | None]:
-        # Lógica Ejemplo: Solo valorar si está 'contratado' o 'rechazado' (ajusta esto!)
-        if self.estado not in ['contratado', 'rechazado']:
-             return False, None
+        if self.estado != 'finalizado':  # <-- CAMBIO CLAVE
+            return False, None
         emisor = usuario_actual
         receptor = None
-        # Compara con el usuario asociado a la persona y el creador de la oferta
         if emisor == self.persona.usuario:
             receptor = self.oferta.creador
         elif emisor == self.oferta.creador:
             receptor = self.persona.usuario
-        else: return False, None
-        if receptor is None: return False, None
+        else:
+            return False, None
+        if receptor is None:
+            return False, None
         valoracion_existente = Valoracion.objects.filter(
             emisor=emisor, receptor=receptor, postulacion=self
         ).exists()

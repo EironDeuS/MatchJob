@@ -1,0 +1,104 @@
+/* historial_valoraciones.css */
+
+/* Estilos generales para el contenedor principal */
+.historial-valoraciones-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Estilos para los títulos, aprovechando las clases de tipografía de Bootstrap */
+.historial-valoraciones-title {
+    color: #343a40; /* Color de texto primario de Bootstrap */
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-weight: 500; /* Semibold */
+}
+
+.valoraciones-pendientes-title {
+    color: #28a745; /* Color de éxito de Bootstrap */
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #28a745;
+    padding-bottom: 0.5rem;
+}
+
+.historial-title {
+    color: #007bff; /* Color primario de Bootstrap */
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 0.5rem;
+}
+
+/* Estilos para la lista de valoraciones pendientes */
+.valoraciones-pendientes-list .list-group-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+    background-color: #f8f9fa; /* Fondo gris claro de Bootstrap */
+}
+
+.valoraciones-pendientes-list .list-group-item p {
+    margin-bottom: 0;
+}
+
+/* Estilos para el historial de valoraciones usando tarjetas de Bootstrap */
+.valoracion-card {
+    margin-bottom: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Sombra sutil */
+}
+
+.valoracion-card-body {
+    padding: 1.25rem;
+}
+
+.valoracion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.valoracion-emisor {
+    font-weight: bold;
+    color: #343a40;
+}
+
+.valoracion-puntuacion i {
+    color: gold;
+    margin-left: 0.2rem;
+}
+
+.valoracion-comentario {
+    color: #6c757d;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.valoracion-meta {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.75rem;
+}
+
+/* Estilos para el botón de volver */
+.volver-perfil-btn {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+/* Ejemplo para hacer los iconos de la cabecera más grandes */
+.historial-valoraciones-title i {
+    font-size: 1.2em;
+}
+
+/* Ejemplo para un tamaño específico de los iconos de metadatos */
+.valoracion-meta i {
+    font-size: 0.9em;
+}

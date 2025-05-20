@@ -13,16 +13,14 @@
         --light-color: #f9fafb;
         --dark-color: #111827;
         --success-color: #10b981;
-        --border-radius: 12px;
         --box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-        --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        --transition: all 0.3s ease;
         --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
-        --gradient-accent: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
     }
     
     .edit-offer-container {
-        animation: fadeIn 0.6s ease-out;
         padding: 3rem 0;
+        animation: fadeIn 0.6s ease-out;
     }
     
     @keyframes fadeIn {
@@ -33,163 +31,81 @@
     .card-edit-offer {
         border: none;
         border-radius: 16px;
-        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.08), 
-                   0 5px 15px rgba(0, 0, 0, 0.03);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
         overflow: hidden;
         transition: var(--transition);
         background: white;
-        position: relative;
-    }
-    
-    .card-edit-offer::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 16px;
-        padding: 2px;
-        background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #ec4899 100%);
-        -webkit-mask: 
-            linear-gradient(#fff 0 0) content-box, 
-            linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
-        opacity: 0.5;
-        transition: opacity 0.3s ease;
-    }
-    
-    .card-edit-offer:hover::before {
-        opacity: 1;
     }
     
     .card-header-edit {
         background: var(--gradient-primary);
-        padding: 2.5rem;
+        padding: 2rem;
         color: white;
+        border-radius: 16px 16px 0 0;
         position: relative;
         overflow: hidden;
-        border-radius: 16px 16px 0 0;
-    }
-    
-    .card-header-edit::after {
-        content: '';
-        position: absolute;
-        top: -100%;
-        left: -100%;
-        width: 300%;
-        height: 300%;
-        background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='rgba(255,255,255,0.05)' fill-rule='evenodd'/%3E%3C/svg%3E");
-        animation: gradientBg 25s linear infinite;
-    }
-    
-    @keyframes gradientBg {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
     }
     
     .card-header-edit h3 {
-        position: relative;
         font-weight: 700;
         display: flex;
         align-items: center;
-        font-size: 1.6rem;
-        letter-spacing: 0.5px;
+        font-size: 1.5rem;
+        margin: 0;
     }
     
     .card-header-edit h3 i {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         margin-right: 1rem;
         color: var(--secondary-color);
-        filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.5));
     }
     
     .card-body {
-        padding: 3rem;
-        position: relative;
-        z-index: 10;
+        padding: 2.5rem;
     }
     
     .form-group {
-        margin-bottom: 2rem;
-        transition: var(--transition);
-        position: relative;
+        margin-bottom: 1.5rem;
     }
     
-    .form-group::after {
-        content: '';
-        position: absolute;
-        left: 0;
-        bottom: -10px;
-        width: 0;
-        height: 2px;
-        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-        transition: width 0.3s ease;
-    }
-    
-    .form-group:hover::after {
-        width: 100%;
-    }
-    
-    .form-group label {
+    .form-label {
         font-weight: 600;
         color: var(--dark-color);
-        margin-bottom: 0.8rem;
-        display: block;
-        font-size: 0.95rem;
-        letter-spacing: 0.5px;
-        transform: translateY(0);
-        transition: transform 0.3s ease;
-    }
-    
-    .form-group:hover label {
-        transform: translateY(-3px);
-        color: var(--primary-color);
+        margin-bottom: 0.5rem;
     }
     
     .form-control, .form-select {
         border-radius: 10px;
-        padding: 1rem 1.2rem;
+        padding: 0.75rem 1rem;
         border: 1px solid #e5e7eb;
         transition: all 0.3s ease;
-        font-size: 1rem;
         background-color: #f9fafb;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
     }
     
     .form-control:focus, .form-select:focus {
         border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
         background-color: white;
-        outline: none;
     }
     
     textarea.form-control {
-        min-height: 140px;
-        resize: vertical;
-        line-height: 1.6;
+        min-height: 120px;
     }
     
     .btn-group-edit {
         display: flex;
         justify-content: flex-end;
-        margin-top: 3rem;
-        gap: 1.5rem;
+        margin-top: 2rem;
+        gap: 1rem;
     }
     
     .btn-edit-action {
         border-radius: 10px;
-        padding: 0.9rem 2rem;
+        padding: 0.75rem 1.5rem;
         font-weight: 600;
-        transition: all 0.3s ease;
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        gap: 0.7rem;
-        border: none;
-        cursor: pointer;
-        font-size: 0.95rem;
-        letter-spacing: 0.5px;
-        position: relative;
-        overflow: hidden;
+        gap: 0.5rem;
     }
     
     .btn-cancel {
@@ -201,174 +117,58 @@
     .btn-cancel:hover {
         background-color: #e5e7eb;
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
     }
     
     .btn-save {
         background: var(--gradient-primary);
         color: white;
-        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .btn-save::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 0.3) 50%,
-            rgba(255, 255, 255, 0) 100%
-        );
-        transition: left 0.7s ease;
+        border: none;
     }
     
     .btn-save:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+        box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
     }
     
-    .btn-save:hover::before {
-        left: 100%;
-    }
-    
-    /* Efecto para campos requeridos */
+    /* Required field indicator */
     .required-field label::after {
         content: " *";
         color: var(--accent-color);
         font-weight: bold;
     }
     
-    /* Mejoras para checkboxes y radios */
-    .form-check-input {
-        width: 1.25em;
-        height: 1.25em;
-        margin-top: 0.1em;
-        border: 2px solid #d1d5db;
-        transition: all 0.2s ease;
-    }
-    
-    .form-check-input:checked {
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-    }
-    
-    .form-check-label {
-        margin-left: 0.5rem;
-        user-select: none;
-    }
-    
-    /* Animación para errores de formulario */
-    .errorlist {
-        animation: slideIn 0.3s ease-out;
-        color: var(--accent-color);
-        font-weight: 500;
-        margin-top: 0.5rem;
-        list-style: none;
-        padding: 0.5rem 0.8rem;
-        border-radius: 8px;
-        background-color: rgba(236, 72, 153, 0.1);
-    }
-    
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
+    /* Form validation styles */
     .invalid-feedback {
-        animation: slideIn 0.3s ease-out;
         color: var(--accent-color);
         font-weight: 500;
-        margin-top: 0.5rem;
-        padding: 0.5rem 0.8rem;
-        border-radius: 8px;
-        background-color: rgba(236, 72, 153, 0.1);
+        margin-top: 0.3rem;
     }
     
-    /* Modern floating label effect */
-    .floating-label-group {
-        position: relative;
+    /* Form tooltips */
+    .form-tooltip {
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 0.5rem;
     }
     
-    .floating-label {
+    .form-tooltip .tooltip-icon {
+        color: #9ca3af;
+        cursor: pointer;
+    }
+    
+    /* Progress bar */
+    .form-progress {
+        height: 4px;
+        background: #e5e7eb;
         position: absolute;
-        top: 1rem;
-        left: 1.2rem;
-        color: #6b7280;
-        transition: all 0.25s ease;
-        pointer-events: none;
-        font-size: 1rem;
-        transform-origin: left top;
-        background: #f9fafb;
-        padding: 0 0.4rem;
-        margin-left: -0.2rem;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        overflow: hidden;
     }
     
-    .form-control:focus + .floating-label,
-    .form-control:not(:placeholder-shown) + .floating-label,
-    .form-select:focus + .floating-label,
-    .form-select:not([value=""]) + .floating-label {
-        transform: translateY(-1.4rem) scale(0.85);
-        color: var(--primary-color);
-        font-weight: 600;
-        background: white;
-    }
-    
-    /* Select styling */
-    .form-select {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234b5563'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 1rem center;
-        background-size: 1.25em;
-    }
-    
-    .form-select:focus {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234f46e5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-    }
-    
-    /* Estilo para small texts de ayuda */
-    .form-text {
-        color: #6b7280;
-        font-size: 0.875rem;
-        margin-top: 0.5rem;
-        display: block;
-        transition: var(--transition);
-    }
-    
-    .form-group:hover .form-text {
-        color: #4b5563;
-    }
-    
-    /* Estilo para campos inválidos */
-    .was-validated .form-control:invalid,
-    .was-validated .form-select:invalid {
-        border-color: var(--accent-color);
-        box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
-    }
-    
-    /* Responsive design */
-    @media (max-width: 992px) {
-        .card-body {
-            padding: 2rem;
-        }
-    }
-    
+    /* Responsive adjustments */
     @media (max-width: 768px) {
-        .card-header-edit {
-            padding: 1.8rem;
-        }
-        
-        .card-body {
-            padding: 1.8rem;
-        }
-        
         .btn-group-edit {
             flex-direction: column-reverse;
             width: 100%;
@@ -378,158 +178,6 @@
             width: 100%;
         }
     }
-    
-    @media (max-width: 576px) {
-        .edit-offer-container {
-            padding: 1.5rem 0;
-        }
-        
-        .card-header-edit {
-            padding: 1.5rem;
-        }
-        
-        .card-body {
-            padding: 1.5rem;
-        }
-        
-        .card-header-edit h3 {
-            font-size: 1.3rem;
-        }
-    }
-    
-    /* Modern scrollbar */
-    ::-webkit-scrollbar {
-        width: 6px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #c7d2fe;
-        border-radius: 10px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--primary-color);
-    }
-    
-    /* Tooltips para campos */
-    .form-tooltip {
-        position: relative;
-        display: inline-block;
-        vertical-align: middle;
-        margin-left: 0.5rem;
-    }
-    
-    .form-tooltip .tooltip-icon {
-        color: #9ca3af;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: color 0.2s ease;
-    }
-    
-    .form-tooltip:hover .tooltip-icon {
-        color: var(--primary-color);
-    }
-    
-    .form-tooltip .tooltip-text {
-        visibility: hidden;
-        width: 220px;
-        background-color: #1f2937;
-        color: white;
-        text-align: center;
-        border-radius: 8px;
-        padding: 0.8rem;
-        position: absolute;
-        z-index: 1;
-        bottom: 125%;
-        left: 50%;
-        transform: translateX(-50%);
-        opacity: 0;
-        transition: opacity 0.3s, transform 0.3s;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        font-size: 0.85rem;
-        pointer-events: none;
-    }
-    
-    .form-tooltip .tooltip-text::after {
-        content: "";
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        margin-left: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: #1f2937 transparent transparent transparent;
-    }
-    
-    .form-tooltip:hover .tooltip-text {
-        visibility: visible;
-        opacity: 1;
-        transform: translateX(-50%) translateY(-5px);
-    }
-    
-    /* Efecto de onda al hacer clic en campos */
-    .ripple {
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .ripple::after {
-        content: "";
-        display: block;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        pointer-events: none;
-        background-image: radial-gradient(circle, rgba(79, 70, 229, 0.2) 10%, transparent 10.01%);
-        background-repeat: no-repeat;
-        background-position: 50%;
-        transform: scale(10, 10);
-        opacity: 0;
-        transition: transform 0.5s, opacity 1s;
-    }
-    
-    .ripple:active::after {
-        transform: scale(0, 0);
-        opacity: 0.3;
-        transition: 0s;
-    }
-    
-    /* Estilo para indicar el progreso del formulario */
-    .form-progress {
-        height: 4px;
-        background: #e5e7eb;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        overflow: hidden;
-        border-radius: 0 0 16px 16px;
-    }
-    
-    .form-progress::before {
-        content: '';
-        position: absolute;
-        height: 100%;
-        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-        width: 0%;
-        transition: width 0.3s ease;
-    }
-    
-    .form-progress.fifty::before {
-        width: 50%;
-    }
-    
-    .form-progress.complete::before {
-        width: 100%;
-    }
-
 </style>
 {% endblock %}
 
@@ -539,32 +187,24 @@
         <div class="col-lg-10">
             <div class="card card-edit-offer">
                 <div class="card-header card-header-edit">
-                    <h3 class="mb-0"><i class="bi bi-pencil-square"></i>EDITAR OFERTA DE EMPLEO</h3>
+                    <h3><i class="bi bi-pencil-square"></i>EDITAR OFERTA DE EMPLEO</h3>
                 </div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate id="edit-offer-form">
                         {% csrf_token %}
                         
                         {% for field in form %}
-                        <div class="form-group {% if field.field.required %}required-field{% endif %} ripple">
+                        <div class="form-group {% if field.field.required %}required-field{% endif %}">
                             <div class="d-flex align-items-center">
-                                {{ field.label_tag }}
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
                                 {% if field.help_text %}
                                 <div class="form-tooltip">
-                                    <i class="bi bi-info-circle tooltip-icon"></i>
-                                    <span class="tooltip-text">{{ field.help_text }}</span>
+                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ field.help_text }}"></i>
                                 </div>
                                 {% endif %}
                             </div>
                             
-                            {% if field.field.widget.input_type == 'select' %}
-                            <div class="floating-label-group">
-                                {{ field }}
-                                <span class="floating-label">{{ field.label }}</span>
-                            </div>
-                            {% else %}
                             {{ field }}
-                            {% endif %}
                             
                             {% for error in field.errors %}
                             <div class="invalid-feedback d-block">
@@ -578,7 +218,7 @@
                             <a href="{% url 'mis_ofertas' %}" class="btn btn-cancel btn-edit-action">
                                 <i class="bi bi-arrow-left"></i> Volver
                             </a>
-                            <button type="submit" class="btn btn-save btn-edit-action" id="submit-btn">
+                            <button type="submit" class="btn btn-save btn-edit-action">
                                 <i class="bi bi-check2-circle"></i> Actualizar Oferta
                             </button>
                         </div>
@@ -590,162 +230,34 @@
     </div>
 </div>
 
+<!-- Bootstrap initialization for tooltips -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Formulario y sus elementos
-    const form = document.getElementById('edit-offer-form');
-    const inputs = form.querySelectorAll('input, textarea, select');
-    const progressBar = document.querySelector('.form-progress');
-    const submitBtn = document.getElementById('submit-btn');
-    
-    // Función para actualizar la barra de progreso
-    function updateProgressBar() {
-        let filledFields = 0;
-        let requiredFields = 0;
-        
-        inputs.forEach(input => {
-            if (input.required) {
-                requiredFields++;
-                if (input.value.trim() !== '') {
-                    filledFields++;
-                }
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Bootstrap tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
-        
-        const progress = requiredFields > 0 ? (filledFields / requiredFields) * 100 : 0;
-        
-        if (progress >= 100) {
-            progressBar.classList.add('complete');
-            progressBar.classList.remove('fifty');
-        } else if (progress >= 50) {
-            progressBar.classList.add('fifty');
-            progressBar.classList.remove('complete');
-        } else {
-            progressBar.classList.remove('fifty', 'complete');
+    });
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places"></script>
+<script>
+    function initAutocomplete() {
+      const input = document.getElementById('id_ubicacion');
+      if (!input) return;
+  
+      const autocomplete = new google.maps.places.Autocomplete(input, {
+        types: ['address'],
+        componentRestrictions: { country: 'cl' }
+      });
+  
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !document.querySelector('.pac-item-selected')) {
+          e.preventDefault();
         }
+      });
     }
-    
-    // Actualizar la barra de progreso inicialmente
-    updateProgressBar();
-    
-    // Validación de formulario en tiempo real
-    form.addEventListener('submit', function(event) {
-        if (!form.checkValidity()) {
-            event.preventDefault();
-            event.stopPropagation();
-            
-            // Animación para campos inválidos
-            const invalidFields = form.querySelectorAll(':invalid');
-            invalidFields.forEach(field => {
-                field.classList.add('shake');
-                field.style.borderColor = '#ec4899';
-                
-                // Reset after animation
-                setTimeout(() => {
-                    field.classList.remove('shake');
-                }, 500);
-            });
-            
-            // Scroll al primer campo inválido
-            if (invalidFields.length > 0) {
-                invalidFields[0].scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
-            }
-        }
-        
-        form.classList.add('was-validated');
-    }, false);
-    
-    // Animación para botón de envío
-    submitBtn.addEventListener('mouseenter', function() {
-        this.innerHTML = '<i class="bi bi-rocket"></i> Publicar Cambios';
-    });
-    
-    submitBtn.addEventListener('mouseleave', function() {
-        this.innerHTML = '<i class="bi bi-check2-circle"></i> Actualizar Oferta';
-    });
-    
-    // Efectos para campos de formulario
-    inputs.forEach(input => {
-        // Actualizar barra de progreso cuando cambia un campo
-        input.addEventListener('input', updateProgressBar);
-        
-        // Efecto de enfoque para campos
-        input.addEventListener('focus', function() {
-            this.closest('.form-group').classList.add('focused');
-        });
-        
-        input.addEventListener('blur', function() {
-            this.closest('.form-group').classList.remove('focused');
-        });
-        
-        // Placeholder para selects
-        if (input.tagName === 'SELECT') {
-            input.setAttribute('placeholder', ' ');
-            
-            // Añadir clase cuando se selecciona un valor
-            input.addEventListener('change', function() {
-                if (this.value) {
-                    this.classList.add('has-value');
-                } else {
-                    this.classList.remove('has-value');
-                }
-            });
-            
-            // Aplicar clase inmediatamente si ya tiene un valor
-            if (input.value) {
-                input.classList.add('has-value');
-            }
-        }
-    });
-    
-    // Añadir efecto de ripple a todos los botones
-    document.querySelectorAll('.btn-edit-action').forEach(button => {
-        button.classList.add('ripple');
-    });
-    
-    // Comprobar validez de los campos en tiempo real
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
-            if (this.checkValidity()) {
-                this.style.borderColor = '#10b981';
-            } else {
-                this.style.borderColor = '';
-            }
-        });
-    });
-    
-    // Mejora de la experiencia de usuario para textarea
-    document.querySelectorAll('textarea').forEach(textarea => {
-        textarea.addEventListener('input', function() {
-            this.style.height = '140px';
-            this.style.height = (this.scrollHeight) + 'px';
-        });
-    });
-    
-    // Detectar cuando se completa el formulario
-    form.addEventListener('input', function() {
-        if (form.checkValidity()) {
-            submitBtn.classList.add('pulse');
-            setTimeout(() => submitBtn.classList.remove('pulse'), 1000);
-        }
-    });
-    
-    // Animar la transición entre páginas
-    document.querySelector('.btn-cancel').addEventListener('click', function(e) {
-        e.preventDefault();
-        document.querySelector('.edit-offer-container').style.opacity = '0';
-        setTimeout(() => {
-            window.location.href = this.getAttribute('href');
-        }, 300);
-    });
-    
-    // Añadir efecto pulse al cargar la página
-    submitBtn.classList.add('pulse');
-    setTimeout(() => submitBtn.classList.remove('pulse'), 1000);
-});
-
+  
+    document.addEventListener('DOMContentLoaded', initAutocomplete);
 </script>
 {% endblock %}

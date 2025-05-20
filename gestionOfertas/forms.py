@@ -261,13 +261,13 @@ class UsuarioChangeForm(forms.ModelForm):
 
 
 
-class OfertaTrabajoForm(forms.ModelForm):
+class OfertaTrabajoForm(forms.ModelForm): 
     class Meta:
         model = OfertaTrabajo
         fields = [
             'categoria', 'nombre', 'descripcion', 'requisitos',
             'beneficios', 'salario', 'ubicacion', 'tipo_contrato',
-            'fecha_cierre', 'esta_activa'
+            'fecha_cierre', 'esta_activa', 'urgente'  # 👈 aquí
         ]
         widgets = {
             'descripcion': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
@@ -279,6 +279,7 @@ class OfertaTrabajoForm(forms.ModelForm):
         labels = {
             'esta_activa': _('Publicar inmediatamente'),
             'tipo_contrato': _('Tipo de Contrato'),
+            'urgente': _('¿Es una oferta urgente?')  # 👈 aquí
         }
 
     def __init__(self, *args, **kwargs):
@@ -295,16 +296,14 @@ class OfertaTrabajoForm(forms.ModelForm):
             self.fields['descripcion'].label = _('Descripción de tu servicio')
             self.fields['requisitos'].label = _('Qué necesitas para el servicio')
             self.fields.pop('tipo_contrato')  # Eliminar el campo si no es empresa
-            
+        
         # Configuración común
         self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
         self.fields['fecha_cierre'].widget.attrs['min'] = timezone.now().date().isoformat()
 
-
     def clean(self):
         cleaned_data = super().clean()
         
-        # Validación específica para empresas
         if hasattr(self.user, 'empresa') and not cleaned_data.get('tipo_contrato'):
             self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
         
@@ -313,18 +312,18 @@ class OfertaTrabajoForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
         instance.creador = self.user
-        
-        # Auto-configuración según tipo de usuario
+
         if hasattr(self.user, 'empresa'):
             instance.empresa = self.user.empresa
             instance.es_servicio = False
         else:
             instance.es_servicio = True
-        
+
         if commit:
             instance.save()
         
         return instance
+
     
 class EditarOfertaTrabajoForm(forms.ModelForm):
     class Meta:

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Postulación</title>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Open Sans', Arial, sans-serif; background-color: #f7f9fc;">
+    <!-- Contenedor principal -->
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f7f9fc">
+        <tr>
+            <td align="center" valign="top" style="padding: 40px 15px;">
+                <!-- Contenedor del email -->
+                <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="max-width: 600px; margin: 0 auto; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);">
+                    <!-- Encabezado -->
+                    <tr>
+                        <td style="padding: 30px 30px 20px; text-align: center; background-color: #2563eb; color: white;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="Logo" style="max-height: 50px; margin-bottom: 15px;">
+                            {% endif %}
+                            <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: white;">Confirmación de Postulación</h1>
+                            <p style="margin: 10px 0 0; font-size: 16px; color: rgba(255,255,255,0.9);">Tu postulación ha sido recibida</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Contenido -->
+                    <tr>
+                        <td style="padding: 30px;">
+                            <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #4b5563;">¡Hola <strong style="color: #1e293b;">{{ nombre_postulante }}</strong>!</p>
+                            
+                            <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #4b5563;">Gracias por postularte a nuestra vacante. Hemos recibido tu información correctamente y la estamos revisando.</p>
+                            
+                            <!-- Detalles de la oferta -->
+                            <table width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f8fafc; border-radius: 6px; margin: 25px 0; border: 1px solid #e2e8f0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h3 style="margin: 0 0 15px; font-size: 18px; color: #1e40af; font-weight: 700;">{{ oferta.nombre }}</h3>
+                                        
+                                        <table width="100%" cellspacing="0" cellpadding="0" border="0">
+                                            <tr>
+                                                <td style="padding: 5px 0; vertical-align: top; width: 100px;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #64748b;">Descripción:</span>
+                                                </td>
+                                                <td style="padding: 5px 0; font-size: 14px; color: #334155;">
+                                                    {{ oferta.descripcion }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 5px 0; vertical-align: top;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #64748b;">Tipo de contrato:</span>
+                                                </td>
+                                                <td style="padding: 5px 0; font-size: 14px; color: #334155;">
+                                                    {{ oferta.tipo_contrato }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 5px 0; vertical-align: top;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #64748b;">Ubicación:</span>
+                                                </td>
+                                                <td style="padding: 5px 0; font-size: 14px; color: #334155;">
+                                                    {{ oferta.ubicacion }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 5px 0; vertical-align: top;">
+                                                    <span style="font-size: 14px; font-weight: 600; color: #64748b;">Publicada por:</span>
+                                                </td>
+                                                <td style="padding: 5px 0; font-size: 14px; color: #334155;">
+                                                    {{ nombre_creador }}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="margin: 0 0 25px; font-size: 16px; line-height: 1.6; color: #4b5563;">Te notificaremos por correo electrónico sobre cualquier actualización en tu proceso de selección. También puedes revisar el estado en cualquier momento desde tu perfil.</p>
+                            
+                            <!-- Botón CTA -->
+                            <table width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding: 15px 0 25px;">
+                                        <a href="{{ url_perfil }}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 6px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); transition: all 0.3s ease;">Ver mis postulaciones</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4b5563;">Si tienes alguna pregunta, no dudes en contactarnos.</p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Pie de página -->
+                    <tr>
+                        <td style="padding: 20px 30px; background-color: #f1f5f9; text-align: center; border-top: 1px solid #e2e8f0;">
+                            <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">Este es un correo automático, por favor no respondas a este mensaje.</p>
+                            <p style="margin: 0 0 10px; font-size: 13px; color: #64748b;">
+                                <a href="{{ sitio_web }}" style="color: #2563eb; text-decoration: none;">Visita nuestro sitio web</a> | 
+                                <a href="mailto:{{ email_contacto }}" style="color: #2563eb; text-decoration: none;">Contáctanos</a>
+                            </p>
+                            <p style="margin: 0; font-size: 12px; color: #94a3b8;">&copy; {{ year }} {{ company_name }}. Todos los derechos reservados.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
