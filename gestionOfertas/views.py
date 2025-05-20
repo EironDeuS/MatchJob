@@ -243,7 +243,12 @@ def inicio(request):
         'fecha_actual': fecha_filtro
     }
     
+<<<<<<< Updated upstream
     return render(request, 'gestionOfertas/inicio.html', context)
+=======
+    return render(request, 'gestionOfertas/Inicio.html', context)
+  # Asegúrate de tener esta función en utils.py (o donde esté)
+>>>>>>> Stashed changes
 
 @login_required
 def crear_oferta(request):
