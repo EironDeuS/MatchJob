@@ -1,6 +1,6 @@
 # En tu_app/views.py
 
-from gestionOfertas.utils import notificar_oferta_urgente
+from gestionOfertas.utils import notificar_oferta_urgente, validar_rut_empresa
 from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -74,8 +74,14 @@ def registro(request):
 
             tipo_usuario = form.cleaned_data['tipo_usuario']   
             print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}") # <--- DEBUG
-
+#logica de verificacion rut empresa con api sii
             try:
+                if tipo_usuario == 'empresa':
+                    rut_empresa = form.cleaned_data['username']  # El RUT viene como 'username'
+                    resultado = validar_rut_empresa(rut_empresa)
+                if not resultado['valida']:
+                    messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+                    return render(request, 'gestionOfertas/registro.html', {'form': form})
                 # 1. Crear Usuario
                 user = Usuario.objects.create_user(
                     username=form.cleaned_data['username'],
