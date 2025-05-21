@@ -354,7 +354,7 @@ def mi_perfil(request):
         ).select_related('oferta', 'oferta__creador')
 
     # Postulaciones Filtradas:
-    postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado')
+    postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado').select_related('oferta')
 
     context = {
         'usuario': usuario,

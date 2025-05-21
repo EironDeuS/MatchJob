@@ -397,15 +397,19 @@
                                                   {{ postulacion.get_estado_display }}
                                               </span>
                                           </td>
-                                          <td>
-                                              <a href="" class="btn btn-sm btn-outline-info">
-                                                  <i class="bi bi-search me-1"></i> Detalles
-                                              </a>
-
-                                              <a href="#" class="btn btn-sm btn-outline-primary">
+                                            <td>
+                                                
+                                                <a href="#" 
+                                                    class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalConfirmarMatch"
+                                                    data-nombre="{{ postulacion.persona.nombres }} {{ postulacion.persona.apellidos }}"
+                                                    data-telefono="{{ postulacion.persona.usuario.telefono }}"
+                                                    data-id="{{ postulacion.id }}"
+                                                    data-oferta="{{ postulacion.oferta.descripcion|default:"No especificada"|truncatewords:5 }}">
                                                     <i class="bi bi-lightbulb me-1"></i> Match
                                                 </a>
-                                          </td>
+                                                </td>
                                       </tr>
                                   {% endfor %}
                               </tbody>
@@ -439,4 +443,60 @@
       </div>
   </div>
 </div>
+
+<div class="modal fade" id="modalConfirmarMatch" tabindex="-1" aria-labelledby="modalConfirmarMatchLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg rounded-4">
+      <div class="modal-header bg-primary text-white rounded-top-4">
+        <h5 class="modal-title" id="modalConfirmarMatchLabel">
+          <i class="bi bi-check2-circle me-2"></i> Confirmar Match
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body text-center py-4">
+        <i class="bi bi-person-heart text-danger" style="font-size: 3rem;"></i>
+        <p class="mt-3 fs-5">¿Deseas hacer <strong>match</strong> con <span id="matchNombre" class="text-primary fw-bold"></span> y contactarlo vía <i class="bi bi-whatsapp text-success"></i> WhatsApp?</p>
+      </div>
+      <div class="modal-footer justify-content-center border-0 pb-4">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
+          <i class="bi bi-x-circle me-1"></i> Cancelar
+        </button>
+        <a id="btnWhatsapp" href="#" target="_blank" class="btn btn-success px-4">
+          <i class="bi bi-whatsapp me-1"></i> Contactar
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var modal = document.getElementById('modalConfirmarMatch');
+  modal.addEventListener('show.bs.modal', function (event) {
+    var button = event.relatedTarget;
+    var nombre = button.getAttribute('data-nombre');
+    var telefono = button.getAttribute('data-telefono');
+    var postulacionId = button.getAttribute('data-id');
+    var tituloOferta = button.getAttribute('data-oferta');
+
+    var nombreSpan = modal.querySelector('#matchNombre');
+    var whatsappBtn = modal.querySelector('#btnWhatsapp');
+
+    nombreSpan.textContent = nombre;
+
+    // Asegurar prefijo internacional
+    var telefonoConPrefijo = telefono.startsWith('+') ? telefono : `+56${telefono}`;
+
+    // Mensaje personalizado con nombre y oferta
+    var mensaje = `Hola ${nombre}, hemos hecho match contigo en MatchJob respecto a tu postulación #${postulacionId} para la oferta "${tituloOferta}". Nos gustaría contactarte para conversar más sobre esta oportunidad.`;
+
+    whatsappBtn.href = `https://wa.me/${telefonoConPrefijo.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`;
+  });
+});
+</script>
+
+
+
+
 {% endblock %}
