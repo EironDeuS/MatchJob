@@ -74,7 +74,7 @@
     <!-- INFO ADICIONAL -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-size: 0.875rem; color: #4b5563;">
         <div style="background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-            <p><strong>📍 Ubicación:</strong> {{ oferta.ubicacion }}</p>
+            <p><strong>📍 Ubicación:</strong> {{ oferta.direccion }}</p>
             <p><strong>💵 Salario:</strong> {{ oferta.salario }}</p>
             <p><strong>🗓 Publicado:</strong> {{ oferta.fecha_publicacion|date:"d/m/Y" }}</p>
             {% if oferta.fecha_cierre %}

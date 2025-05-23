@@ -261,13 +261,30 @@ class UsuarioChangeForm(forms.ModelForm):
 
 
 
-class OfertaTrabajoForm(forms.ModelForm): 
+from django import forms
+from django.utils import timezone
+from django.utils.translation import gettext as _
+import googlemaps
+from django.conf import settings
+from .models import OfertaTrabajo, Categoria
+
+class OfertaTrabajoForm(forms.ModelForm):
+    ubicacion = forms.CharField(
+        label=_('Ubicación'),
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'id': 'ubicacionInput',
+            'placeholder': _('Ej: Santiago, Chile')
+        })
+    )
+    
     class Meta:
         model = OfertaTrabajo
         fields = [
             'categoria', 'nombre', 'descripcion', 'requisitos',
-            'beneficios', 'salario', 'ubicacion', 'tipo_contrato',
-            'fecha_cierre', 'esta_activa', 'urgente'  # 👈 aquí
+            'beneficios', 'salario', 'latitud', 'longitud', 'direccion',
+            'tipo_contrato', 'fecha_cierre', 'esta_activa', 'urgente'
         ]
         widgets = {
             'descripcion': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
@@ -275,17 +292,21 @@ class OfertaTrabajoForm(forms.ModelForm):
             'beneficios': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'fecha_cierre': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'tipo_contrato': forms.Select(attrs={'class': 'form-select'}),
+            'urgente': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'latitud': forms.HiddenInput(),
+            'longitud': forms.HiddenInput(),
+            'direccion': forms.HiddenInput(),
         }
         labels = {
             'esta_activa': _('Publicar inmediatamente'),
             'tipo_contrato': _('Tipo de Contrato'),
-            'urgente': _('¿Es una oferta urgente?')  # 👈 aquí
+            'urgente': _('¿Es una oferta urgente?')
         }
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        
+
         # Configuración dinámica según tipo de usuario
         if self.user and hasattr(self.user, 'empresa'):
             self.fields['tipo_contrato'].required = True
@@ -295,17 +316,30 @@ class OfertaTrabajoForm(forms.ModelForm):
             self.fields['nombre'].label = _('Título de tu servicio')
             self.fields['descripcion'].label = _('Descripción de tu servicio')
             self.fields['requisitos'].label = _('Qué necesitas para el servicio')
-            self.fields.pop('tipo_contrato')  # Eliminar el campo si no es empresa
-        
+            self.fields.pop('tipo_contrato', None)
+
         # Configuración común
         self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
         self.fields['fecha_cierre'].widget.attrs['min'] = timezone.now().date().isoformat()
 
+        # Si es una instancia existente, establecer valores iniciales
+        if self.instance.pk and self.instance.latitud and self.instance.longitud:
+            self.fields['ubicacion'].initial = self.instance.direccion
+            self.initial['latitud'] = self.instance.latitud
+            self.initial['longitud'] = self.instance.longitud
+            self.initial['direccion'] = self.instance.direccion
+
     def clean(self):
         cleaned_data = super().clean()
         
+        # Validación para empresas
         if hasattr(self.user, 'empresa') and not cleaned_data.get('tipo_contrato'):
             self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
+        
+        # Validación de ubicación
+        ubicacion = cleaned_data.get('ubicacion')
+        if ubicacion and not (cleaned_data.get('latitud') and cleaned_data.get('longitud')):
+            self.add_error('ubicacion', _('Debes seleccionar una ubicación válida en el mapa'))
         
         return cleaned_data
 
@@ -313,6 +347,25 @@ class OfertaTrabajoForm(forms.ModelForm):
         instance = super().save(commit=False)
         instance.creador = self.user
 
+        # Procesar ubicación si se proporcionó
+        ubicacion = self.cleaned_data.get('ubicacion')
+        latitud = self.cleaned_data.get('latitud')
+        longitud = self.cleaned_data.get('longitud')
+        
+        if latitud and longitud:
+            # Geocodificación inversa para obtener dirección si no está proporcionada
+            if not instance.direccion and ubicacion:
+                instance.direccion = ubicacion
+            elif not instance.direccion:
+                try:
+                    gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                    reverse_geocode = gmaps.reverse_geocode((latitud, longitud))
+                    if reverse_geocode:
+                        instance.direccion = reverse_geocode[0]['formatted_address']
+                except Exception as e:
+                    print(f"Error en geocodificación inversa: {e}")
+
+        # Asignar empresa o marcar como servicio
         if hasattr(self.user, 'empresa'):
             instance.empresa = self.user.empresa
             instance.es_servicio = False
@@ -321,17 +374,26 @@ class OfertaTrabajoForm(forms.ModelForm):
 
         if commit:
             instance.save()
-        
-        return instance
 
+        return instance
     
 class EditarOfertaTrabajoForm(forms.ModelForm):
+    ubicacion = forms.CharField(
+        label=_('Ubicación'),
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'id': 'ubicacionInput',
+            'placeholder': _('Ej: Santiago, Chile')
+        })
+    )
+    
     class Meta:
         model = OfertaTrabajo
         fields = [
             'categoria', 'nombre', 'descripcion', 'requisitos',
-            'beneficios', 'salario', 'ubicacion', 'tipo_contrato',
-            'fecha_cierre', 'esta_activa'
+            'beneficios', 'salario', 'latitud', 'longitud', 'direccion',
+            'tipo_contrato', 'fecha_cierre', 'esta_activa', 'urgente'
         ]
         widgets = {
             'descripcion': forms.Textarea(attrs={
@@ -351,71 +413,97 @@ class EditarOfertaTrabajoForm(forms.ModelForm):
             }),
             'fecha_cierre': forms.DateInput(attrs={
                 'type': 'date', 
-                'class': 'form-control',
-                'min': timezone.now().date().isoformat()
+                'class': 'form-control'
             }),
             'tipo_contrato': forms.Select(attrs={'class': 'form-select'}),
             'salario': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': _('Ej: $1,000,000 - $1,500,000')
             }),
-            'ubicacion': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('Ej: Bogotá, Colombia o Remoto')
-            }),
+            'latitud': forms.HiddenInput(),
+            'longitud': forms.HiddenInput(),
+            'direccion': forms.HiddenInput(),
+            'urgente': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'esta_activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'esta_activa': _('Estado de la oferta'),
+            'esta_activa': _('Publicar inmediatamente'),
             'tipo_contrato': _('Tipo de Contrato'),
+            'urgente': _('¿Es una oferta urgente?'),
             'fecha_cierre': _('Fecha de cierre (opcional)'),
         }
 
     def __init__(self, *args, **kwargs):
-        # Extraemos el usuario si fue pasado
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
-        # Configuración para empresas
+        # Configuración dinámica según tipo de usuario
         if self.user and hasattr(self.user, 'empresa'):
             self.fields['tipo_contrato'].required = True
             self.fields['ubicacion'].required = True
             self.fields['nombre'].label = _('Nombre del puesto')
-            
-            # Configurar choices para tipo_contrato si es necesario
-            self.fields['tipo_contrato'].widget.choices = [
-                ('', _('Seleccione un tipo de contrato')),  # Opción vacía
-                *OfertaTrabajo.TIPO_CONTRATO_CHOICES  # Asume que tienes esto en tu modelo
-            ]
         else:
-            # Para personas naturales, podrías eliminar el campo si no es relevante
-            # o mantenerlo pero hacerlo opcional
-            self.fields['tipo_contrato'].required = False
             self.fields['nombre'].label = _('Título de tu servicio')
             self.fields['descripcion'].label = _('Descripción de tu servicio')
             self.fields['requisitos'].label = _('Qué necesitas para el servicio')
-
-        # Configuración común para todos los usuarios
-        self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
-        self.fields['categoria'].widget.attrs['class'] = 'form-select'
+            self.fields.pop('tipo_contrato', None)
         
-        # Si estamos editando, establecer mínimo de fecha como hoy o la fecha actual de cierre
+        # Configuración común
+        self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
+        
+        # Establecer fecha mínima
+        min_date = timezone.now().date()
         if self.instance and self.instance.fecha_cierre:
-            min_date = min(timezone.now().date(), self.instance.fecha_cierre)
-            self.fields['fecha_cierre'].widget.attrs['min'] = min_date.isoformat()
-        else:
-            self.fields['fecha_cierre'].widget.attrs['min'] = timezone.now().date().isoformat()
+            min_date = min(min_date, self.instance.fecha_cierre)
+        self.fields['fecha_cierre'].widget.attrs['min'] = min_date.isoformat()
+        
+        # Inicializar valores de ubicación si existen
+        if self.instance.pk and self.instance.latitud and self.instance.longitud:
+            self.fields['ubicacion'].initial = self.instance.direccion
+            self.initial['latitud'] = self.instance.latitud
+            self.initial['longitud'] = self.instance.longitud
+            self.initial['direccion'] = self.instance.direccion
 
     def clean(self):
         cleaned_data = super().clean()
         
-        # Validación específica para empresas
-        if hasattr(self.user, 'empresa'):
-            if not cleaned_data.get('tipo_contrato'):
-                self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
-            if not cleaned_data.get('ubicacion'):
-                self.add_error('ubicacion', _('Debes especificar una ubicación'))
+        # Validación para empresas
+        if hasattr(self.user, 'empresa') and not cleaned_data.get('tipo_contrato'):
+            self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
+        
+        # Validación de ubicación
+        ubicacion = cleaned_data.get('ubicacion')
+        if hasattr(self.user, 'empresa') and not (cleaned_data.get('latitud') and cleaned_data.get('longitud')):
+            self.add_error('ubicacion', _('Debes seleccionar una ubicación válida en el mapa'))
         
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Procesar ubicación si se proporcionó
+        ubicacion = self.cleaned_data.get('ubicacion')
+        latitud = self.cleaned_data.get('latitud')
+        longitud = self.cleaned_data.get('longitud')
+        
+        if latitud and longitud:
+            # Geocodificación inversa para obtener dirección si no está proporcionada
+            if not instance.direccion and ubicacion:
+                instance.direccion = ubicacion
+            elif not instance.direccion:
+                try:
+                    gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                    reverse_geocode = gmaps.reverse_geocode((latitud, longitud))
+                    if reverse_geocode:
+                        instance.direccion = reverse_geocode[0]['formatted_address']
+                except Exception as e:
+                    print(f"Error en geocodificación inversa: {e}")
+
+        if commit:
+            instance.save()
+            self.save_m2m()  # Para relaciones many-to-many si las hay
+
+        return instance
 
 
 class EditarPerfilPersonaForm(forms.Form):

@@ -248,9 +248,9 @@
                                         </span>
                                         {% endif %}
                                         
-                                        {% if oferta.ubicacion %}
+                                        {% if oferta.direccion %}
                                         <span class="text-muted d-flex align-items-center">
-                                            <i class="bi bi-geo-alt me-1"></i>{{ oferta.ubicacion }}
+                                            <p><i class="bi bi-geo-alt-fill me-1"></i> {{ oferta.direccion }}</p>
                                         </span>
                                         {% endif %}
                                         
@@ -455,7 +455,7 @@
         </div>
     </div>
 </div>
-
+        
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const confirmarPostulacionModal = document.getElementById('confirmarPostulacionModal');
@@ -477,4 +477,5 @@
                 });
             });
         </script>
+        
 {% endblock %}

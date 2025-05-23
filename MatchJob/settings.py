@@ -137,3 +137,6 @@ EMAIL_HOST_USER = 'matchjobbeta@gmail.com' # Tu email completo
 EMAIL_HOST_PASSWORD = 'rbxf vwqk yhxv yyxp' # Tu contraseña o contraseña de aplicación
 DEFAULT_FROM_EMAIL = 'matchjobbeta@gmail.com' # Email que aparece como remitente
 SITE_NAME = 'MatchJob' # Nombre de tu aplicación/sitio
+
+
+GOOGLE_MAPS_API_KEY = 'AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0'

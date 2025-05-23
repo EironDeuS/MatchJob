@@ -267,32 +267,86 @@ def inicio(request):
     return render(request, 'gestionOfertas/Inicio.html', context)
   # Asegúrate de tener esta función en utils.py (o donde esté)
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.utils.translation import gettext as _
+from django.conf import settings
+import googlemaps
+from .forms import OfertaTrabajoForm
+
 @login_required
 def crear_oferta(request):
     if request.method == 'POST':
         form = OfertaTrabajoForm(request.POST, user=request.user)
+        
         if form.is_valid():
-            oferta = form.save()
-
-            # 📢 Verifica si la oferta es urgente y envía la notificación
-            if oferta.urgente:
-                notificar_oferta_urgente(oferta)
-
-            msg = _('¡Oferta de empleo creada!') if hasattr(request.user, 'empresa') else _('¡Servicio publicado!')
-            messages.success(request, msg)
-
-            return redirect('miperfil')
+            try:
+                oferta = form.save(commit=False)
+                oferta.creador = request.user
+                
+                # Asignar empresa si el usuario es una empresa
+                if hasattr(request.user, 'empresa'):
+                    oferta.empresa = request.user.empresa
+                    oferta.es_servicio = False
+                else:
+                    oferta.es_servicio = True
+                
+                # Procesar ubicación si se proporcionó
+                if form.cleaned_data.get('latitud') and form.cleaned_data.get('longitud'):
+                    # Si no hay dirección pero hay coordenadas, hacer geocodificación inversa
+                    if not oferta.direccion:
+                        try:
+                            gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                            reverse_geocode = gmaps.reverse_geocode(
+                                (form.cleaned_data['latitud'], form.cleaned_data['longitud'])
+                            )
+                            if reverse_geocode:
+                                oferta.direccion = reverse_geocode[0]['formatted_address']
+                        except (googlemaps.exceptions.ApiError, googlemaps.exceptions.HTTPError) as e:
+                            messages.warning(
+                                request, 
+                                _('La ubicación se guardó pero no pudimos obtener la dirección completa.')
+                            )
+                            print(f"Error en geocodificación inversa: {e}")
+                
+                # Guardar la oferta
+                oferta.save()
+                form.save_m2m()  # Para guardar relaciones many-to-many si las hay
+                
+                # Notificación si es urgente
+                if oferta.urgente:
+                    notificar_oferta_urgente(oferta)
+                
+                # Mensaje de éxito
+                msg = _('¡Oferta de empleo creada con éxito!') if hasattr(request.user, 'empresa') \
+                      else _('¡Servicio publicado correctamente!')
+                messages.success(request, msg)
+                
+                return redirect('miperfil')
+                
+            except Exception as e:
+                messages.error(
+                    request, 
+                    _('Ocurrió un error al guardar la oferta. Por favor intenta nuevamente.')
+                )
+                print(f"Error al guardar oferta: {e}")
+        else:
+            messages.warning(
+                request, 
+                _('Por favor corrige los errores en el formulario.')
+            )
     else:
         form = OfertaTrabajoForm(user=request.user)
 
-    contexto = {
+    context = {
         'form': form,
         'es_empresa': hasattr(request.user, 'empresa'),
-        'es_persona': hasattr(request.user, 'personanatural')
+        'es_persona': hasattr(request.user, 'personanatural'),
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY
     }
 
-    return render(request, 'gestionOfertas/crear_oferta.html', contexto)
-
+    return render(request, 'gestionOfertas/crear_oferta.html', context)
 
 @login_required
 def mis_ofertas(request):
@@ -303,23 +357,69 @@ def mis_ofertas(request):
         'ofertas': ofertas
     }
     return render(request, 'gestionOfertas/mis_ofertas.html', context)
+
 @login_required
 def editar_oferta(request, oferta_id):
+    # Obtener la oferta asegurando que pertenece al usuario
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
     
     if request.method == 'POST':
-        form = EditarOfertaTrabajoForm(request.POST, instance=oferta)
+        form = EditarOfertaTrabajoForm(request.POST, instance=oferta, user=request.user)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Oferta actualizada correctamente')
-            return redirect('mis_ofertas')
+            try:
+                # Guardar la oferta con los datos del formulario
+                oferta_actualizada = form.save(commit=False)
+                
+                # Procesar ubicación si hay cambios
+                if form.cleaned_data.get('latitud') and form.cleaned_data.get('longitud'):
+                    # Actualizar coordenadas
+                    oferta_actualizada.latitud = form.cleaned_data['latitud']
+                    oferta_actualizada.longitud = form.cleaned_data['longitud']
+                    
+                    # Si no hay dirección o cambió la ubicación, hacer geocodificación inversa
+                    if not oferta_actualizada.direccion or \
+                       (oferta.latitud != oferta_actualizada.latitud or 
+                        oferta.longitud != oferta_actualizada.longitud):
+                        try:
+                            gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                            reverse_geocode = gmaps.reverse_geocode(
+                                (oferta_actualizada.latitud, oferta_actualizada.longitud)
+                            )
+                            if reverse_geocode:
+                                oferta_actualizada.direccion = reverse_geocode[0]['formatted_address']
+                        except (googlemaps.exceptions.ApiError, googlemaps.exceptions.HTTPError) as e:
+                            messages.warning(
+                                request, 
+                                'La oferta se actualizó, pero no pudimos actualizar la dirección automáticamente'
+                            )
+                            print(f"Error en geocodificación inversa: {e}")
+                
+                # Guardar los cambios
+                oferta_actualizada.save()
+                form.save_m2m()  # Para relaciones many-to-many si las hay
+                
+                messages.success(request, '¡Oferta actualizada correctamente!')
+                return redirect('mis_ofertas')
+                
+            except Exception as e:
+                messages.error(
+                    request, 
+                    'Ocurrió un error al actualizar la oferta. Por favor intenta nuevamente.'
+                )
+                print(f"Error al actualizar oferta: {e}")
     else:
-        form = EditarOfertaTrabajoForm(instance=oferta)
+        # Inicializar el formulario con la instancia de la oferta
+        form = EditarOfertaTrabajoForm(instance=oferta, user=request.user)
     
-    return render(request, 'gestionOfertas/editar_oferta.html', {
+    context = {
         'form': form,
-        'oferta': oferta
-    })
+        'oferta': oferta,
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
+        'es_empresa': hasattr(request.user, 'empresa'),
+        'es_persona': hasattr(request.user, 'personanatural')
+    }
+    
+    return render(request, 'gestionOfertas/editar_oferta.html', context)
 
 @login_required
 def eliminar_oferta(request, oferta_id):
