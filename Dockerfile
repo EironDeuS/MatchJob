@@ -1,34 +1,33 @@
-# Usa una imagen base de Python oficial para Cloud Run
+# Usa una imagen base de Python
 FROM python:3.11-slim
 
-# Establece el directorio de trabajo dentro del contenedor
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Instala gunicorn y copia los requirements.txt
-# Esto se hace primero para aprovechar el cacheo de Docker si tus dependencias no cambian
+# Copia los archivos de requerimientos y las instala
 COPY requirements.txt .
-RUN pip install -r requirements.txt --no-cache-dir
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia el resto del código de tu aplicación al contenedor
+# Copia el resto de tu código de la aplicación # <-- LÍNEA CORREGIDA
 COPY . .
 
-# Genera una clave secreta si no la tienes en tus variables de entorno de Cloud Run.
-# Esto es para asegurar que la clave secreta se genera durante la construcción si no se proporciona externamente.
-# Mejor práctica: Inyectar SECRET_KEY como variable de entorno en Cloud Run.
-# Si ya la tienes en tu .env, no necesitas esta parte en Dockerfile, pero Cloud Run la necesitará.
-# Puedes quitar estas dos líneas si siempre la inyectarás como variable de entorno en Cloud Run.
-# RUN python -c "import secrets; print(secrets.token_urlsafe(50))" > secret_key.txt
-# ENV SECRET_KEY=$(cat secret_key.txt)
+# --- CONFIGURACIÓN DE VARIABLES DE ENTORNO PARA EL ENTORNO DE BUILD ---
+# (Asegúrate de haber quitado los comentarios en la misma línea de los ENV)
+ENV DJANGO_DEBUG="False" \
+    GS_STATIC_BUCKET_NAME="matchjob-static-files" \
+    GS_LOCATION="static" \
+    GS_PROJECT_ID="matchjob-458200" \
+    GS_QUERYSTRING_AUTH="False"
 
+# --- PASO PARA RECOLECTAR Y SUBIR ARCHIVOS ESTÁTICOS A GCS ---
+RUN python manage.py collectstatic --noinput
 
-# Establece la variable de entorno para que Django sepa que está en producción
+# Variables de entorno para la ejecución de la aplicación
 ENV DJANGO_SETTINGS_MODULE=MatchJob.settings
 ENV PYTHONUNBUFFERED True
 
-# Exponer el puerto en el que la aplicación se ejecutará (Cloud Run usa 8080 por defecto)
-EXPOSE 8080
+# Expone el puerto que tu aplicación usa (generalmente 8000 para Gunicorn)
+# EXPOSE 8000
 
-# Comando para iniciar la aplicación Gunicorn
-# 'MatchJob.wsgi:application' debe apuntar al objeto WSGI de tu proyecto.
-# Asegúrate de que 'MatchJob' es el nombre de tu carpeta de proyecto interna.
-CMD exec gunicorn --bind :$PORT --workers 2 MatchJob.wsgi:application   
+# Comando para iniciar la aplicación (ej. Gunicorn)
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 MatchJob.wsgi:application

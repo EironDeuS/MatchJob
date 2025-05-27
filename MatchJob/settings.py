@@ -31,10 +31,22 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'your-very-strong-and-random-secret-key-for
 # Por defecto es False para producción, pero puedes setear DJANGO_DEBUG=True en tu entorno local.
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 
-# ALLOWED_HOSTS: Permite todos los hosts para Cloud Run inicialmente.
-# En producción, considera restringirlo a la URL de tu servicio de Cloud Run para mayor seguridad.
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+# ALLOWED_HOSTS: Restringe los hosts permitidos en producción.
+# Esto es CRUCIAL para la seguridad. En desarrollo, '*' es aceptable.
+# Añade tu dominio de Cloud Run.
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
+# Si el valor de ALLOWED_HOSTS desde la variable de entorno está vacío o solo tiene un espacio,
+# y DEBUG es True, entonces permite todos los hosts para desarrollo.
+if not ALLOWED_HOSTS[0] and DEBUG:
+    ALLOWED_HOSTS = ['*']
+elif not DEBUG:
+    # Asegúrate de que tu dominio de Cloud Run esté explícitamente listado cuando DEBUG es False
+    # ¡IMPORTANTE! Reemplaza con la URL REAL de tu servicio de Cloud Run.
+    # Si usas un dominio personalizado, añádelo aquí también.
+    cloud_run_domain = 'matchjob-service-159154155877.southamerica-west1.run.app'
+    if cloud_run_domain not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(cloud_run_domain)
 
 # --- INSTALLED APPLICATIONS ---
 INSTALLED_APPS = [
@@ -124,9 +136,9 @@ GS_MEDIA_BUCKET_NAME = os.getenv('GS_MEDIA_BUCKET_NAME', 'matchjob')
 
 # Subcarpeta dentro del bucket para archivos estáticos (ej. bucket-name/static/css/...)
 GS_LOCATION = 'static' # <--- Tus archivos están en 'gestionOfertas/static/css/base.css'
-                       # cuando se recolectan, irán a bucket/static/gestionOfertas/css/base.css
-                       # o a bucket/static/css/base.css si usas staticfiles_finders.
-                       # Vamos a asumir que quieres que estén en bucket/static/
+                         # cuando se recolectan, irán a bucket/static/gestionOfertas/css/base.css
+                         # o a bucket/static/css/base.css si usas staticfiles_finders.
+                         # Vamos a asumir que quieres que estén en bucket/static/
 
 # Configuración de la cuenta de servicio para impersonación (firma de URLs para GCS)
 GS_AUTH_IMPERSONATION_SERVICE_ACCOUNT = '159154155877-compute@developer.gserviceaccount.com'
@@ -188,6 +200,24 @@ else:
             },
         }
     }
+
+# --- SEGURIDAD ADICIONAL (CSRF y SSL) ---
+# Fuerza las cookies de sesión y CSRF para que solo se envíen sobre HTTPS
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+
+
+# Dile a Django qué orígenes son de confianza para las solicitudes CSRF.
+# Esto es CRÍTICO para los 403 CSRF cuando DEBUG=False.
+# Asegúrate de incluir la URL EXACTA de tu servicio de Cloud Run.
+# Si usas un dominio personalizado, añade 'https://tu.dominio.personalizado'.
+CSRF_TRUSTED_ORIGINS = [
+    'https://matchjob-service-159154155877.southamerica-west1.run.app',
+    # 'https://*.cloudrun.app', # Opcional: Para permitir todos los subdominios de cloudrun.app
+    # Si usas un dominio personalizado, añádelo aquí: 'https://www.tudominio.com',
+]
+
 
 # --- APIs y Otros ---
 MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "pk.eyJ1IjoiYWFtdW51b2JpLCJhIjoiY21hbjk0NTc2MHQwbjJ4b2ppcGtwcWVyYiJ9.fjKCOM0r_euWhIprM9crfQ") # <--- Mover a .env
