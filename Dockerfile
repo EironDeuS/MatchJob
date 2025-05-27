@@ -1,31 +1,34 @@
-# Usa una imagen base de Python con las dependencias necesarias
-FROM python:3.11-slim-buster
+# Usa una imagen base de Python oficial para Cloud Run
+FROM python:3.11-slim
 
 # Establece el directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copia los archivos de requirements y las instala
+# Instala gunicorn y copia los requirements.txt
+# Esto se hace primero para aprovechar el cacheo de Docker si tus dependencias no cambian
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt --no-cache-dir
 
-# Reinstala Gunicorn explícitamente (para asegurar que esté presente)
-RUN pip install gunicorn
-
-# Copia el archivo de credenciales JSON
-COPY matchjob-458200-6a0cfe7aa83a.json /app/matchjob-458200-6a0cfe7aa83a.json
-
-# Copia el resto de tu aplicación Django al contenedor
+# Copia el resto del código de tu aplicación al contenedor
 COPY . .
 
-# Recopila los archivos estáticos
-RUN python manage.py collectstatic --noinput
+# Genera una clave secreta si no la tienes en tus variables de entorno de Cloud Run.
+# Esto es para asegurar que la clave secreta se genera durante la construcción si no se proporciona externamente.
+# Mejor práctica: Inyectar SECRET_KEY como variable de entorno en Cloud Run.
+# Si ya la tienes en tu .env, no necesitas esta parte en Dockerfile, pero Cloud Run la necesitará.
+# Puedes quitar estas dos líneas si siempre la inyectarás como variable de entorno en Cloud Run.
+# RUN python -c "import secrets; print(secrets.token_urlsafe(50))" > secret_key.txt
+# ENV SECRET_KEY=$(cat secret_key.txt)
 
-# Establece las variables de entorno (ajústalas según tu configuración)
+
+# Establece la variable de entorno para que Django sepa que está en producción
 ENV DJANGO_SETTINGS_MODULE=MatchJob.settings
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED True
 
-# Expone el puerto en el que correrá tu aplicación (el default de Django es 8000)
-EXPOSE 8000
+# Exponer el puerto en el que la aplicación se ejecutará (Cloud Run usa 8080 por defecto)
+EXPOSE 8080
 
-# Comando para ejecutar tu aplicación Django con Gunicorn (un servidor WSGI recomendado para producción)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "MatchJob.wsgi"]
+# Comando para iniciar la aplicación Gunicorn
+# 'MatchJob.wsgi:application' debe apuntar al objeto WSGI de tu proyecto.
+# Asegúrate de que 'MatchJob' es el nombre de tu carpeta de proyecto interna.
+CMD exec gunicorn --bind :$PORT --workers 2 MatchJob.wsgi:application   

@@ -2,6 +2,8 @@
 
 from django.urls import path
 from . import views
+from django.conf import settings # <--- ¡Asegúrate de que esta línea esté aquí!
+from django.conf.urls.static import static # <--- ¡Asegúrate de que esta línea esté aquí!
 
 urlpatterns = [
     path('', views.inicio , name='inicio'),
@@ -27,3 +29,10 @@ urlpatterns = [
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
     # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),
 ]
+
+# **¡IMPORTANTE!** Esto solo sirve archivos estáticos en desarrollo (cuando DEBUG=True).
+# En producción, Cloud Run/GCS se encargarán de ellos.
+if settings.DEBUG: # <--- ¡Asegúrate de que todo este bloque esté aquí!
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # Si también sirves archivos de medios (uploaded files) en desarrollo:
+    # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
