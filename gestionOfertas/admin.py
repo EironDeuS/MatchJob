@@ -45,3 +45,25 @@ admin.site.register(Postulacion)
 admin.site.register(Empresa)
 admin.site.register(Valoracion)
 
+class OfertaTrabajoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'empresa', 'categoria', 'direccion', 'fecha_publicacion')
+    readonly_fields = ('fecha_publicacion',)
+    fieldsets = (
+        ('Información básica', {
+            'fields': ('nombre', 'descripcion', 'categoria', 'empresa')
+        }),
+        ('Ubicación', {
+            'fields': ('direccion', 'latitud', 'longitud')
+        }),
+        ('Detalles del contrato', {
+            'fields': ('tipo_contrato', 'salario', 'fecha_cierre')
+        }),
+        ('Estado', {
+            'fields': ('esta_activa', 'urgente', 'es_servicio')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_publicacion',)
+        }),
+    )
+
+

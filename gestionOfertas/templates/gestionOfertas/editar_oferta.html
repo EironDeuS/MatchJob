@@ -1,5 +1,6 @@
 {% extends 'gestionOfertas/base.html' %}
 {% load static %}
+{% load widget_tweaks %}
 
 {% block title %}Editar Oferta | MatchJob{% endblock %}
 
@@ -144,27 +145,26 @@
         margin-top: 0.3rem;
     }
     
-    /* Form tooltips */
-    .form-tooltip {
-        display: inline-block;
-        vertical-align: middle;
-        margin-left: 0.5rem;
-    }
-    
-    .form-tooltip .tooltip-icon {
-        color: #9ca3af;
-        cursor: pointer;
-    }
-    
-    /* Progress bar */
-    .form-progress {
-        height: 4px;
-        background: #e5e7eb;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
+    /* Map container */
+    .map-container {
+        height: 300px;
+        border-radius: 10px;
         overflow: hidden;
+        margin-top: 10px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    /* Location input */
+    .location-input-container {
+        position: relative;
+    }
+    
+    .location-input-container i {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--primary-color);
     }
     
     /* Responsive adjustments */
@@ -193,26 +193,161 @@
                     <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate id="edit-offer-form">
                         {% csrf_token %}
                         
-                        {% for field in form %}
-                        <div class="form-group {% if field.field.required %}required-field{% endif %}">
-                            <div class="d-flex align-items-center">
-                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                                {% if field.help_text %}
-                                <div class="form-tooltip">
-                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ field.help_text }}"></i>
+                        <!-- Sección de Información Básica -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 text-primary"><i class="bi bi-info-circle me-2"></i>Información Básica</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group {% if form.categoria.field.required %}required-field{% endif %}">
+                                        <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
+                                        {{ form.categoria|add_class:"form-select" }}
+                                        {% for error in form.categoria.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group {% if form.nombre.field.required %}required-field{% endif %}">
+                                        <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+                                        {{ form.nombre|add_class:"form-control" }}
+                                        {% for error in form.nombre.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group {% if form.descripcion.field.required %}required-field{% endif %}">
+                                <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+                                {{ form.descripcion|add_class:"form-control" }}
+                                {% for error in form.descripcion.errors %}
+                                <div class="invalid-feedback d-block">
+                                    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Sección de Ubicación y Detalles -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 text-primary"><i class="bi bi-geo-alt me-2"></i>Ubicación y Detalles</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group {% if form.salario.field.required %}required-field{% endif %}">
+                                        <label for="{{ form.salario.id_for_label }}" class="form-label">{{ form.salario.label }}</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            {{ form.salario|add_class:"form-control" }}
+                                        </div>
+                                        {% for error in form.salario.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                
+                                {% if form.tipo_contrato %}
+                                <div class="col-md-6">
+                                    <div class="form-group {% if form.tipo_contrato.field.required %}required-field{% endif %}">
+                                        <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
+                                        {{ form.tipo_contrato|add_class:"form-select" }}
+                                        {% for error in form.tipo_contrato.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                                 {% endif %}
                             </div>
                             
-                            {{ field }}
-                            
-                            {% for error in field.errors %}
-                            <div class="invalid-feedback d-block">
-                                <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                            <!-- Campo de ubicación con mapa -->
+                            <div class="form-group required-field">
+                                <label for="ubicacionInput" class="form-label">Ubicación</label>
+                                <div class="location-input-container">
+                                    <input type="text" class="form-control" id="ubicacionInput" 
+                                           value="{{ form.direccion.value|default:'' }}" 
+                                           placeholder="Ej: Santiago, Chile">
+                                    <i class="bi bi-geo-alt"></i>
+                                    {{ form.latitud.as_hidden }}
+                                    {{ form.longitud.as_hidden }}
+                                    {{ form.direccion.as_hidden }}
+                                </div>
+                                <div id="map" style="height: 400px;"></div>
+                                <small class="text-muted">Busca una ubicación o arrastra el marcador en el mapa</small>
                             </div>
-                            {% endfor %}
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
+                                        {{ form.fecha_cierre|add_class:"form-control" }}
+                                        {% for error in form.fecha_cierre.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">{{ form.esta_activa.label }}</label>
+                                        <div class="form-check form-switch">
+                                            {{ form.esta_activa|add_class:"form-check-input" }}
+                                            <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">Visible</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        {% endfor %}
+                        
+                        <!-- Sección de Requisitos y Beneficios -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 text-primary"><i class="bi bi-card-checklist me-2"></i>Requisitos y Beneficios</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
+                                        {{ form.requisitos|add_class:"form-control" }}
+                                        {% for error in form.requisitos.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
+                                        {{ form.beneficios|add_class:"form-control" }}
+                                        {% for error in form.beneficios.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sección de Urgencia -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 text-primary"><i class="bi bi-exclamation-diamond me-2"></i>Urgencia</h5>
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    {{ form.urgente|add_class:"form-check-input" }}
+                                    <label class="form-check-label" for="{{ form.urgente.id_for_label }}">
+                                        ¿Deseas marcar esta oferta como urgente?
+                                    </label>
+                                </div>
+                                <small class="text-muted">Las ofertas urgentes aparecerán destacadas en los listados.</small>
+                            </div>
+                        </div>
                         
                         <div class="btn-group-edit">
                             <a href="{% url 'mis_ofertas' %}" class="btn btn-cancel btn-edit-action">
@@ -224,40 +359,120 @@
                         </div>
                     </form>
                 </div>
-                <div class="form-progress"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Bootstrap initialization for tooltips -->
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize Bootstrap tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    });
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places"></script>
-<script>
-    function initAutocomplete() {
-      const input = document.getElementById('id_ubicacion');
-      if (!input) return;
-  
-      const autocomplete = new google.maps.places.Autocomplete(input, {
-        types: ['address'],
-        componentRestrictions: { country: 'cl' }
-      });
-  
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !document.querySelector('.pac-item-selected')) {
-          e.preventDefault();
-        }
-      });
+let map, marker, autocomplete;
+
+function initMap() {
+    console.log('Inicializando mapa...');
+
+    const initialLat = parseFloat("{{ form.latitud.value|default:'-33.4489' }}") || -33.4489;
+    const initialLng = parseFloat("{{ form.longitud.value|default:'-70.6693' }}") || -70.6693;
+    const initialPosition = { lat: initialLat, lng: initialLng };
+
+    const mapElement = document.getElementById("map");
+    if (!mapElement) {
+        console.error('Elemento del mapa no encontrado');
+        return;
     }
-  
-    document.addEventListener('DOMContentLoaded', initAutocomplete);
+
+    map = new google.maps.Map(mapElement, {
+        center: initialPosition,
+        zoom: 15,
+        streetViewControl: false,
+        mapTypeControl: true,
+        mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+            position: google.maps.ControlPosition.TOP_RIGHT
+        }
+    });
+
+    marker = new google.maps.Marker({
+        position: initialPosition,
+        map: map,
+        draggable: true,
+        title: "Arrástrame para ajustar la ubicación"
+    });
+
+    const inputElement = document.getElementById("ubicacionInput");
+    if (inputElement) {
+        autocomplete = new google.maps.places.Autocomplete(inputElement, {
+            types: ['geocode'],
+            componentRestrictions: { country: 'cl' },
+            fields: ['formatted_address', 'geometry']
+        });
+
+        autocomplete.addListener('place_changed', onPlaceChanged);
+    }
+
+    marker.addListener('dragend', onMarkerDragEnd);
+
+    const form = document.getElementById('edit-offer-form');
+    if (form) {
+        form.addEventListener('submit', validateForm);
+    }
+
+    console.log('Mapa inicializado correctamente');
+}
+
+function onPlaceChanged() {
+    const place = autocomplete.getPlace();
+    if (!place.geometry) {
+        alert("No se encontró la ubicación: '" + place.name + "'");
+        return;
+    }
+
+    map.setCenter(place.geometry.location);
+    map.setZoom(15);
+    marker.setPosition(place.geometry.location);
+    updateLocationFields(place.geometry.location, place.formatted_address);
+}
+
+function onMarkerDragEnd() {
+    const position = marker.getPosition();
+    map.panTo(position);
+
+    document.getElementById("id_latitud").value = position.lat();
+    document.getElementById("id_longitud").value = position.lng();
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: position }, function(results, status) {
+        if (status === 'OK' && results[0]) {
+            document.getElementById("ubicacionInput").value = results[0].formatted_address;
+            document.getElementById("id_direccion").value = results[0].formatted_address;
+        }
+    });
+}
+
+function updateLocationFields(latLng, address = null) {
+    document.getElementById('id_latitud').value = latLng.lat();
+    document.getElementById('id_longitud').value = latLng.lng();
+    if (address) {
+        document.getElementById('id_direccion').value = address;
+    }
+}
+
+function validateForm(e) {
+    if (!document.getElementById('id_latitud').value || 
+        !document.getElementById('id_longitud').value) {
+        e.preventDefault();
+        alert('Por favor selecciona una ubicación válida en el mapa');
+        const input = document.getElementById('ubicacionInput');
+        if (input) input.focus();
+    }
+}
+
+window.gm_authFailure = function() {
+    alert('Error al cargar Google Maps. Por favor recarga la página.');
+    console.error('Error de autenticación con Google Maps API');
+};
 </script>
+
 {% endblock %}

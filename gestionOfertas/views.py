@@ -1,9 +1,17 @@
 # En tu_app/views.py
 
-
+from gestionOfertas.utils import notificar_oferta_urgente, validar_rut_empresa
 from datetime import datetime, timedelta
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+import json
+import logging
+from django.conf import settings
 from django.forms import ValidationError
+from django.utils.safestring import mark_safe
 
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.urls import reverse
@@ -13,7 +21,14 @@ from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, E
 from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from django.db.models import Avg, Count, F, Window
+from django.db.models.functions import Rank
 from django.db.models import Q
+import requests
+from urllib.parse import quote
+from django.core.mail import send_mail
+
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
 def iniciar_sesion(request):
@@ -59,8 +74,14 @@ def registro(request):
 
             tipo_usuario = form.cleaned_data['tipo_usuario']   
             print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}") # <--- DEBUG
-
+#logica de verificacion rut empresa con api sii
             try:
+                if tipo_usuario == 'empresa':
+                    rut_empresa = form.cleaned_data['username']  # El RUT viene como 'username'
+                    resultado = validar_rut_empresa(rut_empresa)
+                if not resultado['valida']:
+                    messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+                    return render(request, 'gestionOfertas/registro.html', {'form': form})
                 # 1. Crear Usuario
                 user = Usuario.objects.create_user(
                     username=form.cleaned_data['username'],
@@ -243,32 +264,89 @@ def inicio(request):
         'fecha_actual': fecha_filtro
     }
     
-
     return render(request, 'gestionOfertas/Inicio.html', context)
   # Asegúrate de tener esta función en utils.py (o donde esté)
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+from django.utils.translation import gettext as _
+from django.conf import settings
+import googlemaps
+from .forms import OfertaTrabajoForm
 
 @login_required
 def crear_oferta(request):
     if request.method == 'POST':
         form = OfertaTrabajoForm(request.POST, user=request.user)
+        
         if form.is_valid():
-            oferta = form.save()
-            
-            msg = _('¡Oferta de empleo creada!') if hasattr(request.user, 'empresa') else _('¡Servicio publicado!')
-            messages.success(request, msg)
-            
-            return redirect('miperfil')
+            try:
+                oferta = form.save(commit=False)
+                oferta.creador = request.user
+                
+                # Asignar empresa si el usuario es una empresa
+                if hasattr(request.user, 'empresa'):
+                    oferta.empresa = request.user.empresa
+                    oferta.es_servicio = False
+                else:
+                    oferta.es_servicio = True
+                
+                # Procesar ubicación si se proporcionó
+                if form.cleaned_data.get('latitud') and form.cleaned_data.get('longitud'):
+                    # Si no hay dirección pero hay coordenadas, hacer geocodificación inversa
+                    if not oferta.direccion:
+                        try:
+                            gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                            reverse_geocode = gmaps.reverse_geocode(
+                                (form.cleaned_data['latitud'], form.cleaned_data['longitud'])
+                            )
+                            if reverse_geocode:
+                                oferta.direccion = reverse_geocode[0]['formatted_address']
+                        except (googlemaps.exceptions.ApiError, googlemaps.exceptions.HTTPError) as e:
+                            messages.warning(
+                                request, 
+                                _('La ubicación se guardó pero no pudimos obtener la dirección completa.')
+                            )
+                            print(f"Error en geocodificación inversa: {e}")
+                
+                # Guardar la oferta
+                oferta.save()
+                form.save_m2m()  # Para guardar relaciones many-to-many si las hay
+                
+                # Notificación si es urgente
+                if oferta.urgente:
+                    notificar_oferta_urgente(oferta)
+                
+                # Mensaje de éxito
+                msg = _('¡Oferta de empleo creada con éxito!') if hasattr(request.user, 'empresa') \
+                      else _('¡Servicio publicado correctamente!')
+                messages.success(request, msg)
+                
+                return redirect('miperfil')
+                
+            except Exception as e:
+                messages.error(
+                    request, 
+                    _('Ocurrió un error al guardar la oferta. Por favor intenta nuevamente.')
+                )
+                print(f"Error al guardar oferta: {e}")
+        else:
+            messages.warning(
+                request, 
+                _('Por favor corrige los errores en el formulario.')
+            )
     else:
         form = OfertaTrabajoForm(user=request.user)
-    
-    contexto = {
+
+    context = {
         'form': form,
         'es_empresa': hasattr(request.user, 'empresa'),
-        'es_persona': hasattr(request.user, 'personanatural')
+        'es_persona': hasattr(request.user, 'personanatural'),
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY
     }
-    
-    return render(request, 'gestionOfertas/crear_oferta.html', contexto)
+
+    return render(request, 'gestionOfertas/crear_oferta.html', context)
 
 @login_required
 def mis_ofertas(request):
@@ -279,23 +357,69 @@ def mis_ofertas(request):
         'ofertas': ofertas
     }
     return render(request, 'gestionOfertas/mis_ofertas.html', context)
+
 @login_required
 def editar_oferta(request, oferta_id):
+    # Obtener la oferta asegurando que pertenece al usuario
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
     
     if request.method == 'POST':
-        form = EditarOfertaTrabajoForm(request.POST, instance=oferta)
+        form = EditarOfertaTrabajoForm(request.POST, instance=oferta, user=request.user)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Oferta actualizada correctamente')
-            return redirect('mis_ofertas')
+            try:
+                # Guardar la oferta con los datos del formulario
+                oferta_actualizada = form.save(commit=False)
+                
+                # Procesar ubicación si hay cambios
+                if form.cleaned_data.get('latitud') and form.cleaned_data.get('longitud'):
+                    # Actualizar coordenadas
+                    oferta_actualizada.latitud = form.cleaned_data['latitud']
+                    oferta_actualizada.longitud = form.cleaned_data['longitud']
+                    
+                    # Si no hay dirección o cambió la ubicación, hacer geocodificación inversa
+                    if not oferta_actualizada.direccion or \
+                       (oferta.latitud != oferta_actualizada.latitud or 
+                        oferta.longitud != oferta_actualizada.longitud):
+                        try:
+                            gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                            reverse_geocode = gmaps.reverse_geocode(
+                                (oferta_actualizada.latitud, oferta_actualizada.longitud)
+                            )
+                            if reverse_geocode:
+                                oferta_actualizada.direccion = reverse_geocode[0]['formatted_address']
+                        except (googlemaps.exceptions.ApiError, googlemaps.exceptions.HTTPError) as e:
+                            messages.warning(
+                                request, 
+                                'La oferta se actualizó, pero no pudimos actualizar la dirección automáticamente'
+                            )
+                            print(f"Error en geocodificación inversa: {e}")
+                
+                # Guardar los cambios
+                oferta_actualizada.save()
+                form.save_m2m()  # Para relaciones many-to-many si las hay
+                
+                messages.success(request, '¡Oferta actualizada correctamente!')
+                return redirect('mis_ofertas')
+                
+            except Exception as e:
+                messages.error(
+                    request, 
+                    'Ocurrió un error al actualizar la oferta. Por favor intenta nuevamente.'
+                )
+                print(f"Error al actualizar oferta: {e}")
     else:
-        form = EditarOfertaTrabajoForm(instance=oferta)
+        # Inicializar el formulario con la instancia de la oferta
+        form = EditarOfertaTrabajoForm(instance=oferta, user=request.user)
     
-    return render(request, 'gestionOfertas/editar_oferta.html', {
+    context = {
         'form': form,
-        'oferta': oferta
-    })
+        'oferta': oferta,
+        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
+        'es_empresa': hasattr(request.user, 'empresa'),
+        'es_persona': hasattr(request.user, 'personanatural')
+    }
+    
+    return render(request, 'gestionOfertas/editar_oferta.html', context)
 
 @login_required
 def eliminar_oferta(request, oferta_id):
@@ -319,15 +443,18 @@ def mi_perfil(request):
     # Ofertas creadas por este usuario (empresa o persona)
     ofertas_creadas = usuario.ofertas_creadas.order_by('-fecha_publicacion')
 
-    # Postulaciones:
+    # Todas las Postulaciones:
     if usuario.tipo_usuario == 'empresa':
-        postulaciones = Postulacion.objects.filter(
+        todas_las_postulaciones = Postulacion.objects.filter(
             oferta__creador=usuario
-        ).select_related('persona', 'oferta')  # Cambiado de 'postulante' a 'persona' para coincidir con tu modelo
+        ).select_related('persona', 'oferta')
     else:  # persona natural
-        postulaciones = Postulacion.objects.filter(
-            persona=perfil  # Cambiado de 'postulante' a 'persona'
+        todas_las_postulaciones = Postulacion.objects.filter(
+            persona=perfil
         ).select_related('oferta', 'oferta__creador')
+
+    # Postulaciones Filtradas:
+    postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado').select_related('oferta')
 
     context = {
         'usuario': usuario,
@@ -336,14 +463,233 @@ def mi_perfil(request):
         'cantidad_valoraciones': usuario.cantidad_valoraciones,
         'ofertas_creadas': ofertas_creadas,
         'tiene_ofertas': ofertas_creadas.exists(),
-        'postulaciones': postulaciones,
-        'tiene_postulaciones': postulaciones.exists(),
+        'todas_las_postulaciones': todas_las_postulaciones,
+        'tiene_todas_las_postulaciones': todas_las_postulaciones.exists(),
+        'postulaciones_filtradas': postulaciones_filtradas,
+        'tiene_postulaciones_filtradas': postulaciones_filtradas.exists(),
         'valoraciones_recibidas': usuario.valoraciones_recibidas
-                                     .select_related('emisor')  # Cambiado de 'autor' a 'emisor'
-                                     .order_by('-fecha_creacion')[:3],  # Cambiado de 'fecha' a 'fecha_creacion'
+                                     .select_related('emisor')
+                                     .order_by('-fecha_creacion')[:3],
     }
 
     return render(request, 'gestionOfertas/miperfil.html', context)
+
+@login_required
+def cambiar_estado_postulacion(request, postulacion_id):
+    """
+    Cambia el estado de una postulación específica.
+
+    Args:
+        request: La solicitud HTTP.
+        postulacion_id: El ID de la postulación a cambiar.
+
+    Returns:
+        Una redirección a la página del perfil.
+    """
+    postulacion = get_object_or_404(
+        Postulacion,
+        id=postulacion_id,
+        oferta__creador=request.user  # ¡SEGURIDAD!
+    )
+
+    if request.method == 'POST':
+        nuevo_estado = request.POST.get('nuevo_estado')
+        estados_validos = ['pendiente', 'filtrado', 'match', 'contratado', 'rechazado', 'finalizado']  # Ajusta esto a tus estados
+
+        if nuevo_estado in estados_validos:
+            postulacion.estado = nuevo_estado
+            postulacion.save()
+            messages.success(request, "Estado de la postulación actualizado.")
+        else:
+            messages.error(request, "Estado no válido.")
+
+    return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
+
+
+
+@login_required
+def actualizar_modo_urgente(request):
+    if request.method == 'POST':
+        persona = request.user.personanatural
+        persona.modo_urgente = 'modo_urgente' in request.POST
+        persona.recibir_ofertas_urgentes = 'recibir_ofertas_urgentes' in request.POST
+        persona.save()
+        messages.success(request, "Tus preferencias de urgencia han sido actualizadas.")
+    return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
+
+
+# Configuración del logger
+logger = logging.getLogger(__name__)
+
+@login_required
+def mapa(request):
+    """
+    Vista principal para mostrar el mapa con ofertas de trabajo
+    """
+    # Verificar que el token de Mapbox está configurado
+    mapbox_token = getattr(settings, 'MAPBOX_TOKEN', '')
+    if not mapbox_token:
+        logger.error("MAPBOX_TOKEN no está configurado en settings")
+        return render(request, 'gestionOfertas/mapa.html', {
+            'error': 'Configuración del mapa no disponible',
+            'ofertas': [],
+            'titulo': 'Error en el mapa'
+        })
+
+    try:
+        # Obtener ofertas activas con prefetch para optimizar
+        ofertas_activas = OfertaTrabajo.objects.filter(
+            esta_activa=True
+        ).select_related('empresa').only(
+            'id', 'nombre', 'ubicacion', 'empresa__nombre'
+        )
+        
+        ofertas_con_coordenadas = []
+        geocodificaciones_fallidas = 0
+        
+        for oferta in ofertas_activas:
+            # Validar que la ubicación no esté vacía
+            if not oferta.ubicacion or not oferta.ubicacion.strip():
+                logger.warning(f"Oferta ID {oferta.id} no tiene ubicación definida")
+                continue
+                
+            # Geocodificar la ubicación
+            coords = geocode_direccion(oferta.ubicacion.strip(), mapbox_token)
+            
+            if coords and len(coords) == 2:
+                ofertas_con_coordenadas.append({
+                    'id': oferta.id,
+                    'nombre': oferta.nombre,
+                    'empresa': oferta.empresa.nombre if oferta.empresa else 'Empresa no especificada',
+                    'ubicacion': oferta.ubicacion,
+                    'coords': coords  # [longitud, latitud]
+                })
+            else:
+                geocodificaciones_fallidas += 1
+                logger.warning(f"No se pudo geocodificar: {oferta.ubicacion}")
+
+        # Log de resultados
+        logger.info(f"Ofertas procesadas: {len(ofertas_con_coordenadas)}. Fallos: {geocodificaciones_fallidas}")
+
+        context = {
+            'mapbox_token': mapbox_token,
+            'ofertas': ofertas_con_coordenadas,
+            'titulo': 'Mapa de Ofertas',
+            'debug_info': {
+                'total_ofertas': len(ofertas_activas),
+                'ofertas_con_coords': len(ofertas_con_coordenadas),
+                'geocodificaciones_fallidas': geocodificaciones_fallidas
+            }
+        }
+        
+        return render(request, 'gestionOfertas/mapa.html', context)
+
+    except Exception as e:
+        logger.error(f"Error en vista mapa: {str(e)}", exc_info=True)
+        return render(request, 'gestionOfertas/mapa.html', {
+            'error': 'Error al cargar el mapa. Por favor intente más tarde.',
+            'ofertas': [],
+            'titulo': 'Error en el mapa'
+        })
+
+def geocode_direccion(direccion, access_token):
+    """Geocodifica una dirección usando Mapbox"""
+    if not direccion or not access_token:
+        logger.warning("Geocodificación: Dirección o token vacío")
+        return None
+        
+    try:
+        # Limpiar y preparar la dirección
+        direccion_limpia = direccion.strip()
+        if not direccion_limpia:
+            return None
+            
+        # Codificar la dirección para URL
+        direccion_codificada = quote(direccion_limpia)
+        
+        # Construir URL de la API
+        url = f'https://api.mapbox.com/geocoding/v5/mapbox.places/{direccion_codificada}.json'
+        
+        # Parámetros de la solicitud
+        params = {
+            'access_token': access_token,
+            'country': 'CL',  # Filtra por Chile
+            'limit': 1,
+            'language': 'es'  # Resultados en español
+        }
+        
+        # Realizar la solicitud con timeout
+        response = requests.get(url, params=params, timeout=15)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        # Verificar resultados
+        if data.get('features') and len(data['features']) > 0:
+            coordenadas = data['features'][0]['center']
+            
+            # Validar que las coordenadas sean números válidos
+            if (isinstance(coordenadas, list) and len(coordenadas) == 2 and
+                all(isinstance(coord, (int, float)) for coord in coordenadas)):
+                return coordenadas
+            else:
+                logger.error(f"Coordenadas inválidas recibidas para: {direccion_limpia}")
+                return None
+                
+        return None
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error de conexión geocodificando {direccion_limpia}: {str(e)}")
+        return None
+    except ValueError as e:
+        logger.error(f"Error parseando JSON para {direccion_limpia}: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Error inesperado geocodificando {direccion_limpia}: {str(e)}")
+        return None
+
+
+@login_required
+def buscar_direccion(request):
+    """
+    API View para buscar direcciones con la API de Mapbox (auto-complete).
+    """
+    if request.method == 'GET':
+        try:
+            query = request.GET.get('q', '')
+            if not query:
+                return JsonResponse({'error': 'Se requiere un término de búsqueda'}, status=400)
+
+            mapbox_token = getattr(settings, 'MAPBOX_TOKEN', '')
+            url = f'https://api.mapbox.com/geocoding/v5/mapbox.places/{quote(query)}.json'
+            params = {
+                'access_token': mapbox_token,
+                'limit': 5,
+                'country': 'cl',
+                'types': 'address,place'
+            }
+
+            response = requests.get(url, params=params, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                resultados = [
+                    {
+                        'nombre': feature.get('place_name', ''),
+                        'lng': feature['center'][0],
+                        'lat': feature['center'][1],
+                    } for feature in data.get('features', [])
+                ]
+                return JsonResponse({'resultados': resultados})
+
+            return JsonResponse({'error': 'Error en la búsqueda de direcciones'}, status=response.status_code)
+
+        except Exception as e:
+            logger.exception("Error en la búsqueda de direcciones")
+            return JsonResponse({'error': 'Error al procesar la solicitud'}, status=500)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
 
 @login_required # Asegura que solo usuarios logueados accedan
 def editar_perfil(request):
@@ -452,15 +798,136 @@ def salir(request):
     return redirect('inicio')
 
 
-def demo_valoracion(request):
-    form = ValoracionForm()
-    return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
+def demo_valoracion(request, postulacion_id):
+    postulacion = get_object_or_404(Postulacion, id=postulacion_id)
 
+    # --- Lógica de seguridad (importante) ---
+    puede_valorar, receptor = postulacion.puede_valorar(request.user)
+    if not puede_valorar:
+        messages.error(request, "No tienes permiso para valorar esta postulación.")
+        return redirect('miperfil')  # O a donde sea apropiado
+
+    if request.method == 'POST':
+        form = ValoracionForm(request.POST)
+        if form.is_valid():
+            valoracion = form.save(commit=False)
+            valoracion.emisor = request.user
+            valoracion.receptor = receptor  # Usar el receptor obtenido de puede_valorar
+            valoracion.postulacion = postulacion
+            valoracion.save()
+            messages.success(request, "¡Valoración enviada con éxito!")
+            return redirect('historial_valoraciones', usuario_id=request.user.id) # Redirige al historial
+        else:
+            messages.error(request, "Por favor, corrige los errores en el formulario.")
+    else:
+        form = ValoracionForm()
+
+    context = {
+        'form': form,
+        'postulacion': postulacion,  # Pasar la postulación al template
+    }
+    return render(request, 'gestionOfertas/demo_valoracion.html', context)
 
 #DETALLE DE LA OFERTA PUBLICADA
 def detalle_oferta(request, oferta_id):
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id)
     return render(request, 'gestionOfertas/detalle_oferta.html', {'oferta': oferta})
+
+
+
+
+@login_required
+def realizar_postulacion(request, oferta_id):
+    """
+    Vista para que un usuario de tipo Persona Natural pueda postularse a una oferta de trabajo.
+    
+    Validaciones:
+    - Usuario debe estar autenticado (garantizado por @login_required)
+    - Usuario debe ser una Persona Natural
+    - Usuario no puede postularse a su propia oferta
+    - La oferta debe estar activa y no vencida
+    - El usuario no debe haber postulado previamente a esta oferta
+    """
+    # Obtenemos la oferta o devolvemos 404 si no existe
+    oferta = get_object_or_404(OfertaTrabajo, pk=oferta_id)
+    
+    # Verificamos que el usuario sea una Persona Natural
+    try:
+        persona = request.user.personanatural
+    except PersonaNatural.DoesNotExist:
+        messages.error(request, "Solo los usuarios de tipo Persona Natural pueden postular a ofertas.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Verificamos que el usuario no sea el creador de la oferta
+    if oferta.creador == request.user:
+        messages.error(request, "No puedes postularte a una oferta que tú mismo has creado.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Verificamos que la oferta esté activa y no vencida
+    if not oferta.esta_activa:
+        messages.error(request, "No es posible postular a una oferta inactiva.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    if oferta.fecha_cierre and oferta.fecha_cierre < timezone.now().date():
+        messages.error(request, "No es posible postular a una oferta vencida.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Verificamos que el usuario no haya postulado previamente
+    if Postulacion.objects.filter(persona=persona, oferta=oferta).exists():
+        messages.warning(request, "Ya has postulado a esta oferta anteriormente.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    # Creamos la postulación
+    try:
+        postulacion = Postulacion(persona=persona, oferta=oferta)
+        postulacion.save()
+        
+        # Obtenemos el nombre del creador según su tipo de usuario
+        nombre_creador = oferta.creador.username
+        
+        if oferta.creador.tipo_usuario == 'persona':
+            try:
+                creador_persona = oferta.creador.personanatural
+                nombre_creador = creador_persona.nombre_completo or oferta.creador.username
+            except:
+                pass
+        elif oferta.creador.tipo_usuario == 'empresa':
+            try:
+                nombre_creador = oferta.creador.empresa.nombre
+            except:
+                pass
+        
+        # Preparamos el contexto para el template
+        context = {
+            'nombre_postulante': persona.nombre_completo or request.user.username,
+            'oferta': oferta,
+            'nombre_creador': nombre_creador,
+            'url_perfil': request.build_absolute_uri('/perfil/'),  # Ajusta según tu URL
+            'year': datetime.now().year,
+            'company_name': getattr(settings, 'SITE_NAME', 'Portal de Empleos'),
+            'logo_url': request.build_absolute_uri(settings.STATIC_URL + 'img/logo.png') if hasattr(settings, 'STATIC_URL') else None,
+        }
+        
+        # Renderizamos el template HTML
+        html_content = render_to_string('gestionOfertas/emails/confirmacion_postulacion.html', context)
+        text_content = strip_tags(html_content)  # Versión de texto plano para clientes que no soportan HTML
+        
+        # Enviamos el correo con contenido HTML
+        subject = f"Confirmación de postulación: {oferta.nombre}"
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@example.com')
+        to_email = request.user.correo
+        
+        # Creamos el mensaje con contenido alternativo (HTML y texto plano)
+        msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        
+        messages.success(request, "¡Tu postulación ha sido enviada con éxito! Hemos enviado un correo de confirmación.")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+    except Exception as e:
+        messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
+        return redirect('detalle_oferta', oferta_id=oferta_id)
 
 
 @login_required
@@ -488,12 +955,72 @@ def valorar_postulacion(request, postulacion_id):
     # 👇 ESTA línea es la que estaba mal
     return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
 
+
 def historial_valoraciones(request, usuario_id):
-    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)  # Usa tu modelo Usuario
-    valoraciones_recibidas = Valoracion.objects.filter(receptor=usuario_perfil).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
+    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)
+    valoraciones_recibidas = Valoracion.objects.filter(
+        receptor=usuario_perfil
+    ).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
+
+    # Obtener postulaciones PENDIENTES de valoración (ajuste importante)
+    postulaciones_pendientes = []
+    if usuario_perfil.tipo_usuario == 'empresa':
+        postulaciones = Postulacion.objects.filter(
+            oferta__creador=usuario_perfil
+        ).select_related('persona', 'oferta')
+    elif usuario_perfil.tipo_usuario == 'persona':
+        postulaciones = usuario_perfil.personanatural.postulaciones.all()
+    else:
+        postulaciones = []  # Manejar otros tipos de usuario si es necesario
+
+    for postulacion in postulaciones:
+        puede_valorar, _ = postulacion.puede_valorar(request.user)  # Usar request.user
+        if puede_valorar:
+            postulaciones_pendientes.append(postulacion)
 
     context = {
         'usuario_perfil': usuario_perfil,
         'valoraciones': valoraciones_recibidas,
+        'postulaciones_pendientes': postulaciones_pendientes,
     }
     return render(request, 'gestionOfertas/historial_valoraciones.html', context)
+
+def ranking_usuarios(request):
+    tipo_usuario = request.GET.get('tipo', 'empresa')  # 'empresa' o 'persona'
+    periodo = request.GET.get('periodo', 'semanal')  # 'semanal' o 'mensual'
+
+    # --- Calcular el inicio del periodo ---
+    if periodo == 'semanal':
+        inicio_periodo = timezone.now() - timedelta(weeks=1)
+    else:  # 'mensual'
+        inicio_periodo = timezone.now() - timedelta(days=30)  # Aproximación a un mes
+
+    # --- Filtrar valoraciones por periodo ---
+    valoraciones_periodo = Valoracion.objects.filter(fecha_creacion__gte=inicio_periodo)
+
+    # --- Anotar usuarios con su valoración promedio y cantidad (dentro del periodo) ---
+    usuarios = Usuario.objects.filter(tipo_usuario=tipo_usuario).annotate(
+        promedio_periodo=Avg('valoraciones_recibidas__puntuacion', filter=Q(valoraciones_recibidas__fecha_creacion__gte=inicio_periodo)),
+        cantidad_periodo=Count('valoraciones_recibidas', filter=Q(valoraciones_recibidas__fecha_creacion__gte=inicio_periodo))
+    ).filter(cantidad_periodo__gt=0).order_by('-promedio_periodo', '-cantidad_periodo') # Ordenar primero por promedio, luego por cantidad
+
+    # --- Calcular el ranking usando Window function ---
+    usuarios = usuarios.annotate(
+        ranking=Window(
+            expression=Rank(),
+            order_by=(F('promedio_periodo').desc(nulls_last=True), F('cantidad_periodo').desc())
+        )
+    )
+
+    # --- Preparar los datos para el template ---
+    top_3 = list(usuarios[:3])
+    resto = list(usuarios[3:10])
+
+    context = {
+        'tipo_usuario': tipo_usuario,
+        'periodo': periodo,
+        'top_3': top_3,
+        'resto': resto,
+    }
+
+    return render(request, 'gestionOfertas/ranking.html', context)

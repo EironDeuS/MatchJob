@@ -29,7 +29,7 @@
                     data-lng="{{ oferta.coords.0 }}" 
                     data-lat="{{ oferta.coords.1 }}"
                     data-ubicacion="{{ oferta.ubicacion|escapejs }}">
-              {{ oferta.nombre }} - {{ oferta.empresa }} ({{ oferta.ubicacion }})
+              {{ oferta.nombre }} - ({{ oferta.ubicacion }})
             </option>
             {% endfor %}
           </select>

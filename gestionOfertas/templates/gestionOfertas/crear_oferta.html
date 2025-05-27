@@ -10,6 +10,17 @@
             <p class="lead text-muted">Conecta con el mejor talento para tu empresa o proyecto en Chile</p>
         </div>
 
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} d-flex align-items-center" role="alert">
+                <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% else %}bi-exclamation-triangle-fill{% endif %} me-2"></i>
+                <div>{{ message }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         {% if form.non_field_errors %}
         <div class="alert alert-danger d-flex align-items-center" role="alert">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -34,14 +45,29 @@
                         <div class="col-md-6">
                             <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
                             {{ form.categoria|add_class:"form-select" }}
+                            {% if form.categoria.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.categoria.errors|join:", " }}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6">
                             <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
                             {{ form.nombre|add_class:"form-control" }}
+                            {% if form.nombre.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.nombre.errors|join:", " }}
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-12">
                             <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
                             {{ form.descripcion|add_class:"form-control" }}
+                            {% if form.descripcion.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.descripcion.errors|join:", " }}
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -60,36 +86,60 @@
                                 <span class="input-group-text">$</span>
                                 {{ form.salario|add_class:"form-control" }}
                             </div>
+                            {% if form.salario.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.salario.errors|join:", " }}
+                            </div>
+                            {% endif %}
                         </div>
 
                         <div class="col-md-4">
-                            <label for="ubicacionInput" class="form-label">{{ form.ubicacion.label }}</label>
+                            <label for="ubicacionInput" class="form-label">Ubicación *</label>
                             <div class="position-relative">
-                                <input type="text" class="form-control" id="ubicacionInput" placeholder="Ej: Santiago, Chile">
+                                <input type="text" class="form-control {% if form.latitud.errors or form.longitud.errors %}is-invalid{% endif %}" 
+                                       id="ubicacionInput" placeholder="Ej: Santiago, Chile" required>
                                 <i class="bi bi-geo-alt position-absolute top-50 end-0 translate-middle-y me-3 text-primary"></i>
-                                {{ form.ubicacion.as_hidden }}
+                                {{ form.latitud.as_hidden }}
+                                {{ form.longitud.as_hidden }}
+                                <input type="hidden" id="id_direccion" name="direccion">
                             </div>
+                            {% if form.latitud.errors or form.longitud.errors %}
+                            <div class="invalid-feedback d-block">
+                                Por favor selecciona una ubicación válida en el mapa
+                            </div>
+                            {% endif %}
                             <div class="mt-2 rounded overflow-hidden border" style="height: 200px;">
                                 <div id="map" style="height: 100%;"></div>
                             </div>
+                            <small class="text-muted">Busca una ubicación o arrastra el marcador en el mapa</small>
                         </div>
 
                         {% if form.tipo_contrato %}
                         <div class="col-md-4">
                             <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
                             {{ form.tipo_contrato|add_class:"form-select" }}
+                            {% if form.tipo_contrato.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.tipo_contrato.errors|join:", " }}
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
 
                         <div class="col-md-6">
                             <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
                             {{ form.fecha_cierre|add_class:"form-control" }}
+                            {% if form.fecha_cierre.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.fecha_cierre.errors|join:", " }}
+                            </div>
+                            {% endif %}
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">{{ form.esta_activa.label }}</label>
                             <div class="form-check form-switch">
-                                {{ form.esta_activa }}
+                                {{ form.esta_activa|add_class:"form-check-input" }}
                                 <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">Visible</label>
                             </div>
                         </div>
@@ -106,10 +156,20 @@
                     <div class="col-md-6">
                         <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
                         {{ form.requisitos|add_class:"form-control" }}
+                        {% if form.requisitos.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.requisitos.errors|join:", " }}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-md-6">
                         <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
                         {{ form.beneficios|add_class:"form-control" }}
+                        {% if form.beneficios.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.beneficios.errors|join:", " }}
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -121,7 +181,7 @@
                 </div>
                 <div class="card-body">
                     <div class="form-check form-switch">
-                        {{ form.urgente }}
+                        {{ form.urgente|add_class:"form-check-input" }}
                         <label class="form-check-label" for="{{ form.urgente.id_for_label }}">
                             ¿Deseas marcar esta oferta como urgente?
                         </label>
@@ -135,53 +195,108 @@
                 <button type="submit" class="btn btn-lg btn-primary shadow-sm px-4">
                     <i class="bi bi-send-check me-2"></i>Publicar oferta
                 </button>
+                <a href="{% url 'miperfil' %}" class="btn btn-lg btn-outline-secondary ms-2">
+                    <i class="bi bi-x-circle me-2"></i>Cancelar
+                </a>
             </div>
         </form>
     </div>
 </div>
 
 <!-- Google Maps -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
 
 <script>
     let map, marker, autocomplete;
     const defaultLocation = { lat: -33.4489, lng: -70.6693 };
+    let isInitialLoad = true;
 
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             center: defaultLocation,
-            zoom: 6
+            zoom: 6,
+            streetViewControl: false,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            }
         });
 
         marker = new google.maps.Marker({
             map: map,
             draggable: true,
-            animation: google.maps.Animation.DROP
+            animation: google.maps.Animation.DROP,
+            title: "Arrástrame para ajustar la ubicación"
         });
 
         autocomplete = new google.maps.places.Autocomplete(document.getElementById("ubicacionInput"), {
-            componentRestrictions: { country: "cl" }
+            componentRestrictions: { country: "cl" },
+            fields: ["formatted_address", "geometry"],
+            types: ["establishment", "geocode"]
         });
 
         autocomplete.addListener("place_changed", fillInAddress);
-        marker.addListener("dragend", () => updateLocationFields(marker.getPosition()));
+        marker.addListener("dragend", updateMarkerPosition);
+        
+        // Si hay valores previos, cargarlos
+        {% if form.latitud.value and form.longitud.value %}
+            const initialLatLng = new google.maps.LatLng({{ form.latitud.value }}, {{ form.longitud.value }});
+            marker.setPosition(initialLatLng);
+            map.setCenter(initialLatLng);
+            map.setZoom(15);
+            
+            // Realizar geocodificación inversa para obtener la dirección
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: initialLatLng }, (results, status) => {
+                if (status === "OK" && results[0]) {
+                    document.getElementById("ubicacionInput").value = results[0].formatted_address;
+                    document.getElementById("id_direccion").value = results[0].formatted_address;
+                }
+            });
+        {% endif %}
+
+        // Validar que se haya seleccionado una ubicación al enviar el formulario
+        document.getElementById('jobOfferForm').addEventListener('submit', function(e) {
+            if (!document.getElementById('id_latitud').value || !document.getElementById('id_longitud').value) {
+                e.preventDefault();
+                alert('Por favor selecciona una ubicación válida en el mapa');
+                document.getElementById('ubicacionInput').focus();
+            }
+        });
     }
 
     function fillInAddress() {
         const place = autocomplete.getPlace();
-        if (!place.geometry) return;
+        if (!place.geometry) {
+            document.getElementById("ubicacionInput").classList.add('is-invalid');
+            return;
+        }
 
+        document.getElementById("ubicacionInput").classList.remove('is-invalid');
         map.setCenter(place.geometry.location);
         map.setZoom(15);
         marker.setPosition(place.geometry.location);
-        marker.setVisible(true);
-
-        updateLocationFields(place.geometry.location);
-        document.getElementById("ubicacionInput").value = place.formatted_address;
+        
+        // Actualizar campos ocultos
+        document.getElementById("id_latitud").value = place.geometry.location.lat();
+        document.getElementById("id_longitud").value = place.geometry.location.lng();
+        document.getElementById("id_direccion").value = place.formatted_address;
     }
 
-    function updateLocationFields(latLng) {
-        document.getElementById("{{ form.ubicacion.id_for_label }}").value = `${latLng.lat()},${latLng.lng()}`;
+    function updateMarkerPosition() {
+        const position = marker.getPosition();
+        document.getElementById("id_latitud").value = position.lat();
+        document.getElementById("id_longitud").value = position.lng();
+        
+        // Realizar geocodificación inversa para obtener la dirección
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: position }, (results, status) => {
+            if (status === "OK" && results[0]) {
+                document.getElementById("ubicacionInput").value = results[0].formatted_address;
+                document.getElementById("id_direccion").value = results[0].formatted_address;
+                document.getElementById("ubicacionInput").classList.remove('is-invalid');
+            }
+        });
     }
 </script>
 {% endblock %}

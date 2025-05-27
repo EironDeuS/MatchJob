@@ -343,7 +343,9 @@ class OfertaTrabajo(models.Model):
     requisitos = models.TextField(_('Requisitos'), blank=True)
     beneficios = models.TextField(_('Beneficios'), blank=True)
     salario = models.CharField(_('Salario'), max_length=100, blank=True)
-    ubicacion = models.CharField(_('Ubicación'), max_length=100, blank=True)
+    latitud = models.FloatField(null=True, blank=True)
+    longitud = models.FloatField(null=True, blank=True)
+    direccion = models.CharField(_('Dirección'), max_length=255, blank=True)
     tipo_contrato = models.CharField(
         _('Tipo de contrato'),
         max_length=50,
