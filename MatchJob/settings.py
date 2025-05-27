@@ -114,8 +114,9 @@ GS_STATIC_BUCKET_NAME = os.getenv('GS_STATIC_BUCKET_NAME', 'matchjob-static-file
 STATIC_URL = f'https://storage.googleapis.com/{GS_STATIC_BUCKET_NAME}/'
 
 # Ruta local donde collectstatic reunirá los archivos antes de subirlos a GCS
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_collected')
-
+STATIC_ROOT = 'C:\\temp_static_files_matchjob' # <--- CAMBIA A ESTO TEMPORALMENTE para la prueba
+print(f"DEBUG: STATIC_ROOT is set to: {STATIC_ROOT}") # <-- Agrega esta línea
+print(f"DEBUG: BASE_DIR is set to: {BASE_DIR}")
 # URL base para los archivos de medios. Apunta a una subcarpeta 'media/' dentro de tu bucket de medios.
 MEDIA_URL = f'https://storage.googleapis.com/{GS_MEDIA_BUCKET_NAME}/media/'
 
