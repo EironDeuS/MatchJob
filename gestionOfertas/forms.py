@@ -1,5 +1,6 @@
 # En tu_app/forms.py
-
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth import get_user_model
 from django import forms
 # from django.contrib.auth.forms import ReadOnlyPasswordHashField # Solo si usas UsuarioChangeForm
 from .models import Usuario, PersonaNatural, Empresa, Valoracion # Importa tus modelos
@@ -563,3 +564,17 @@ class ValoracionForm(forms.ModelForm):
             'puntuacion': 'Calificación',
             'comentario': 'Comentario',
         }
+
+
+Usuario = get_user_model()
+
+class CustomPasswordResetForm(PasswordResetForm):
+    def get_users(self, email):
+        active_users = Usuario._default_manager.filter(correo__iexact=email, is_active=True)
+        return (u for u in active_users if u.has_usable_password())
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if not Usuario.objects.filter(correo__iexact=email, is_active=True).exists():
+            raise forms.ValidationError("No existe una cuenta con ese correo.")
+        return email

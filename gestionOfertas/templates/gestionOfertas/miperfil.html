@@ -202,7 +202,7 @@
                                     <div class="d-flex justify-content-between align-items-center mt-2">
                                         <div>
                                             <span class="badge bg-primary me-1"><i class="bi bi-tag-fill me-1"></i> {{ oferta.get_tipo_contrato_display }}</span>
-                                            <span class="badge bg-secondary"><i class="bi bi-geo-alt-fill me-1"></i> {{ oferta.ubicacion }}</span>
+                                            <span class="badge bg-secondary"><i class="bi bi-geo-alt-fill me-1"></i> {{ oferta.direccion }}</span>
                                             {% if usuario.tipo_usuario == 'empresa' %}
                                                 <span class="badge bg-info ms-1"><i class="bi bi-people-fill me-1"></i> {{ oferta.postulaciones.count }} Postulante{{ oferta.postulaciones.count|pluralize }}</span>
                                             {% endif %}

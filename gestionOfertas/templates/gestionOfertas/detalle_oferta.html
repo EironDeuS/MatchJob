@@ -4,29 +4,108 @@
 {% block title %}Detalle Oferta{% endblock %}
 
 {% block head %}
-<!-- Aquí puedes cargar tu archivo de CSS personalizado si es necesario -->
 <link rel="stylesheet" href="{% static 'css/estilos.css' %}">
+<style>
+    .urgent-badge {
+        position: absolute;
+        top: -15px;
+        right: 20px;
+        background: linear-gradient(135deg, #ff4d4d, #f94336);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 30px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(249, 67, 54, 0.4);
+        z-index: 10;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .offer-card {
+        position: relative;
+        transition: transform 0.3s, box-shadow 0.3s;
+        overflow: hidden;
+    }
+    
+    .offer-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+    }
+    
+    .gradient-border {
+        position: relative;
+    }
+    
+    .gradient-border::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #5c6ac4, #3b82f6, #10b981);
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+        border-radius: 20px;
+        margin-right: 8px;
+    }
+    
+    .company-logo {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        border-radius: 12px;
+        background: white;
+        padding: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
     <!-- ENCABEZADO -->
-    <div style="background-color: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border: 1px solid #dcd6f7; margin-bottom: 40px;">
-        <div>
-            <h1 style="font-size: 2.5rem; font-weight: bold; color: #5c6ac4;">{{ oferta.nombre }}</h1>
-            <p style="margin-top: 10px; font-size: 1.2rem; color: #6b7280;">
-                <span style="background-color: #e0e7ff; color: #3b82f6; padding: 8px 12px; border-radius: 16px; font-size: 1rem;">
+    <div class="offer-card gradient-border" style="background-color: white; padding: 40px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; position: relative;">
+        {% if oferta.es_urgente %}
+        <div class="urgent-badge">
+            ⚡ URGENTE
+        </div>
+        {% endif %}
+        
+        <div style="flex: 1;">
+            <h1 style="font-size: 2.5rem; font-weight: bold; color: #1a237e; margin-bottom: 15px;">{{ oferta.nombre }}</h1>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+                <span style="background-color: #e0e7ff; color: #3b82f6;" class="badge">
                     {{ oferta.get_tipo_contrato_display }}
                 </span>
-                <span style="background-color: #fef2c7; color: #f59e0b; padding: 8px 12px; border-radius: 16px; font-size: 1rem;">
+                <span style="background-color: #fef2c7; color: #f59e0b;" class="badge">
                     {{ oferta.tipo_oferta }}
                 </span>
-            </p>
+                {% if oferta.es_urgente %}
+                <span style="background-color: #fee2e2; color: #ef4444;" class="badge">
+                    ⏳ Contratación inmediata
+                </span>
+                {% endif %}
+            </div>
         </div>
+        
         {% if oferta.empresa %}
-        <div style="text-align: right;">
-            <p style="color: #6b7280; font-size: 1rem;">Publicado por:</p>
-            <p style="font-size: 1.5rem; font-weight: bold; color: #1e3a8a;">{{ oferta.empresa.nombre }}asdasdas</p>
+        <div style="text-align: right; display: flex; align-items: center; gap: 20px;">
+            <div>
+                <p style="color: #6b7280; font-size: 1rem; margin-bottom: 5px;">Publicado por:</p>
+                <p style="font-size: 1.5rem; font-weight: bold; color: #1e3a8a;">{{ oferta.empresa.nombre }}</p>
+            </div>
+            {% if oferta.empresa.logo %}
+            <img src="{{ oferta.empresa.logo.url }}" alt="Logo {{ oferta.empresa.nombre }}" class="company-logo">
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -34,72 +113,136 @@
     <!-- DETALLE PRINCIPAL -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
         <!-- Descripción -->
-        <div style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #5c6ac4;">
-            <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center;">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #5c6ac4;">
+        <div class="offer-card" style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-top: 4px solid #5c6ac4;">
+            <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; color: #1a237e;">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #5c6ac4; margin-right: 10px;">
                     <path d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
-                Descripción
+                Descripción del puesto
             </h2>
-            <p style="color: #4b5563; white-space: pre-line;">{{ oferta.descripcion }}</p>
+            <div style="color: #4b5563; white-space: pre-line; line-height: 1.6;">{{ oferta.descripcion }}</div>
         </div>
 
         <!-- Requisitos -->
         {% if oferta.requisitos %}
-        <div style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #3b82f6;">
-            <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center;">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #3b82f6;">
+        <div class="offer-card" style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-top: 4px solid #3b82f6;">
+            <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; color: #1a237e;">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #3b82f6; margin-right: 10px;">
                     <path d="M9 12l2 2l4 -4"/>
                 </svg>
                 Requisitos
             </h2>
-            <p style="color: #4b5563; white-space: pre-line;">{{ oferta.requisitos }}</p>
+            <div style="color: #4b5563; white-space: pre-line; line-height: 1.6;">{{ oferta.requisitos }}</div>
         </div>
         {% endif %}
     </div>
 
     <!-- Beneficios -->
     {% if oferta.beneficios %}
-    <div style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #10b981; margin-bottom: 32px;">
-        <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center;">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #10b981;">
+    <div class="offer-card" style="background-color: white; padding: 30px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-top: 4px solid #10b981; margin-bottom: 32px;">
+        <h2 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; display: flex; align-items: center; color: #1a237e;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color: #10b981; margin-right: 10px;">
                 <path d="M12 8v4l3 3"/>
             </svg>
             Beneficios
         </h2>
-        <p style="color: #4b5563; white-space: pre-line;">{{ oferta.beneficios }}</p>
+        <div style="color: #4b5563; white-space: pre-line; line-height: 1.6;">{{ oferta.beneficios }}</div>
     </div>
     {% endif %}
 
     <!-- INFO ADICIONAL -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; font-size: 0.875rem; color: #4b5563;">
-        <div style="background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-            <p><strong>📍 Ubicación:</strong> {{ oferta.direccion }}</p>
-            <p><strong>💵 Salario:</strong> {{ oferta.salario }}</p>
-            <p><strong>🗓 Publicado:</strong> {{ oferta.fecha_publicacion|date:"d/m/Y" }}</p>
-            {% if oferta.fecha_cierre %}
-            <p><strong>⏰ Cierra:</strong> {{ oferta.fecha_cierre|date:"d/m/Y" }}</p>
-            {% endif %}
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px;">
+        <div class="offer-card" style="background-color: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.08);">
+            <h3 style="font-size: 1.25rem; color: #1a237e; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">Información general</h3>
+            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 15px; align-items: center;">
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Ubicación</p>
+                    <p style="color: #6b7280;">{{ oferta.direccion }}</p>
+                </div>
+                
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Salario</p>
+                    <p style="color: #6b7280;">{{ oferta.salario }}</p>
+                </div>
+                
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Publicado</p>
+                    <p style="color: #6b7280;">{{ oferta.fecha_publicacion|date:"d/m/Y" }}</p>
+                </div>
+                
+                {% if oferta.fecha_cierre %}
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Cierre</p>
+                    <p style="color: #6b7280;">{{ oferta.fecha_cierre|date:"d/m/Y" }}</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
 
-        <div style="background-color: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-            <p><strong>🏷 Categoría:</strong> {{ oferta.categoria.nombre }}</p>
-            <p><strong>🔒 Estado:</strong>
-                {% if oferta.esta_activa %}
-                <span style="color: #16a34a; font-weight: 500;">Activa</span>
-                {% else %}
-                <span style="color: #ef4444; font-weight: 500;">Cerrada</span>
+        <div class="offer-card" style="background-color: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.08);">
+            <h3 style="font-size: 1.25rem; color: #1a237e; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">Detalles adicionales</h3>
+            <div style="display: grid; grid-template-columns: 30px 1fr; gap: 15px; align-items: center;">
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Categoría</p>
+                    <p style="color: #6b7280;">{{ oferta.categoria.nombre }}</p>
+                </div>
+                
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Estado</p>
+                    <p style="color: {% if oferta.esta_activa %}#16a34a{% else %}#ef4444{% endif %}; font-weight: 500;">
+                        {% if oferta.esta_activa %}🟢 Activa{% else %}🔴 Cerrada{% endif %}
+                    </p>
+                </div>
+                
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Tipo</p>
+                    <p style="color: #6b7280;">{{ oferta.tipo_oferta }}</p>
+                </div>
+                
+                {% if oferta.es_urgente %}
+                <svg width="20" height="20" fill="none" stroke="#5c6ac4" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <div>
+                    <p style="font-weight: 500; margin-bottom: 3px; color: #1a237e;">Prioridad</p>
+                    <p style="color: #ef4444; font-weight: 500;">⚡ Contratación urgente</p>
+                </div>
                 {% endif %}
-            </p>
-            <p><strong>🧰 Tipo:</strong> {{ oferta.tipo_oferta }}</p>
+            </div>
         </div>
     </div>
 
     <!-- BOTÓN DE POSTULACIÓN -->
     <div style="margin-top: 40px; text-align: center;">
-        <a href="{% url 'realizar_postulacion' oferta.id %}" style="display: inline-block; background-color: #4338ca; color: white; font-size: 1.125rem; font-weight: 600; padding: 16px 32px; border-radius: 9999px; box-shadow: 0 6px 10px rgba(0,0,0,0.2); transition: background-color 0.3s;">
-            🚀 Postular a esta oferta
+        <a href="{% url 'realizar_postulacion' oferta.id %}" style="display: inline-block; background: linear-gradient(135deg, #4338ca, #5c6ac4); color: white; font-size: 1.125rem; font-weight: 600; padding: 16px 40px; border-radius: 50px; box-shadow: 0 8px 15px rgba(67, 56, 202, 0.3); transition: all 0.3s; position: relative; overflow: hidden;">
+            <span style="position: relative; z-index: 2;">🚀 Postular a esta oferta</span>
+            <span style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #5c6ac4, #4338ca); opacity: 0; transition: opacity 0.3s; z-index: 1;"></span>
         </a>
+        <p style="margin-top: 15px; color: #6b7280; font-size: 0.9rem;">
+            {% if oferta.fecha_cierre %}
+            ⏳ Esta oferta cierra el {{ oferta.fecha_cierre|date:"d/m/Y" }}
+            {% endif %}
+        </p>
     </div>
 </div>
+
+<script>
+    // Efecto hover mejorado para el botón
+    document.querySelector('a[href="{% url 'realizar_postulacion' oferta.id %}"]').addEventListener('mouseenter', function() {
+        this.querySelector('span:last-child').style.opacity = '1';
+        this.style.transform = 'translateY(-3px)';
+        this.style.boxShadow = '0 12px 20px rgba(67, 56, 202, 0.4)';
+    });
+    
+    document.querySelector('a[href="{% url 'realizar_postulacion' oferta.id %}"]').addEventListener('mouseleave', function() {
+        this.querySelector('span:last-child').style.opacity = '0';
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = '0 8px 15px rgba(67, 56, 202, 0.3)';
+    });
+</script>
 {% endblock %}

@@ -1,6 +1,10 @@
 # En tu_app/views.py
 
 from gestionOfertas.utils import notificar_oferta_urgente, validar_rut_empresa
+from django.contrib.auth.views import PasswordResetView
+from django.urls import reverse_lazy
+from gestionOfertas.forms import CustomPasswordResetForm
+from django.views.generic import ListView
 from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -181,6 +185,78 @@ def registro(request):
     else: # Método GET
         form = RegistroForm()
     return render(request, 'gestionOfertas/registro.html', {'form': form})
+
+class CustomPasswordResetView(PasswordResetView):
+    form_class = CustomPasswordResetForm
+    template_name = 'registration/password_reset_form.html'
+    email_template_name = 'registration/password_reset_email.html'
+    subject_template_name = 'registration/password_reset_subject.txt'
+    success_url = reverse_lazy('password_reset_done')
+
+
+class OfertasUrgentesView(ListView):
+    model = OfertaTrabajo
+    template_name = 'gestionOfertas/ofertas_urgentes.html'
+    context_object_name = 'ofertas'
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Filtrar por ofertas urgentes y activas según el modelo real
+        queryset = OfertaTrabajo.objects.filter(
+            urgente=True,  # Campo correcto del modelo
+            esta_activa=True  # Campo correcto del modelo
+        ).select_related('creador', 'empresa', 'categoria')
+
+        # Filtros GET
+        q = self.request.GET.get('q', '')
+        categoria_id = self.request.GET.get('categoria')
+        tipo_contrato = self.request.GET.get('tipo_contrato')
+        tipo_oferta = self.request.GET.get('tipo_oferta')
+
+        if q:
+            queryset = queryset.filter(
+                Q(nombre__icontains=q) |
+                Q(descripcion__icontains=q) |
+                Q(empresa__nombre__icontains=q) |
+                Q(creador__first_name__icontains=q) |
+                Q(creador__last_name__icontains=q)
+            )
+
+        if categoria_id:
+            try:
+                queryset = queryset.filter(categoria_id=int(categoria_id))
+            except (ValueError, TypeError):
+                pass
+
+        if tipo_contrato and tipo_contrato in dict(OfertaTrabajo.TIPO_CONTRATO_CHOICES):
+            queryset = queryset.filter(tipo_contrato=tipo_contrato)
+
+        if tipo_oferta:
+            if tipo_oferta == 'empleo':
+                queryset = queryset.filter(es_servicio=False)
+            elif tipo_oferta == 'servicio':
+                queryset = queryset.filter(es_servicio=True)
+
+        return queryset.order_by('-fecha_publicacion')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Agregar datos para los filtros
+        context['categorias'] = Categoria.objects.all()
+        context['tipos_contrato'] = OfertaTrabajo.TIPO_CONTRATO_CHOICES
+        context['total_ofertas_urgentes'] = OfertaTrabajo.objects.filter(
+            urgente=True, 
+            esta_activa=True
+        ).count()
+        
+        # Preservar parámetros de búsqueda en el contexto
+        context['current_search'] = self.request.GET.get('q', '')
+        context['current_categoria'] = self.request.GET.get('categoria', '')
+        context['current_tipo_contrato'] = self.request.GET.get('tipo_contrato', '')
+        context['current_tipo_oferta'] = self.request.GET.get('tipo_oferta', '')
+        
+        return context
 
 
 
@@ -518,176 +594,24 @@ def actualizar_modo_urgente(request):
     return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
 
 
-# Configuración del logger
-logger = logging.getLogger(__name__)
-
-@login_required
 def mapa(request):
-    """
-    Vista principal para mostrar el mapa con ofertas de trabajo
-    """
-    # Verificar que el token de Mapbox está configurado
-    mapbox_token = getattr(settings, 'MAPBOX_TOKEN', '')
-    if not mapbox_token:
-        logger.error("MAPBOX_TOKEN no está configurado en settings")
-        return render(request, 'gestionOfertas/mapa.html', {
-            'error': 'Configuración del mapa no disponible',
-            'ofertas': [],
-            'titulo': 'Error en el mapa'
-        })
-
-    try:
-        # Obtener ofertas activas con prefetch para optimizar
-        ofertas_activas = OfertaTrabajo.objects.filter(
-            esta_activa=True
-        ).select_related('empresa').only(
-            'id', 'nombre', 'ubicacion', 'empresa__nombre'
-        )
-        
-        ofertas_con_coordenadas = []
-        geocodificaciones_fallidas = 0
-        
-        for oferta in ofertas_activas:
-            # Validar que la ubicación no esté vacía
-            if not oferta.ubicacion or not oferta.ubicacion.strip():
-                logger.warning(f"Oferta ID {oferta.id} no tiene ubicación definida")
-                continue
-                
-            # Geocodificar la ubicación
-            coords = geocode_direccion(oferta.ubicacion.strip(), mapbox_token)
-            
-            if coords and len(coords) == 2:
-                ofertas_con_coordenadas.append({
-                    'id': oferta.id,
-                    'nombre': oferta.nombre,
-                    'empresa': oferta.empresa.nombre if oferta.empresa else 'Empresa no especificada',
-                    'ubicacion': oferta.ubicacion,
-                    'coords': coords  # [longitud, latitud]
-                })
-            else:
-                geocodificaciones_fallidas += 1
-                logger.warning(f"No se pudo geocodificar: {oferta.ubicacion}")
-
-        # Log de resultados
-        logger.info(f"Ofertas procesadas: {len(ofertas_con_coordenadas)}. Fallos: {geocodificaciones_fallidas}")
-
-        context = {
-            'mapbox_token': mapbox_token,
-            'ofertas': ofertas_con_coordenadas,
-            'titulo': 'Mapa de Ofertas',
-            'debug_info': {
-                'total_ofertas': len(ofertas_activas),
-                'ofertas_con_coords': len(ofertas_con_coordenadas),
-                'geocodificaciones_fallidas': geocodificaciones_fallidas
-            }
-        }
-        
-        return render(request, 'gestionOfertas/mapa.html', context)
-
-    except Exception as e:
-        logger.error(f"Error en vista mapa: {str(e)}", exc_info=True)
-        return render(request, 'gestionOfertas/mapa.html', {
-            'error': 'Error al cargar el mapa. Por favor intente más tarde.',
-            'ofertas': [],
-            'titulo': 'Error en el mapa'
-        })
-
-def geocode_direccion(direccion, access_token):
-    """Geocodifica una dirección usando Mapbox"""
-    if not direccion or not access_token:
-        logger.warning("Geocodificación: Dirección o token vacío")
-        return None
-        
-    try:
-        # Limpiar y preparar la dirección
-        direccion_limpia = direccion.strip()
-        if not direccion_limpia:
-            return None
-            
-        # Codificar la dirección para URL
-        direccion_codificada = quote(direccion_limpia)
-        
-        # Construir URL de la API
-        url = f'https://api.mapbox.com/geocoding/v5/mapbox.places/{direccion_codificada}.json'
-        
-        # Parámetros de la solicitud
-        params = {
-            'access_token': access_token,
-            'country': 'CL',  # Filtra por Chile
-            'limit': 1,
-            'language': 'es'  # Resultados en español
-        }
-        
-        # Realizar la solicitud con timeout
-        response = requests.get(url, params=params, timeout=15)
-        response.raise_for_status()
-        
-        data = response.json()
-        
-        # Verificar resultados
-        if data.get('features') and len(data['features']) > 0:
-            coordenadas = data['features'][0]['center']
-            
-            # Validar que las coordenadas sean números válidos
-            if (isinstance(coordenadas, list) and len(coordenadas) == 2 and
-                all(isinstance(coord, (int, float)) for coord in coordenadas)):
-                return coordenadas
-            else:
-                logger.error(f"Coordenadas inválidas recibidas para: {direccion_limpia}")
-                return None
-                
-        return None
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error de conexión geocodificando {direccion_limpia}: {str(e)}")
-        return None
-    except ValueError as e:
-        logger.error(f"Error parseando JSON para {direccion_limpia}: {str(e)}")
-        return None
-    except Exception as e:
-        logger.error(f"Error inesperado geocodificando {direccion_limpia}: {str(e)}")
-        return None
-
-
-@login_required
-def buscar_direccion(request):
-    """
-    API View para buscar direcciones con la API de Mapbox (auto-complete).
-    """
-    if request.method == 'GET':
-        try:
-            query = request.GET.get('q', '')
-            if not query:
-                return JsonResponse({'error': 'Se requiere un término de búsqueda'}, status=400)
-
-            mapbox_token = getattr(settings, 'MAPBOX_TOKEN', '')
-            url = f'https://api.mapbox.com/geocoding/v5/mapbox.places/{quote(query)}.json'
-            params = {
-                'access_token': mapbox_token,
-                'limit': 5,
-                'country': 'cl',
-                'types': 'address,place'
-            }
-
-            response = requests.get(url, params=params, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                resultados = [
-                    {
-                        'nombre': feature.get('place_name', ''),
-                        'lng': feature['center'][0],
-                        'lat': feature['center'][1],
-                    } for feature in data.get('features', [])
-                ]
-                return JsonResponse({'resultados': resultados})
-
-            return JsonResponse({'error': 'Error en la búsqueda de direcciones'}, status=response.status_code)
-
-        except Exception as e:
-            logger.exception("Error en la búsqueda de direcciones")
-            return JsonResponse({'error': 'Error al procesar la solicitud'}, status=500)
-
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    # Obtener ofertas activas con coordenadas
+    ofertas = OfertaTrabajo.objects.filter(
+        esta_activa=True,
+        latitud__isnull=False,
+        longitud__isnull=False
+    ).select_related('empresa', 'categoria')
+    
+    # Obtener todas las categorías para el filtro
+    categorias = Categoria.objects.all()
+    
+    context = {
+        'ofertas': ofertas,
+        'categorias': categorias,
+        'OfertaTrabajo': OfertaTrabajo  # Para acceder a las opciones de TIPO_CONTRATO_CHOICES
+    }
+    
+    return render(request, 'gestionOfertas/mapa.html', context)
 
 
 
@@ -830,8 +754,20 @@ def demo_valoracion(request, postulacion_id):
 
 #DETALLE DE LA OFERTA PUBLICADA
 def detalle_oferta(request, oferta_id):
-    oferta = get_object_or_404(OfertaTrabajo, id=oferta_id)
-    return render(request, 'gestionOfertas/detalle_oferta.html', {'oferta': oferta})
+    oferta = get_object_or_404(
+        OfertaTrabajo.objects.select_related('empresa', 'categoria'),
+        id=oferta_id,
+        esta_activa=True  # Opcional: filtrar solo ofertas activas
+    )
+    
+    context = {
+        'oferta': oferta,
+        'es_urgente': oferta.es_urgente(),  # Si tienes un método para determinar urgencia
+        'meta_title': f"{oferta.nombre} - {oferta.empresa.nombre}" if oferta.empresa else oferta.nombre,
+        'meta_description': f"Oferta de trabajo: {oferta.nombre}. {oferta.descripcion[:160]}...",
+    }
+    
+    return render(request, 'gestionOfertas/detalle_oferta.html', context)
 
 
 

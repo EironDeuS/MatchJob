@@ -114,6 +114,10 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         elif self.tipo_usuario == 'empresa':
             return getattr(self, 'empresa', None)
         return None
+    
+    @property
+    def email(self):
+        return self.correo
 
 # -----------------------------
 # Persona Natural (Sin RUT ni Direccion)

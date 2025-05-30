@@ -1,6 +1,9 @@
 # gestionOfertas/urls.py
 
 from django.urls import path
+
+from gestionOfertas.forms import CustomPasswordResetForm
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -23,6 +26,12 @@ urlpatterns = [
     path('ranking/', views.ranking_usuarios, name='ranking'),
     path('mapa/', views.mapa, name='mapa'),
     path('perfil/modo-urgente/', views.actualizar_modo_urgente, name='actualizar_modo_urgente'),
+    path('password_reset/', views.CustomPasswordResetView.as_view(), name='password_reset'),
+    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    path('ofertas-urgentes/', views.OfertasUrgentesView.as_view(), name='ofertas_urgentes'),
+    
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
     # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),
