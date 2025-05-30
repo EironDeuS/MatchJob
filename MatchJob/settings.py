@@ -30,11 +30,14 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'your-very-strong-and-random-secret-key-for
 # DEBUG: Lee el valor de la variable de entorno DJANGO_DEBUG.
 # Por defecto es False para producción, pero puedes setear DJANGO_DEBUG=True en tu entorno local.
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
+# DEBUG = True # <-- ¡CAMBIA ESTO A False EN
 
 # ALLOWED_HOSTS: Restringe los hosts permitidos en producción.
 # Esto es CRUCIAL para la seguridad. En desarrollo, '*' es aceptable.
 # Añade tu dominio de Cloud Run.
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+# ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'tu-dominio-de-cloud-run.run.app'] # Asegúrate de que tu dominio de Cloud Run también esté aquí
+# ...
 
 # Si el valor de ALLOWED_HOSTS desde la variable de entorno está vacío o solo tiene un espacio,
 # y DEBUG es True, entonces permite todos los hosts para desarrollo.

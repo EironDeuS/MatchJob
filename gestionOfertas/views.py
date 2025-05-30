@@ -62,26 +62,44 @@ def registro(request):
     if request.method == 'POST':
         # Asegúrate de pasar request.FILES aquí
         form = RegistroForm(request.POST, request.FILES)
-        print(f"DEBUG: POST recibido. request.FILES: {request.FILES}") # <--- DEBUG: Verifica si llega el archivo
+        print(f"DEBUG: POST recibido. request.FILES: {request.FILES}")
 
         if form.is_valid():
-            print("DEBUG: Formulario VÁLIDO.") # <--- DEBUG
+            print("DEBUG: Formulario VÁLIDO.")
             user = None
-            shareable_cv_url = None # Aunque ya no usamos esto para OneDrive directo
 
             archivo_cv_subido = form.cleaned_data.get('cv_archivo')
-            print(f"DEBUG: form.cleaned_data['cv_archivo']: {archivo_cv_subido}") # <--- DEBUG: Verifica si el form lo limpió
+            print(f"DEBUG: form.cleaned_data['cv_archivo']: {archivo_cv_subido}")
 
-            tipo_usuario = form.cleaned_data['tipo_usuario']   
-            print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}") # <--- DEBUG
-#logica de verificacion rut empresa con api sii
+            tipo_usuario = form.cleaned_data['tipo_usuario']
+            print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}")
+
+            # Inicializa 'resultado' antes del bloque try/if de validación del RUT.
+            # Por defecto, asumimos que no hay un problema con el RUT de empresa
+            # si el usuario no es una empresa, o si la validación aún no se ha ejecutado.
+            resultado_rut_empresa = {'valida': True, 'mensaje': 'Validación de RUT no aplicable o aún no ejecutada.'}
+
             try:
+                # Lógica de verificación de RUT de empresa con API SII
                 if tipo_usuario == 'empresa':
                     rut_empresa = form.cleaned_data['username']  # El RUT viene como 'username'
-                    resultado = validar_rut_empresa(rut_empresa)
-                if not resultado['valida']:
-                    messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+                    # Asegúrate de que 'validar_rut_empresa' esté importado o definido.
+                    # Por ejemplo, si es una función ficticia o de otro módulo:
+                    # from mi_app.utils import validar_rut_empresa
+                    # O definirla aquí para el ejemplo si no existe:
+                    # def validar_rut_empresa(rut):
+                    #     # Lógica real de API SII
+                    #     return {'valida': True, 'mensaje': 'RUT de empresa válido'} # Simulación
+
+                    # Ejecuta la validación del RUT
+                    resultado_rut_empresa = validar_rut_empresa(rut_empresa)
+
+                # Ahora, 'resultado_rut_empresa' SIEMPRE estará definido cuando lleguemos aquí.
+                if not resultado_rut_empresa['valida']:
+                    messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado_rut_empresa.get('mensaje')}")
                     return render(request, 'gestionOfertas/registro.html', {'form': form})
+
+
                 # 1. Crear Usuario
                 user = Usuario.objects.create_user(
                     username=form.cleaned_data['username'],
@@ -91,51 +109,54 @@ def registro(request):
                     direccion=form.cleaned_data.get('direccion'),
                     tipo_usuario=tipo_usuario
                 )
-                print(f"DEBUG: Usuario creado: {user.username}") # <--- DEBUG
+                print(f"DEBUG: Usuario creado: {user.username}")
 
                 # 2. Poblar Perfil y Guardar CV
                 if user.tipo_usuario == 'persona':
-                    print("DEBUG: Procesando perfil Persona...") # <--- DEBUG
+                    print("DEBUG: Procesando perfil Persona...")
+                    # Si PersonaNatural no está pre-creado, esto podría fallar.
+                    # Asumo que tienes signals o overrides en el save de Usuario para crearlo.
+                    # Si no, deberías crearlo aquí:
+                    # perfil = PersonaNatural.objects.create(usuario=user)
                     perfil = user.personanatural
                     perfil.nombres = form.cleaned_data.get('nombres')
                     perfil.apellidos = form.cleaned_data.get('apellidos')
                     perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
                     perfil.nacionalidad = form.cleaned_data.get('nacionalidad', 'Chilena')
                     perfil.save()
-                    print(f"DEBUG: Perfil Persona guardado para {user.username}") # <--- DEBUG
+                    print(f"DEBUG: Perfil Persona guardado para {user.username}")
 
                     # Crear o obtener CV
                     cv_obj, created = CV.objects.get_or_create(persona=perfil)
-                    print(f"DEBUG: CV object {'creado' if created else 'obtenido'}: {cv_obj.id}") # <--- DEBUG
+                    print(f"DEBUG: CV object {'creado' if created else 'obtenido'}: {cv_obj.id}")
 
                     if archivo_cv_subido:
-                        print(f"DEBUG: INTENTANDO asignar archivo '{archivo_cv_subido.name}' a cv_obj.archivo_cv...") # <--- DEBUG
+                        print(f"DEBUG: INTENTANDO asignar archivo '{archivo_cv_subido.name}' a cv_obj.archivo_cv...")
                         cv_obj.archivo_cv = archivo_cv_subido
-                        print("DEBUG: Asignación hecha. Llamando a cv_obj.save()...") # <--- DEBUG
+                        print("DEBUG: Asignación hecha. Llamando a cv_obj.save()...")
                         try:
                             # Añadir logging detallado para diagnóstico de almacenamiento
-                            from django.core.files.storage import default_storage
-                            import traceback
                             print(f"DEBUG: Intentando guardar archivo con storage: {default_storage}")
                             print(f"DEBUG: Tipo de storage: {type(default_storage)}")
-                            print(f"DEBUG: Configuración de storage: {default_storage.__dict__}")
+                            # print(f"DEBUG: Configuración de storage: {default_storage.__dict__}") # Puede ser muy verboso
                         except Exception as storage_log_error:
                             print(f"DEBUG: Error al loguear detalles de storage: {storage_log_error}")
+                        
                         cv_obj.save() # Aquí ocurre la subida a GCS
-                        print("DEBUG: cv_obj.save() ejecutado.") # <--- DEBUG
+                        print("DEBUG: cv_obj.save() ejecutado.")
                         # Verificar si el campo tiene valor DESPUÉS de guardar
                         if cv_obj.archivo_cv and hasattr(cv_obj.archivo_cv, 'name'):
-                             print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}") # <--- DEBUG
+                            print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}")
                         else:
-                             print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.") # <--- DEBUG
-                        
+                            print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.")
+
                         try:
                             # Verificación adicional de almacenamiento
                             if cv_obj.archivo_cv:
                                 file_exists = default_storage.exists(cv_obj.archivo_cv.name)
                                 file_size = default_storage.size(cv_obj.archivo_cv.name) if file_exists else 0
                                 print(f"DEBUG: Archivo guardado. Existe: {file_exists}, Tamaño: {file_size} bytes")
-                                
+
                                 # Intentar obtener URL (si es posible)
                                 try:
                                     file_url = cv_obj.archivo_cv.url
@@ -145,43 +166,49 @@ def registro(request):
                         except Exception as file_check_error:
                             print(f"DEBUG: Error al verificar archivo: {file_check_error}")
                     else:
-                        print("DEBUG: No se proporcionó archivo CV en el formulario.") # <--- DEBUG
+                        print("DEBUG: No se proporcionó archivo CV en el formulario.")
 
                 elif user.tipo_usuario == 'empresa':
-                    print("DEBUG: Procesando perfil Empresa...") # <--- DEBUG
-                    perfil = user.empresa
+                    print("DEBUG: Procesando perfil Empresa...")
+                    perfil = user.empresa # Asumo que Empresa se crea automáticamente con el usuario
                     perfil.nombre_empresa = form.cleaned_data.get('nombre_empresa')
                     perfil.razon_social = form.cleaned_data.get('razon_social')
                     perfil.giro = form.cleaned_data.get('giro')
                     perfil.save()
-                    print(f"DEBUG: Perfil Empresa guardado para {user.username}") # <--- DEBUG
+                    print(f"DEBUG: Perfil Empresa guardado para {user.username}")
 
                 messages.success(request, 'Tu cuenta ha sido creada exitosamente.')
-                # Intenta loguear al usuario si tienes el backend configurado
-                # login(request, user, backend='gestionOfertas.backends.AutenticacionPorRUTBackend')
-                print("DEBUG: Redirigiendo a inicio...") # <--- DEBUG
+                print("DEBUG: Redirigiendo a inicio...")
                 return redirect(reverse('inicio'))
 
             except Exception as e:
                 # Imprimir cualquier excepción que ocurra
                 import traceback
-                print("DEBUG: !!! EXCEPCIÓN OCURRIDA !!!") # <--- DEBUG
+                print("DEBUG: !!! EXCEPCIÓN OCURRIDA DURANTE LA CREACIÓN/GUARDADO !!!")
                 print(f"DEBUG: Tipo de Excepción: {type(e).__name__}")
                 print(f"DEBUG: Mensaje: {e}")
                 print("DEBUG: Traceback:")
                 traceback.print_exc() # Imprime el traceback completo en la consola
                 print("DEBUG: !!! FIN EXCEPCIÓN !!!")
-                messages.error(request, f'Hubo un error inesperado al guardar los datos.') # Mensaje genérico al usuario
-                if user and user.pk: user.delete() # Intenta borrar usuario si falló
+                messages.error(request, f'Hubo un error inesperado al guardar los datos. Por favor, inténtelo de nuevo.')
+                # Si DEBUG está activo, muestra más detalles al desarrollador
+                if settings.DEBUG:
+                    messages.error(request, f"Detalles del error: {e}")
+                
+                # Intentar borrar usuario si falló el guardado del perfil o CV
+                # Esto es crucial para no dejar usuarios a medio crear
+                if user and user.pk:
+                    print(f"DEBUG: Intentando borrar usuario {user.username} debido a fallo en guardado de perfil/CV.")
+                    user.delete()
+
 
         else: # Formulario no válido
-            print("DEBUG: Formulario NO VÁLIDO.") # <--- DEBUG
-            print(f"DEBUG: Errores del formulario: {form.errors.as_json()}") # <--- DEBUG: Muestra errores específicos
+            print("DEBUG: Formulario NO VÁLIDO.")
+            print(f"DEBUG: Errores del formulario: {form.errors.as_json()}")
             messages.error(request, 'Por favor corrige los errores en el formulario.')
     else: # Método GET
         form = RegistroForm()
     return render(request, 'gestionOfertas/registro.html', {'form': form})
-
 
 
 def inicio(request):
@@ -690,103 +717,85 @@ def buscar_direccion(request):
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
-
-@login_required # Asegura que solo usuarios logueados accedan
+@login_required
 def editar_perfil(request):
-    # Asumimos que solo las personas naturales pueden editar este perfil específico
-    # Puedes añadir lógica para redirigir a empresas a otro form/view
-    if request.user.tipo_usuario != 'persona':
-        messages.error(request, "Esta sección es solo para personas naturales.")
-        return redirect('inicio') # O a donde corresponda
+    usuario = request.user
+    if not hasattr(usuario, 'personanatural'):
+        messages.error(request, "No tienes un perfil de persona natural para editar.")
+        return redirect('some_redirect_url')
 
-    # Obtener perfil PersonaNatural asociado al usuario logueado
-    # Usamos get_object_or_404 para manejar el caso raro de que no exista
-    perfil = get_object_or_404(PersonaNatural, usuario=request.user)
-    # Obtener o crear el objeto CV asociado (por si nunca subió uno)
-    cv_obj, created = CV.objects.get_or_create(persona=perfil)
+    persona_natural = usuario.personanatural
+    cv_obj = None # Inicializamos cv_obj
+    if hasattr(persona_natural, 'cv'): # Buscamos si la persona natural tiene un CV
+        cv_obj = persona_natural.cv
+    
+    # La variable para el template sigue siendo necesaria para el enlace al CV actual
+    cv_actual_url = None
+    cv_actual_name = None
+    if cv_obj and cv_obj.archivo_cv:
+        cv_actual_url = cv_obj.archivo_cv.url
+        # Usamos cv_obj.archivo_cv.name para obtener el nombre completo con la ruta (ej. 'cvs/mi_cv.pdf')
+        # Luego lo cortaremos en el template si queremos solo el nombre del archivo.
+        cv_actual_name = cv_obj.archivo_cv.name
+
 
     if request.method == 'POST':
-        # Pasar instance=perfil podría funcionar si usaras ModelForm,
-        # pero con forms.Form, procesamos manualmente. Pasamos request.FILES.
-        form = EditarPerfilPersonaForm(request.POST, request.FILES)
+        form = EditarPerfilPersonaForm(request.POST, request.FILES, user=request.user, instance=persona_natural)
+
         if form.is_valid():
-            # Actualizar datos del Usuario
-            request.user.correo = form.cleaned_data['correo']
-            request.user.telefono = form.cleaned_data.get('telefono')
-            request.user.direccion = form.cleaned_data.get('direccion')
-            request.user.save()
+            usuario.correo = form.cleaned_data['correo']
+            usuario.telefono = form.cleaned_data['telefono']
+            usuario.direccion = form.cleaned_data['direccion']
+            usuario.save()
 
-            # Actualizar datos del Perfil PersonaNatural
-            perfil.nombres = form.cleaned_data['nombres']
-            perfil.apellidos = form.cleaned_data['apellidos']
-            perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
-            perfil.nacionalidad = form.cleaned_data.get('nacionalidad')
-            perfil.save()
+            form.save() # Guarda los campos de PersonaNatural
 
-            # --- Procesar actualización de CV ---
             nuevo_cv_archivo = form.cleaned_data.get('cv_archivo')
-            if nuevo_cv_archivo:
-                # 1. Borrar el archivo antiguo de GCS (si existe)
-                if cv_obj.archivo_cv:
+
+            if nuevo_cv_archivo: # Si se subió un nuevo archivo, siempre lo reemplazamos
+                if cv_obj:
+                    # Eliminar el archivo antiguo del storage si existe
                     try:
-                        # save=False evita guardar el modelo solo por borrar el archivo
-                        cv_obj.archivo_cv.delete(save=False)
-                        print(f"DEBUG: Archivo CV antiguo borrado de GCS: {cv_obj.archivo_cv.name}")
+                        cv_obj.archivo_cv.delete(save=False) # delete(save=False) para no guardar la instancia aún
                     except Exception as e:
-                         print(f"DEBUG: Error al intentar borrar CV antiguo: {e}")
-                         messages.warning(request, "No se pudo borrar el CV anterior del almacenamiento, pero se intentará subir el nuevo.")
-
-
-                # 2. Asignar el nuevo archivo al campo
-                cv_obj.archivo_cv = nuevo_cv_archivo
-
-                # 3. Guardar el objeto CV (esto subirá el nuevo archivo a GCS y usará tu función de renombrar)
-                try:
+                        print(f"Advertencia: No se pudo borrar el CV antiguo en storage: {e}")
+                    # Actualizar la instancia de CV existente
+                    cv_obj.archivo_cv = nuevo_cv_archivo
                     cv_obj.save()
-                    print(f"DEBUG: Nuevo CV guardado: {cv_obj.archivo_cv.name}")
-                    messages.success(request, 'Tu CV ha sido actualizado exitosamente.')
-                except Exception as e:
-                    print(f"DEBUG: Error al guardar/subir nuevo CV: {e}")
-                    messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
-            # ------------------------------------
-            elif 'cv_archivo-clear' in request.POST:
-                 # Si el usuario marcó el checkbox "clear" del ClearableFileInput
-                 if cv_obj.archivo_cv:
-                    try:
-                        cv_obj.archivo_cv.delete(save=True) # save=True aquí para guardar el campo vacío
-                        print("DEBUG: CV existente eliminado por petición del usuario.")
-                        messages.info(request, 'Tu CV ha sido eliminado.')
-                    except Exception as e:
-                        print(f"DEBUG: Error al eliminar CV existente: {e}")
-                        messages.error(request, f'Hubo un error al eliminar el CV: {e}')
+                    messages.success(request, "Tu perfil y CV han sido actualizados con éxito.")
+                else:
+                    # Si no había CV, crear uno nuevo
+                    CV.objects.create(persona=persona_natural, archivo_cv=nuevo_cv_archivo)
+                    messages.success(request, "Tu perfil y CV han sido cargados con éxito.")
+                
+                # Actualizar las variables para el contexto en caso de éxito y re-render
+                cv_actual_url = cv_obj.archivo_cv.url if cv_obj else nuevo_cv_archivo.url
+                cv_actual_name = cv_obj.archivo_cv.name if cv_obj else nuevo_cv_archivo.name
 
+            else: # No se subió un nuevo archivo CV, simplemente no hacemos nada con el CV
+                messages.success(request, "Tu perfil ha sido actualizado con éxito (CV sin cambios).")
 
-            if not nuevo_cv_archivo and 'cv_archivo-clear' not in request.POST :
-                 messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
-
-            return redirect('editar_perfil') # Redirige a la misma página para ver cambios
+            return redirect('miperfil')
 
         else: # Formulario no válido
-             print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
-             messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, "Por favor, corrige los errores en el formulario.")
 
-    else: # Método GET <--- AQUÍ DENTRO
+    else: # Método GET
         initial_data = {
-            'correo': request.user.correo,
-            'telefono': request.user.telefono,
-            'direccion': request.user.direccion,
-            'nombres': perfil.nombres,
-            'apellidos': perfil.apellidos,
-            'fecha_nacimiento': perfil.fecha_nacimiento,
-            'nacionalidad': perfil.nacionalidad,
+            'correo': usuario.correo,
+            'telefono': usuario.telefono,
+            'direccion': usuario.direccion,
         }
-        form = EditarPerfilPersonaForm(initial=initial_data)
+        form = EditarPerfilPersonaForm(instance=persona_natural, initial=initial_data, user=request.user)
 
-        context = {
-            'form': form,
-            'cv_actual': cv_obj.archivo_cv
-        }
-        return render(request, 'gestionOfertas/editar_perfil.html', context)
+    context = {
+        'form': form,
+        # Pasamos solo las URLs y nombres si existen
+        'cv_actual_url': cv_actual_url,
+        'cv_actual_name': cv_actual_name,
+    }
+    return render(request, 'gestionOfertas/editar_perfil.html', context)
+
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')
