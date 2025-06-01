@@ -3,6 +3,8 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/ranking.css' %}">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
 {% endblock %}
 
 {% block content %}
@@ -35,7 +37,7 @@
     </div>
 
     <h2 class="ranking-subtitle mb-4"><i class="bi bi-star-half text-warning me-2"></i> Top 3 Destacados</h2>
-    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 top-3-cards">
+    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 top-3-cards" data-aos="fade-up">
         {% for usuario in top_3 %}
             <div class="col">
                 <div class="card h-100 shadow-lg ranking-card top-{{ forloop.counter }} text-center">
@@ -49,7 +51,7 @@
                                 <i class="bi bi-award text-bronze me-2"></i> #{{ usuario.ranking }}
                             {% endif %}
                         </h5>
-                        <div class="avatar-container rounded-circle mx-auto mb-2">
+                        <div class="avatar-container rounded-circle mx-auto mb-2" aria-label="Avatar de usuario">
                             <i class="bi bi-person-circle avatar-icon"></i>
                             {% if tipo_usuario == 'empresa' %}
                                 <i class="bi bi-building avatar-icon-secondary"></i>

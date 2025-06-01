@@ -4,7 +4,7 @@
 {% block title %}Mi Perfil | MatchJob{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/perfil.css' %}">
+    <link rel="stylesheet" href="{% static 'css/perfil_.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -146,6 +146,7 @@
                             <input type="email" class="form-control" value="{{ usuario.correo }}" readonly>
                         </div>
                     </div>
+                    <hr>
                     {% if usuario.tipo_usuario == 'persona' %}
 <div class="card shadow-sm mb-4">
     <div class="card-body">
@@ -191,9 +192,9 @@
                     </div>
 
                     {% if tiene_ofertas %}
-                        <div class="list-group">
+                        <div class="list-group" id="servicios-ofrecidos">
                             {% for oferta in ofertas_creadas %}
-                                <div class="list-group-item">
+                                <div class="list-group-item item {% if forloop.counter > 3 %}d-none{% endif %}">
                                     <div class="d-flex w-100 justify-content-between">
                                         <h5 class="mb-1"><i class="bi bi-file-earmark-text-fill text-info me-1"></i> {{ oferta.titulo }}</h5>
                                         <small><i class="bi bi-calendar-event-fill text-secondary me-1"></i> {{ oferta.fecha_publicacion|date:"d/m/Y" }}</small>
@@ -221,6 +222,13 @@
                                 </div>
                             {% endfor %}
                         </div>
+                            {% if ofertas_creadas|length > 3 %}
+                                <div class="text-center mt-3">
+                                    <button id="btn-servicios-ofrecidos" class="btn btn-outline-secondary btn-sm" onclick="mostrarMas('servicios-ofrecidos', 15)">
+                                        Mostrar más
+                                    </button>
+                                </div>
+                            {% endif %}
                     {% else %}
                         <div class="alert alert-info mb-0">
                             <div class="d-flex align-items-center">
@@ -272,9 +280,9 @@
                                         {% endif %}
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="mis-postulaciones">
                                     {% for postulacion in todas_las_postulaciones %}
-                                        <tr>
+                                        <tr class="item {% if forloop.counter > 3 %}d-none{% endif %}">
                                             {% if usuario.tipo_usuario == 'empresa' %}
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -320,6 +328,17 @@
                                       </tr>
                                   {% endfor %}
                               </tbody>
+                              {% if todas_las_postulaciones|length > 3 %}
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="100%" class="text-center">
+                                                <button id="btn-mis-postulaciones" class="btn btn-outline-secondary btn-sm" onclick="mostrarMas('mis-postulaciones', 15)">
+                                                    Mostrar más
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                {% endif %}
                           </table>
                       </div>
                   {% else %}
@@ -372,9 +391,9 @@
                                       <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
                                   </tr>
                               </thead>
-                              <tbody>
-                                  {% for postulacion in postulaciones_filtradas %}
-                                      <tr>
+                              <tbody id="postulaciones-filtradas">
+                                {% for postulacion in postulaciones_filtradas %}
+                                    <tr class="item {% if forloop.counter > 3 %}d-none{% endif %}">
                                           {% if usuario.tipo_usuario == 'empresa' %}
                                               <td>
                                                   <div class="d-flex align-items-center">
@@ -413,6 +432,17 @@
                                       </tr>
                                   {% endfor %}
                               </tbody>
+                              {% if postulaciones_filtradas|length > 3 %}
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="100%" class="text-center">
+                                                <button id="btn-postulaciones-filtradas" class="btn btn-outline-secondary btn-sm" onclick="mostrarMas('postulaciones-filtradas', 15)">
+                                                    Mostrar más
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                {% endif %}
                           </table>
                       </div>
                   {% else %}
@@ -494,6 +524,18 @@ document.addEventListener('DOMContentLoaded', function () {
     whatsappBtn.href = `https://wa.me/${telefonoConPrefijo.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`;
   });
 });
+
+//para mostrar mas en apartados postulaciones, ofertas y filtrados
+  function mostrarMas(id, cantidad) {
+    const items = document.querySelectorAll(`#${id} .item`);
+    const ocultos = Array.from(items).filter(el => el.classList.contains('d-none'));
+    for (let i = 0; i < cantidad && i < ocultos.length; i++) {
+      ocultos[i].classList.remove('d-none');
+    }
+    if (ocultos.length <= cantidad) {
+      document.getElementById(`btn-${id}`).classList.add('d-none');
+    }
+  }
 </script>
 
 

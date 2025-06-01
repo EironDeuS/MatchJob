@@ -721,37 +721,6 @@ def salir(request):
     messages.info(request, 'Has cerrado sesión.')
     return redirect('inicio')
 
-
-def demo_valoracion(request, postulacion_id):
-    postulacion = get_object_or_404(Postulacion, id=postulacion_id)
-
-    # --- Lógica de seguridad (importante) ---
-    puede_valorar, receptor = postulacion.puede_valorar(request.user)
-    if not puede_valorar:
-        messages.error(request, "No tienes permiso para valorar esta postulación.")
-        return redirect('miperfil')  # O a donde sea apropiado
-
-    if request.method == 'POST':
-        form = ValoracionForm(request.POST)
-        if form.is_valid():
-            valoracion = form.save(commit=False)
-            valoracion.emisor = request.user
-            valoracion.receptor = receptor  # Usar el receptor obtenido de puede_valorar
-            valoracion.postulacion = postulacion
-            valoracion.save()
-            messages.success(request, "¡Valoración enviada con éxito!")
-            return redirect('historial_valoraciones', usuario_id=request.user.id) # Redirige al historial
-        else:
-            messages.error(request, "Por favor, corrige los errores en el formulario.")
-    else:
-        form = ValoracionForm()
-
-    context = {
-        'form': form,
-        'postulacion': postulacion,  # Pasar la postulación al template
-    }
-    return render(request, 'gestionOfertas/demo_valoracion.html', context)
-
 #DETALLE DE LA OFERTA PUBLICADA
 def detalle_oferta(request, oferta_id):
     oferta = get_object_or_404(
@@ -866,53 +835,62 @@ def realizar_postulacion(request, oferta_id):
         return redirect('detalle_oferta', oferta_id=oferta_id)
 
 
+
+
 @login_required
-def valorar_postulacion(request, postulacion_id):
-    postulacion = get_object_or_404(Postulacion, id=postulacion_id)
-    puede_valorar, receptor = postulacion.puede_valorar(request.user)
+def historial_valoraciones(request, usuario_id):
+    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)
+    
+    # Verificar permisos (solo el usuario o admin puede ver su historial)
+    if not (request.user == usuario_perfil or request.user.is_staff):
+        messages.error(request, "No tienes permiso para ver este historial.")
+        return redirect('inicio')
 
-    if not puede_valorar:
-        messages.error(request, "No puedes valorar esta postulación.")
-        return redirect('registro')  # o a donde tú quieras redirigir
+    # Valoraciones recibidas
+    valoraciones_recibidas = Valoracion.objects.filter(
+        receptor=usuario_perfil
+    ).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
 
+    # Postulaciones pendientes de valoración
+    postulaciones_pendientes = []
+    if request.user == usuario_perfil:  # Solo mostrar si es el propio usuario
+        if usuario_perfil.tipo_usuario == 'empresa':
+            postulaciones = Postulacion.objects.filter(
+                oferta__creador=usuario_perfil,
+                estado='finalizado'
+            ).select_related('persona', 'oferta')
+        elif usuario_perfil.tipo_usuario == 'persona':
+            postulaciones = usuario_perfil.personanatural.postulaciones.filter(
+                estado='finalizado'
+            ).select_related('oferta', 'oferta__creador')
+        else:
+            postulaciones = []
+
+        for postulacion in postulaciones:
+            # Verificar si ya existe una valoración para esta postulación
+            if not Valoracion.objects.filter(postulacion=postulacion, emisor=request.user).exists():
+                postulaciones_pendientes.append(postulacion)
+
+    # Manejar POST para valoraciones desde el modal
     if request.method == 'POST':
         form = ValoracionForm(request.POST)
         if form.is_valid():
+            postulacion_id = request.POST.get('postulacion_id')
+            postulacion = get_object_or_404(Postulacion, id=postulacion_id)
+            
+            puede_valorar, receptor = postulacion.puede_valorar(request.user)
+            if not puede_valorar:
+                return JsonResponse({'success': False, 'error': 'No tienes permiso para valorar esta postulación'})
+
             valoracion = form.save(commit=False)
             valoracion.emisor = request.user
             valoracion.receptor = receptor
             valoracion.postulacion = postulacion
             valoracion.save()
-            messages.success(request, "¡Valoración enviada con éxito!")
-            return redirect('registro')  # redirección final tras enviar
-    else:
-        form = ValoracionForm()
-
-    # 👇 ESTA línea es la que estaba mal
-    return render(request, 'gestionOfertas/demo_valoracion.html', {'form': form})
-
-
-def historial_valoraciones(request, usuario_id):
-    usuario_perfil = get_object_or_404(Usuario, id=usuario_id)
-    valoraciones_recibidas = Valoracion.objects.filter(
-        receptor=usuario_perfil
-    ).order_by('-fecha_creacion').select_related('emisor', 'postulacion')
-
-    # Obtener postulaciones PENDIENTES de valoración (ajuste importante)
-    postulaciones_pendientes = []
-    if usuario_perfil.tipo_usuario == 'empresa':
-        postulaciones = Postulacion.objects.filter(
-            oferta__creador=usuario_perfil
-        ).select_related('persona', 'oferta')
-    elif usuario_perfil.tipo_usuario == 'persona':
-        postulaciones = usuario_perfil.personanatural.postulaciones.all()
-    else:
-        postulaciones = []  # Manejar otros tipos de usuario si es necesario
-
-    for postulacion in postulaciones:
-        puede_valorar, _ = postulacion.puede_valorar(request.user)  # Usar request.user
-        if puede_valorar:
-            postulaciones_pendientes.append(postulacion)
+            
+            return JsonResponse({'success': True})
+        else:
+            return JsonResponse({'success': False, 'errors': form.errors.as_json()})
 
     context = {
         'usuario_perfil': usuario_perfil,

@@ -1,0 +1,242 @@
+/* static/css/perfil.css */
+
+body {
+    background-color: #f8f9fa; /* Light background for the whole page */
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color: #343a40;
+}
+
+.container {
+    max-width: 1200px; /* Limit container width for better readability */
+}
+
+/* Card Styling */
+.card {
+    border: none;
+    border-radius: 1rem; /* Softer rounded corners */
+    transition: all 0.3s ease; /* Smooth transition for hover effects */
+    overflow: hidden; /* Ensures content respects border-radius */
+}
+
+.card.shadow-sm {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important; /* Stronger, more prominent shadow */
+}
+
+.card:hover {
+    transform: translateY(-5px); /* Lift card slightly on hover */
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15) !important; /* Deeper shadow on hover */
+}
+
+.card-title {
+    font-weight: 600;
+    color: #0056b3; /* Primary color for titles */
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(0, 123, 255, 0.2); /* Subtle blue underline */
+}
+
+/* Profile Photo */
+.rounded-circle {
+    border: 4px solid #007bff; /* Blue border around profile photo */
+    box-shadow: 0 0 0 5px rgba(0, 123, 255, 0.2); /* Soft glow effect */
+}
+
+/* Stars for Ratings */
+.bi-star-fill.text-warning {
+    color: #ffc107 !important; /* Ensure consistent yellow */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); /* Slight shadow for stars */
+}
+
+.bi-star.text-warning {
+    color: #e0e0e0 !important; /* Lighter grey for empty stars */
+}
+
+/* Buttons */
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-primary {
+    color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    color: #fff;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 123, 255, 0.25);
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    box-shadow: 0 0.25rem 0.5rem rgba(40, 167, 69, 0.25);
+}
+
+/* Form Readonly Inputs */
+.form-control[readonly] {
+    background-color: #e9ecef; /* Light grey background for readonly fields */
+    border-color: #ced4da;
+    opacity: 0.9;
+    font-weight: 400;
+}
+
+/* List Group for Valoraciones and Ofertas */
+.list-group-item {
+    border-color: rgba(0, 0, 0, 0.07); /* Lighter border for list items */
+    margin-bottom: 0.5rem;
+    border-radius: 0.75rem;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f0f8ff; /* Light blue background on hover */
+    border-color: #007bff; /* Primary color border on hover */
+}
+
+.list-group-item strong {
+    color: #343a40;
+}
+
+/* Badges */
+.badge {
+    padding: 0.4em 0.8em;
+    border-radius: 0.7rem;
+    font-weight: 500;
+}
+
+.badge.bg-primary {
+    background-color: #007bff !important;
+}
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* Table Styling (for Postulaciones) */
+.table {
+    border-collapse: separate;
+    border-spacing: 0 0.5rem; /* Space between rows */
+}
+
+.table th {
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 1rem;
+    color: #495057;
+    font-weight: 600;
+}
+
+.table td {
+    background-color: #fff;
+    border: none;
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.table tbody tr {
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05); /* Soft shadow for table rows */
+    transition: all 0.2s ease;
+    border-radius: 0.75rem;
+}
+
+.table tbody tr:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.1);
+}
+
+.table tbody tr:first-child td:first-child { border-top-left-radius: 0.75rem; }
+.table tbody tr:first-child td:last-child { border-top-right-radius: 0.75rem; }
+.table tbody tr:last-child td:first-child { border-bottom-left-radius: 0.75rem; }
+.table tbody tr:last-child td:last-child { border-bottom-right-radius: 0.75rem; }
+
+
+/* Customizing badges in tables */
+.table .badge {
+    font-size: 0.85em;
+    padding: 0.5em 0.75em;
+}
+
+/* Modal Styling */
+.modal-content {
+    border-radius: 1.25rem !important; /* More pronounced rounded corners */
+    overflow: hidden;
+}
+
+.modal-header.bg-primary {
+    background-color: #007bff !important;
+    color: #fff;
+    border-bottom: none;
+    padding: 1.5rem;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+.modal-body {
+    color: #495057;
+}
+
+.modal-footer {
+    border-top: none;
+    padding-bottom: 1.5rem;
+}
+
+.btn-close.btn-close-white {
+    filter: brightness(0) invert(1); /* Makes the close button white */
+}
+
+/* Alerts */
+.alert {
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.05);
+}
+
+.alert-heading {
+    font-weight: 600;
+}
+
+/* Utility classes for consistency */
+.text-muted {
+    color: #6c757d !important;
+}
+.text-primary {
+    color: #007bff !important;
+}
+.text-success {
+    color: #28a745 !important;
+}
+.text-danger {
+    color: #dc3545 !important;
+}
+.text-warning {
+    color: #ffc107 !important;
+}
+.text-info {
+    color: #17a2b8 !important;
+}
+.text-secondary {
+    color: #6c757d !important;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767.98px) {
+    .card-body {
+        padding: 1.5rem;
+    }
+    .table-responsive .table th,
+    .table-responsive .table td {
+        white-space: nowrap; /* Prevent text wrapping in small screens */
+    }
+}

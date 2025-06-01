@@ -557,13 +557,18 @@ class ValoracionForm(forms.ModelForm):
         model = Valoracion
         fields = ['puntuacion', 'comentario']
         widgets = {
-            'puntuacion': forms.RadioSelect(choices=[(i, f'{i} estrellas') for i in range(1, 6)]),
-            'comentario': forms.Textarea(attrs={'placeholder': 'Escribe un comentario opcional...', 'rows': 4}),
+            'comentario': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': 'Escribe tu opinión...'
+            }),
         }
-        labels = {
-            'puntuacion': 'Calificación',
-            'comentario': 'Comentario',
-        }
+    
+    def clean_puntuacion(self):
+        puntuacion = self.cleaned_data.get('puntuacion')
+        if not puntuacion or int(puntuacion) < 1 or int(puntuacion) > 5:
+            raise forms.ValidationError("Por favor selecciona una puntuación entre 1 y 5 estrellas")
+        return puntuacion
 
 
 Usuario = get_user_model()
