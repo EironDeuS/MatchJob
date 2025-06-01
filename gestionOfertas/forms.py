@@ -614,7 +614,11 @@ class EditarPerfilPersonaForm(CVValidationMixin, forms.ModelForm):
         widgets = {
             'nombres': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Nombres'}),
             'apellidos': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Apellidos'}),
-            'fecha_nacimiento': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'fecha_nacimiento': forms.DateInput(
+                attrs={'type': 'date', 'class': 'form-control'},
+                # >>> AÑADE ESTO: FORMATO EXPLÍCITO para el input type="date"
+                format='%Y-%m-%d' 
+            ),
             'nacionalidad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Chilena'}),
         }
 
@@ -622,17 +626,15 @@ class EditarPerfilPersonaForm(CVValidationMixin, forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        if self.instance and hasattr(self.instance, 'usuario') and self.instance.usuario:
-            if not self.is_bound:
-                self.fields['correo'].initial = self.instance.usuario.correo
-                self.fields['telefono'].initial = self.instance.usuario.telefono
-                self.fields['direccion'].initial = self.instance.usuario.direccion
+        if self.instance and hasattr(self.instance, 'usuario') and self.instance.usuario and not self.is_bound:
+            self.fields['correo'].initial = self.instance.usuario.correo
+            self.fields['telefono'].initial = self.instance.usuario.telefono
+            self.fields['direccion'].initial = self.instance.usuario.direccion
 
-        # No es necesario inicializar cv_archivo.initial si no es un ClearableFileInput
-        # y solo lo usamos para la carga de un NUEVO archivo.
-        # Si quisieras mostrar el nombre del archivo actual en el input, necesitarías un widget personalizado.
-        # Por ahora, el FileInput estándar no muestra el nombre del archivo actual, solo el botón "Elegir archivo".
-        # La lógica de mostrar el enlace del CV actual va en el template.
+        # También puedes ajustar el formato de la fecha si es necesario para el initial,
+        # aunque el widget con 'format' debería manejarlo.
+        # if self.instance and self.instance.fecha_nacimiento and not self.is_bound:
+        #     self.fields['fecha_nacimiento'].initial = self.instance.fecha_nacimiento.strftime('%Y-%m-%d')
 
     def clean(self):
         cleaned_data = super().clean()
