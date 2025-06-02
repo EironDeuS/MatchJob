@@ -1,0 +1,159 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Perfil Público | MatchJob{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/perfil_.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <!-- Columna lateral: foto y datos básicos -->
+        <div class="col-lg-4 col-md-5 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    {% if perfil.foto_perfil %}
+                        <img src="{{ perfil.foto_perfil.url }}" class="rounded-circle mb-3" width="150" alt="Foto de perfil">
+                    {% else %}
+                        <div class="d-flex justify-content-center mb-3">
+                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 150px; height: 150px;">
+                                <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-fill{% else %}building{% endif %} text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <h4 class="mb-1 fw-bold">
+                        <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-circle{% else %}building-fill{% endif %} me-2"></i>
+                        {% if usuario.tipo_usuario == 'persona' %}
+                            {{ perfil.nombres }} {{ perfil.apellidos }}
+                        {% else %}
+                            {{ perfil.nombre_empresa }}
+                        {% endif %}
+                    </h4>
+
+                    {% if valoracion_promedio %}
+                    <div class="mb-2">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= valoracion_promedio %}
+                                <i class="bi bi-star-fill text-warning"></i>
+                            {% else %}
+                                <i class="bi bi-star text-warning"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <small class="text-muted">({{ valoracion_promedio }}/5 - {{ cantidad_valoraciones }} valoración{{ cantidad_valoraciones|pluralize:"es" }})</small>
+                    </div>
+                    {% endif %}
+
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-geo-alt-fill me-2"></i> {{ usuario.direccion|default:"Sin dirección registrada" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna principal -->
+        <div class="col-lg-8 col-md-7">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h3 class="card-title border-bottom pb-2"><i class="bi bi-info-circle-fill text-primary me-2"></i> Información Pública</h3>
+                    <div class="row g-3">
+                        {% if usuario.tipo_usuario == 'persona' %}
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-person-fill text-muted me-1"></i> Nombres</label>
+                                <input type="text" class="form-control" value="{{ perfil.nombres }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-person-lines-fill text-muted me-1"></i> Apellidos</label>
+                                <input type="text" class="form-control" value="{{ perfil.apellidos }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-flag-fill text-muted me-1"></i> Nacionalidad</label>
+                                <input type="text" class="form-control" value="{{ perfil.nacionalidad }}" readonly>
+                            </div>
+                        {% else %}
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-building-fill text-muted me-1"></i> Empresa</label>
+                                <input type="text" class="form-control" value="{{ perfil.nombre_empresa }}" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-briefcase-fill text-muted me-1"></i> Razón Social</label>
+                                <input type="text" class="form-control" value="{{ perfil.razon_social }}" readonly>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label"><i class="bi bi-list-bulleted-square text-muted me-1"></i> Giro</label>
+                                <input type="text" class="form-control" value="{{ perfil.giro }}" readonly>
+                            </div>
+                        {% endif %}
+                        <div class="col-md-6">
+                            <label class="form-label"><i class="bi bi-telephone-fill text-muted me-1"></i> Teléfono</label>
+                            <input type="tel" class="form-control" value="Información privada" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"><i class="bi bi-envelope-fill text-muted me-1"></i> Correo</label>
+                            <input type="email" class="form-control" value="Información privada" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if valoraciones_recibidas %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i> Valoraciones Recientes</h5>
+                    <div class="list-group list-group-flush">
+                        {% for valoracion in valoraciones_recibidas %}
+                            <div class="list-group-item border-0 px-0 py-2">
+                                <div class="d-flex justify-content-between">
+                                    <strong>
+                                        <i class="bi bi-{% if valoracion.autor.tipo_usuario == 'persona' %}person-fill{% else %}building-fill{% endif %} me-1"></i>
+                                        {% if valoracion.autor.tipo_usuario == 'persona' %}
+                                            {{ valoracion.autor.personanatural.nombres }}
+                                        {% else %}
+                                            {{ valoracion.autor.empresa.nombre_empresa }}
+                                        {% endif %}
+                                    </strong>
+                                    <div>
+                                        {% for i in "12345" %}
+                                            {% if forloop.counter <= valoracion.puntuacion %}
+                                                <i class="bi bi-star-fill text-warning" style="font-size: 0.8rem;"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <p class="mb-0 small"><i class="bi bi-chat-dots-fill text-muted me-1"></i> {{ valoracion.comentario|truncatechars:60 }}</p>
+                                <small class="text-muted"><i class="bi bi-calendar-fill text-secondary me-1"></i> {{ valoracion.fecha|date:"d/m/Y" }}</small>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ofertas_creadas %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h4 class="card-title"><i class="bi bi-briefcase-fill text-success me-2"></i> Servicios / Ofertas</h4>
+                    <div class="list-group">
+                        {% for oferta in ofertas_creadas %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-1"><i class="bi bi-file-earmark-text-fill text-info me-1"></i> {{ oferta.titulo }}</h5>
+                                    <small><i class="bi bi-calendar-event-fill text-secondary me-1"></i> {{ oferta.fecha_publicacion|date:"d/m/Y" }}</small>
+                                </div>
+                                <p class="mb-1"><i class="bi bi-text-paragraph text-muted me-1"></i> {{ oferta.descripcion|truncatewords:20 }}</p>
+                                <div class="mt-2">
+                                    <span class="badge bg-primary"><i class="bi bi-tag-fill me-1"></i> {{ oferta.get_tipo_contrato_display }}</span>
+                                    <span class="badge bg-secondary"><i class="bi bi-geo-alt-fill me-1"></i> {{ oferta.direccion }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -9,6 +9,7 @@ from . import views
 urlpatterns = [
     path('', views.inicio , name='inicio'),
     path('miperfil/', views.mi_perfil, name='miperfil'),
+    path('perfil/<int:usuario_id>/', views.ver_perfil_publico, name='ver_perfil_publico'),
     path('base/', views.base, name='base'),
     path('iniciar_sesion/', views.iniciar_sesion, name='iniciar_sesion'),
     path('registro/', views.registro, name='registro'),

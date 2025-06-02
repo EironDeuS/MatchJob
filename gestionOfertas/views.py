@@ -938,3 +938,22 @@ def ranking_usuarios(request):
     }
 
     return render(request, 'gestionOfertas/ranking.html', context)
+
+@login_required
+def ver_perfil_publico(request, usuario_id):
+    usuario = get_object_or_404(Usuario, id=usuario_id)
+
+    # Si es el mismo usuario, redirige a su propio perfil
+    if request.user.id == usuario.id:
+        return redirect('miperfil')
+
+    perfil = usuario.get_profile()
+
+    return render(request, 'gestionOfertas/miperfil_publico.html', {
+        'usuario': usuario,
+        'perfil': perfil,
+        'valoracion_promedio': usuario.valoracion_promedio,
+        'cantidad_valoraciones': usuario.cantidad_valoraciones,
+        'valoraciones_recibidas': Valoracion.objects.filter(receptor=usuario)[:5],  # o todas si prefieres
+        'ofertas_creadas': usuario.ofertas_creadas.filter(esta_activa=True),
+    })
