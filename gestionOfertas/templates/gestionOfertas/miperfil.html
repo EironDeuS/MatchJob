@@ -60,45 +60,7 @@
                 </div>
             </div>
 
-            {% if valoraciones_recibidas %}
-                <div class="card shadow-sm mt-4">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="bi bi-star-fill text-warning me-2"></i> Últimas Valoraciones
-                        </h5>
-                        <div class="list-group list-group-flush">
-                            {% for valoracion in valoraciones_recibidas %}
-                                <div class="list-group-item border-0 px-0 py-2">
-                                    <div class="d-flex justify-content-between">
-                                        <strong>
-                                            <i class="bi bi-{% if valoracion.autor.tipo_usuario == 'persona' %}person-fill{% else %}building-fill{% endif %} me-1"></i>
-                                            {% if valoracion.autor.tipo_usuario == 'persona' %}
-                                                {{ valoracion.autor.personanatural.nombres }}
-                                            {% else %}
-                                                {{ valoracion.autor.empresa.nombre_empresa }}
-                                            {% endif %}
-                                        </strong>
-                                        <div>
-                                            {% for i in "12345" %}
-                                                {% if forloop.counter <= valoracion.puntuacion %}
-                                                    <i class="bi bi-star-fill text-warning" style="font-size: 0.8rem;"></i>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    <p class="mb-0 small"><i class="bi bi-chat-dots-fill text-muted me-1"></i> {{ valoracion.comentario|truncatechars:60 }}</p>
-                                    <small class="text-muted"><i class="bi bi-calendar-fill text-secondary me-1"></i> {{ valoracion.fecha|date:"d/m/Y" }}</small>
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% if cantidad_valoraciones > 3 %}
-                            <a href="#" class="btn btn-sm btn-outline-primary w-100 mt-2">
-                                <i class="bi bi-eye me-1"></i> Ver todas ({{ cantidad_valoraciones }})
-                            </a>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
+            
         </div>
 
         <div class="col-lg-8 col-md-7">
@@ -499,7 +461,109 @@
   </div>
 </div>
 
+<!-- Sección completa: Galería + Subida -->
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+        <h3 class="card-title border-bottom pb-2 mb-3">
+            <i class="bi bi-folder-symlink-fill text-secondary me-2"></i> Muestras de Trabajos
+        </h3>
 
+        {% if muestras_trabajo %}
+            <div class="row row-cols-1 row-cols-md-3 g-3">
+                {% for muestra in muestras_trabajo %}
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            {% if muestra.es_imagen %}
+                                <img src="{{ muestra.archivo.url }}" class="card-img-top" alt="{{ muestra.titulo }}">
+                            {% else %}
+                                <div class="card-body d-flex align-items-center justify-content-center" style="height: 180px;">
+                                    <i class="bi bi-file-earmark-text fs-1 text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">{{ muestra.titulo }}</h5>
+                                <p class="card-text small">{{ muestra.descripcion|truncatewords:20 }}</p>
+                            </div>
+                            <div class="card-footer text-end">
+                                <a href="{{ muestra.archivo.url }}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                    <i class="bi bi-eye"></i> Ver
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i> Aún no has subido ninguna muestra de trabajo.
+            </div>
+        {% endif %}
+
+        <hr class="my-4">
+
+        <h5 class="mb-3"><i class="bi bi-upload me-2"></i> Subir nueva muestra</h5>
+        <form method="post" enctype="multipart/form-data" action="{% url 'subir_muestra_trabajo' %}">
+            {% csrf_token %}
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <input type="file" name="archivo" class="form-control" accept=".jpg,.jpeg,.png,.webp,.pdf" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="titulo" class="form-control" placeholder="Título" required>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="descripcion" class="form-control" placeholder="Descripción (opcional)">
+                </div>
+            </div>
+            <div class="mt-3 text-end">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> Subir
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+{% if valoraciones_recibidas %}
+                <div class="card shadow-sm mt-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-star-fill text-warning me-2"></i> Últimas Valoraciones
+                        </h5>
+                        <div class="list-group list-group-flush">
+                            {% for valoracion in valoraciones_recibidas %}
+                                <div class="list-group-item border-0 px-0 py-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>
+                                            <i class="bi bi-{% if valoracion.autor.tipo_usuario == 'persona' %}person-fill{% else %}building-fill{% endif %} me-1"></i>
+                                            {% if valoracion.autor.tipo_usuario == 'persona' %}
+                                                {{ valoracion.autor.personanatural.nombres }}
+                                            {% else %}
+                                                {{ valoracion.autor.empresa.nombre_empresa }}
+                                            {% endif %}
+                                        </strong>
+                                        <div>
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= valoracion.puntuacion %}
+                                                    <i class="bi bi-star-fill text-warning" style="font-size: 0.8rem;"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <p class="mb-0 small"><i class="bi bi-chat-dots-fill text-muted me-1"></i> {{ valoracion.comentario|truncatechars:60 }}</p>
+                                    <small class="text-muted"><i class="bi bi-calendar-fill text-secondary me-1"></i> {{ valoracion.fecha|date:"d/m/Y" }}</small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if cantidad_valoraciones > 3 %}
+                            <a href="#" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                                <i class="bi bi-eye me-1"></i> Ver todas ({{ cantidad_valoraciones }})
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var modal = document.getElementById('modalConfirmarMatch');

@@ -5,6 +5,7 @@ from django.contrib.auth.views import PasswordResetView
 from django.urls import reverse_lazy
 from gestionOfertas.forms import CustomPasswordResetForm
 from django.views.generic import ListView
+from django.views.decorators.http import require_POST
 from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -22,7 +23,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
 from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, EditarPerfilPersonaForm,EditarOfertaTrabajoForm
-from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV
+from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV, MuestraTrabajo  
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
@@ -32,6 +33,7 @@ from django.db.models import Q
 import requests
 from urllib.parse import quote
 from django.core.mail import send_mail
+from django.core.files.storage import FileSystemStorage
 
 
 # --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
@@ -516,21 +518,20 @@ def mi_perfil(request):
     usuario = request.user
     perfil = usuario.get_profile()
 
-    # Ofertas creadas por este usuario (empresa o persona)
     ofertas_creadas = usuario.ofertas_creadas.order_by('-fecha_publicacion')
 
-    # Todas las Postulaciones:
     if usuario.tipo_usuario == 'empresa':
         todas_las_postulaciones = Postulacion.objects.filter(
             oferta__creador=usuario
         ).select_related('persona', 'oferta')
-    else:  # persona natural
+    else:
         todas_las_postulaciones = Postulacion.objects.filter(
             persona=perfil
         ).select_related('oferta', 'oferta__creador')
 
-    # Postulaciones Filtradas:
     postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado').select_related('oferta')
+
+    muestras_trabajo = MuestraTrabajo.objects.filter(usuario=usuario)  # 👈 aquí la defines
 
     context = {
         'usuario': usuario,
@@ -546,9 +547,11 @@ def mi_perfil(request):
         'valoraciones_recibidas': usuario.valoraciones_recibidas
                                      .select_related('emisor')
                                      .order_by('-fecha_creacion')[:3],
+        'muestras_trabajo': muestras_trabajo,  # 👈 la usas en el context
     }
 
     return render(request, 'gestionOfertas/miperfil.html', context)
+
 
 @login_required
 def cambiar_estado_postulacion(request, postulacion_id):
@@ -957,3 +960,24 @@ def ver_perfil_publico(request, usuario_id):
         'valoraciones_recibidas': Valoracion.objects.filter(receptor=usuario)[:5],  # o todas si prefieres
         'ofertas_creadas': usuario.ofertas_creadas.filter(esta_activa=True),
     })
+
+
+@login_required
+@require_POST
+def subir_muestra_trabajo(request):
+    archivo = request.FILES.get('archivo')
+    titulo = request.POST.get('titulo')
+    descripcion = request.POST.get('descripcion')
+
+    if archivo and titulo:
+        MuestraTrabajo.objects.create(
+            usuario=request.user,
+            archivo=archivo,
+            titulo=titulo,
+            descripcion=descripcion or ''
+        )
+        messages.success(request, "Muestra subida correctamente.")
+    else:
+        messages.error(request, "Faltan datos requeridos.")
+
+    return redirect('miperfil')

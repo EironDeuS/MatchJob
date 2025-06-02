@@ -33,7 +33,8 @@ urlpatterns = [
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path('ofertas-urgentes/', views.OfertasUrgentesView.as_view(), name='ofertas_urgentes'),
-    
+    path('perfil/subir-muestra/', views.subir_muestra_trabajo, name='subir_muestra_trabajo'),
+
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
     # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),
