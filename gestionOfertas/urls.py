@@ -28,6 +28,7 @@ urlpatterns = [
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
     # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),
+    path('api/cv-data-receiver/', views.receive_cv_data, name='receive_cv_data'),
 ]
 
 # **¡IMPORTANTE!** Esto solo sirve archivos estáticos en desarrollo (cuando DEBUG=True).

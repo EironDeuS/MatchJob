@@ -296,6 +296,7 @@ def inicio(request):
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext as _
 from django.conf import settings
@@ -1033,3 +1034,59 @@ def ranking_usuarios(request):
     }
 
     return render(request, 'gestionOfertas/ranking.html', context)
+
+@csrf_exempt
+def receive_cv_data(request):
+    print("--------------------------------------------------")
+    print(f"[{datetime.datetime.now()}] Solicitud POST recibida en /api/cv-data-receiver/")
+    print(f"Método de solicitud: {request.method}")
+
+    if request.method == 'POST':
+        # --- LÓGICA DE VERIFICACIÓN DE CLAVE SECRETA COMENTADA/ELIMINADA ---
+        # expected_secret = getattr(settings, 'DJANGO_API_SECRET_KEY', None)
+        # received_secret = request.headers.get('X-Api-Secret')
+        # print(f"Clave secreta esperada (ya no se usa): {expected_secret}")
+        # print(f"Clave secreta recibida (ya no se usa): {received_secret}")
+
+        # if not expected_secret or received_secret != expected_secret:
+        #     print("Error: Clave secreta no autorizada.")
+        #     return JsonResponse({'error': 'Unauthorized'}, status=401)
+        # --- FIN LÓGICA DE VERIFICACIÓN DE CLAVE SECRETA ---
+
+        try:
+            data = json.loads(request.body)
+            print("Cuerpo de la solicitud POST recibido (JSON):")
+            print(json.dumps(data, indent=2))
+
+            # --- AQUI VA LA LOGICA PARA PROCESAR Y GUARDAR LOS DATOS ---
+            # Ejemplo:
+            user_id = data.get('user_id')
+            cv_gcs_url = data.get('cv_gcs_url')
+            extracted_data = data.get('extracted_data')
+
+            print(f"Datos del CV recibidos y procesados para user_id: {user_id}")
+            print(f"URL de GCS del CV: {cv_gcs_url}")
+            # Puedes acceder a los datos extraídos, por ejemplo:
+            # print(f"Nombre: {extracted_data.get('nombres')} {extracted_data.get('apellidos')}")
+            # print(f"Email: {extracted_data.get('email')}")
+            # etc.
+            # Aquí es donde realmente guardarías estos datos en tu base de datos de Django
+            # Model.objects.create(user_id=user_id, ..., extracted_data=extracted_data)
+            # --- FIN DE LA LOGICA ---
+
+            print("--------------------------------------------------")
+            return JsonResponse({'status': 'success', 'message': 'CV data processed and saved'}, status=200)
+
+        except json.JSONDecodeError:
+            print("Error: JSON inválido recibido.")
+            print(f"Cuerpo de la solicitud (sin JSON): {request.body.decode('utf-8')}")
+            print("--------------------------------------------------")
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            print(f"Error inesperado al procesar datos del CV: {e}")
+            print("--------------------------------------------------")
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        print("Error: Método no permitido.")
+        print("--------------------------------------------------")
+        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
