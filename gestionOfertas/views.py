@@ -10,6 +10,7 @@ import logging
 from django.conf import settings
 from django.forms import ValidationError
 from django.utils.safestring import mark_safe
+from django.views.decorators.http import require_POST
 
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
@@ -297,6 +298,7 @@ def inicio(request):
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext as _
 from django.conf import settings
@@ -1035,58 +1037,121 @@ def ranking_usuarios(request):
 
     return render(request, 'gestionOfertas/ranking.html', context)
 
+import json
+import datetime
+import logging
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+# Configurar el logger
+logger = logging.getLogger(__name__)
+
 @csrf_exempt
+@require_POST
 def receive_cv_data(request):
-    print("--------------------------------------------------")
-    print(f"[{datetime.datetime.now()}] Solicitud POST recibida en /api/cv-data-receiver/")
-    print(f"Método de solicitud: {request.method}")
-
-    if request.method == 'POST':
-        # --- LÓGICA DE VERIFICACIÓN DE CLAVE SECRETA COMENTADA/ELIMINADA ---
-        # expected_secret = getattr(settings, 'DJANGO_API_SECRET_KEY', None)
-        # received_secret = request.headers.get('X-Api-Secret')
-        # print(f"Clave secreta esperada (ya no se usa): {expected_secret}")
-        # print(f"Clave secreta recibida (ya no se usa): {received_secret}")
-
-        # if not expected_secret or received_secret != expected_secret:
-        #     print("Error: Clave secreta no autorizada.")
-        #     return JsonResponse({'error': 'Unauthorized'}, status=401)
-        # --- FIN LÓGICA DE VERIFICACIÓN DE CLAVE SECRETA ---
-
+    request_body_str = None  # Inicializar para evitar errores
+    data = None
+    
+    try:
+        logger.info("--------------------------------------------------")
+        logger.info(f"[{datetime.datetime.now()}] Solicitud POST recibida en /api/cv-data-receiver/")
+        logger.info(f"Método de solicitud: {request.method}")
+        logger.info(f"Content-Type: {request.META.get('CONTENT_TYPE', 'No especificado')}")
+        logger.info(f"Content-Length: {request.META.get('CONTENT_LENGTH', 'No especificado')}")
+        
+        # Verificar que haya contenido
+        if not hasattr(request, 'body') or not request.body:
+            logger.error("Solicitud POST vacía o sin cuerpo")
+            return JsonResponse({'error': 'Empty request body'}, status=400)
+        
+        # Decodificar el cuerpo de la solicitud
+        request_body_str = request.body.decode('utf-8')
+        logger.info(f"Cuerpo de la solicitud POST recibido (RAW): {request_body_str[:500]}...")
+        
+        # Validar que no esté vacío después de decodificar
+        if not request_body_str.strip():
+            logger.error("Cuerpo de la solicitud está vacío después de decodificar")
+            return JsonResponse({'error': 'Empty request body after decoding'}, status=400)
+        
+        # Parsear JSON
         try:
-            data = json.loads(request.body)
-            print("Cuerpo de la solicitud POST recibido (JSON):")
-            print(json.dumps(data, indent=2))
-
-            # --- AQUI VA LA LOGICA PARA PROCESAR Y GUARDAR LOS DATOS ---
-            # Ejemplo:
-            user_id = data.get('user_id')
-            cv_gcs_url = data.get('cv_gcs_url')
-            extracted_data = data.get('extracted_data')
-
-            print(f"Datos del CV recibidos y procesados para user_id: {user_id}")
-            print(f"URL de GCS del CV: {cv_gcs_url}")
-            # Puedes acceder a los datos extraídos, por ejemplo:
-            # print(f"Nombre: {extracted_data.get('nombres')} {extracted_data.get('apellidos')}")
-            # print(f"Email: {extracted_data.get('email')}")
-            # etc.
-            # Aquí es donde realmente guardarías estos datos en tu base de datos de Django
-            # Model.objects.create(user_id=user_id, ..., extracted_data=extracted_data)
-            # --- FIN DE LA LOGICA ---
-
-            print("--------------------------------------------------")
-            return JsonResponse({'status': 'success', 'message': 'CV data processed and saved'}, status=200)
-
-        except json.JSONDecodeError:
-            print("Error: JSON inválido recibido.")
-            print(f"Cuerpo de la solicitud (sin JSON): {request.body.decode('utf-8')}")
-            print("--------------------------------------------------")
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-        except Exception as e:
-            print(f"Error inesperado al procesar datos del CV: {e}")
-            print("--------------------------------------------------")
-            return JsonResponse({'error': str(e)}, status=500)
-    else:
-        print("Error: Método no permitido.")
-        print("--------------------------------------------------")
-        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
+            data = json.loads(request_body_str)
+            logger.info("Cuerpo de la solicitud POST recibido (JSON Parsed).")
+            logger.debug(f"Contenido completo del JSON: {json.dumps(data, indent=2)}")
+        except json.JSONDecodeError as json_error:
+            logger.error(f"Error: JSON inválido recibido. Detalles: {json_error}")
+            logger.error(f"Cuerpo de la solicitud (sin JSON válido): {request_body_str[:500]}...")
+            return JsonResponse({
+                'error': 'Invalid JSON format', 
+                'details': str(json_error)
+            }, status=400)
+        
+        # Validar estructura de datos
+        required_fields = ['user_id', 'cv_gcs_url', 'extracted_data']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            logger.error(f"Campos requeridos faltantes: {missing_fields}")
+            return JsonResponse({
+                'error': 'Missing required fields', 
+                'missing_fields': missing_fields
+            }, status=400)
+        
+        # Extraer datos
+        user_id = data.get('user_id')
+        cv_gcs_url = data.get('cv_gcs_url')
+        extracted_data = data.get('extracted_data')
+        
+        logger.info(f"Datos del CV recibidos y procesados para user_id: {user_id}")
+        logger.info(f"URL de GCS del CV: {cv_gcs_url}")
+        
+        # Validar que extracted_data sea un diccionario
+        if not isinstance(extracted_data, dict):
+            logger.error(f"extracted_data debe ser un diccionario, recibido: {type(extracted_data)}")
+            return JsonResponse({
+                'error': 'extracted_data must be a dictionary'
+            }, status=400)
+        
+        # --- LÓGICA PARA PROCESAR Y GUARDAR LOS DATOS ---
+        try:
+            # Aquí iría tu lógica de guardado en la DB
+            # MiModelo.objects.create(user_id=user_id, cv_url=cv_gcs_url, data=extracted_data)
+            
+            logger.info("Lógica de guardado (placeholder) ejecutada con éxito.")
+            
+        except Exception as db_error:
+            logger.error(f"Error al guardar en la base de datos: {db_error}")
+            return JsonResponse({
+                'error': 'Database error', 
+                'details': str(db_error)
+            }, status=500)
+        
+        # --- FIN DE LA LÓGICA ---
+        
+        logger.info("Procesamiento completado exitosamente")
+        logger.info("--------------------------------------------------")
+        
+        return JsonResponse({
+            'status': 'success', 
+            'message': 'CV data processed successfully',
+            'user_id': user_id
+        }, status=200)
+        
+    except Exception as e:
+        # Usar variables con valores por defecto para evitar errores
+        user_id = data.get('user_id', 'N/A') if data else 'N/A'
+        
+        logger.exception(f"Error inesperado al procesar datos del CV para user_id: {user_id}")
+        logger.error(f"Tipo de error: {type(e).__name__}")
+        logger.error(f"Mensaje de error: {str(e)}")
+        
+        if request_body_str:
+            logger.error(f"Cuerpo de la solicitud cuando ocurrió el error: {request_body_str[:200]}...")
+        
+        logger.info("--------------------------------------------------")
+        
+        return JsonResponse({
+            'error': f'Internal Server Error: {str(e)}',
+            'error_type': type(e).__name__
+        }, status=500)

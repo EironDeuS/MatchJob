@@ -247,3 +247,40 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'matchjobbeta@gmail.com')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'rbxf vwqk yhxv yyxp') # <--- ¡NUNCA expongas esto directamente!
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'matchjobbeta@gmail.com')
 SITE_NAME = os.getenv('SITE_NAME', 'MatchJob')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose' if os.environ.get('DJANGO_DEBUG') == 'True' else 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'gestionOfertas': {  # Reemplaza 'myapp' con el nombre de tu app
+            'handlers': ['console'],
+            'level': 'DEBUG' if os.environ.get('DJANGO_DEBUG') == 'True' else 'INFO',
+            'propagate': False,
+        },
+    },
+}
