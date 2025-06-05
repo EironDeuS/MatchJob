@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.core.files.storage import default_storage
 import json
 import logging
 from django.conf import settings
@@ -24,6 +25,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.db.models import Avg, Count, F, Window
+from django.db import transaction
 from django.db.models.functions import Rank
 from django.db.models import Q
 import requests
@@ -1047,111 +1049,152 @@ from django.views.decorators.http import require_POST
 # Configurar el logger
 logger = logging.getLogger(__name__)
 
+# Función auxiliar para formatear el RUT como se guarda en la DB
+def format_rut_for_db_lookup(rut_sin_guion):
+    """
+    Formatea un RUT sin guion (ej. '187847419') a un RUT con guion (ej. '18784741-9')
+    asumiendo que el último dígito es el verificador.
+    """
+    if len(rut_sin_guion) > 1:
+        return rut_sin_guion[:-1] + '-' + rut_sin_guion[-1].upper()
+    return rut_sin_guion # O manejar un error si el RUT es demasiado corto
+
+
 @csrf_exempt
 @require_POST
 def receive_cv_data(request):
-    request_body_str = None  # Inicializar para evitar errores
-    data = None
-    
+    """
+    Vista para recibir y procesar los datos del CV de la Cloud Function.
+    """
+    logger.info("--------------------------------------------------")
+    logger.info(f"[{datetime.datetime.now()}] Solicitud POST recibida en /api/cv-data-receiver/")
+    logger.info(f"Método de solicitud: {request.method}")
+
     try:
-        logger.info("--------------------------------------------------")
-        logger.info(f"[{datetime.datetime.now()}] Solicitud POST recibida en /api/cv-data-receiver/")
-        logger.info(f"Método de solicitud: {request.method}")
-        logger.info(f"Content-Type: {request.META.get('CONTENT_TYPE', 'No especificado')}")
-        logger.info(f"Content-Length: {request.META.get('CONTENT_LENGTH', 'No especificado')}")
-        
-        # Verificar que haya contenido
-        if not hasattr(request, 'body') or not request.body:
-            logger.error("Solicitud POST vacía o sin cuerpo")
-            return JsonResponse({'error': 'Empty request body'}, status=400)
-        
-        # Decodificar el cuerpo de la solicitud
         request_body_str = request.body.decode('utf-8')
         logger.info(f"Cuerpo de la solicitud POST recibido (RAW): {request_body_str[:500]}...")
-        
-        # Validar que no esté vacío después de decodificar
-        if not request_body_str.strip():
-            logger.error("Cuerpo de la solicitud está vacío después de decodificar")
-            return JsonResponse({'error': 'Empty request body after decoding'}, status=400)
-        
-        # Parsear JSON
+
+        data = json.loads(request_body_str) # JSON principal que viene de la IA
+        logger.info("Cuerpo de la solicitud POST recibido (JSON Parsed).")
+
+        # Extraer los campos clave que la IA DEBE ENVIAR
+        user_rut_raw = data.get('user_rut') # Usar 'user_rut' como identificador único
+        cv_gcs_url = data.get('cv_gcs_url') # Esto es "static/cvs/..."
+        extracted_cv_data = data.get('extracted_data') # Este es el JSON grande con toda la info del CV
+
+        if not user_rut_raw or not cv_gcs_url or not extracted_cv_data:
+            logger.error(f"Datos incompletos en el JSON de la IA. user_rut={user_rut_raw}, cv_gcs_url={cv_gcs_url}, extracted_data_present={bool(extracted_cv_data)}")
+            return JsonResponse({'error': 'Missing required data (user_rut, cv_gcs_url, or extracted_data)'}, status=400)
+
+        # --- APLICAR EL FORMATO CORRECTO AL RUT PARA LA BÚSQUEDA EN LA DB ---
+        user_rut_for_db = format_rut_for_db_lookup(user_rut_raw)
+        logger.info(f"RUT recibido (sin guion): {user_rut_raw}, RUT formateado para DB: {user_rut_for_db}")
+
+        # --- CORRECCIÓN CLAVE PARA ELIMINAR 'static/static/' ---
+        # Si la URL de GCS ya viene con 'static/', la eliminamos para evitar la doble prefijación
+        # ya que el almacenamiento configurado en settings.py (STORAGES["default"]["OPTIONS"]["location"] = 'static')
+        # ya añade 'static/' a la URL base.
+        clean_cv_gcs_url = cv_gcs_url
+        if cv_gcs_url and cv_gcs_url.startswith('static/'):
+            clean_cv_gcs_url = cv_gcs_url[len('static/'):]
+            logger.info(f"URL de GCS limpiada: de '{cv_gcs_url}' a '{clean_cv_gcs_url}'")
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
+
+        # Buscar la PersonaNatural por el RUT formateado para la DB (tu lógica original)
         try:
-            data = json.loads(request_body_str)
-            logger.info("Cuerpo de la solicitud POST recibido (JSON Parsed).")
-            logger.debug(f"Contenido completo del JSON: {json.dumps(data, indent=2)}")
-        except json.JSONDecodeError as json_error:
-            logger.error(f"Error: JSON inválido recibido. Detalles: {json_error}")
-            logger.error(f"Cuerpo de la solicitud (sin JSON válido): {request_body_str[:500]}...")
-            return JsonResponse({
-                'error': 'Invalid JSON format', 
-                'details': str(json_error)
-            }, status=400)
-        
-        # Validar estructura de datos
-        required_fields = ['user_id', 'cv_gcs_url', 'extracted_data']
-        missing_fields = [field for field in required_fields if field not in data]
-        
-        if missing_fields:
-            logger.error(f"Campos requeridos faltantes: {missing_fields}")
-            return JsonResponse({
-                'error': 'Missing required fields', 
-                'missing_fields': missing_fields
-            }, status=400)
-        
-        # Extraer datos
-        user_id = data.get('user_id')
-        cv_gcs_url = data.get('cv_gcs_url')
-        extracted_data = data.get('extracted_data')
-        
-        logger.info(f"Datos del CV recibidos y procesados para user_id: {user_id}")
-        logger.info(f"URL de GCS del CV: {cv_gcs_url}")
-        
-        # Validar que extracted_data sea un diccionario
-        if not isinstance(extracted_data, dict):
-            logger.error(f"extracted_data debe ser un diccionario, recibido: {type(extracted_data)}")
-            return JsonResponse({
-                'error': 'extracted_data must be a dictionary'
-            }, status=400)
-        
-        # --- LÓGICA PARA PROCESAR Y GUARDAR LOS DATOS ---
-        try:
-            # Aquí iría tu lógica de guardado en la DB
-            # MiModelo.objects.create(user_id=user_id, cv_url=cv_gcs_url, data=extracted_data)
-            
-            logger.info("Lógica de guardado (placeholder) ejecutada con éxito.")
-            
-        except Exception as db_error:
-            logger.error(f"Error al guardar en la base de datos: {db_error}")
-            return JsonResponse({
-                'error': 'Database error', 
-                'details': str(db_error)
-            }, status=500)
-        
-        # --- FIN DE LA LÓGICA ---
-        
-        logger.info("Procesamiento completado exitosamente")
-        logger.info("--------------------------------------------------")
-        
-        return JsonResponse({
-            'status': 'success', 
-            'message': 'CV data processed successfully',
-            'user_id': user_id
-        }, status=200)
-        
+            persona_natural = PersonaNatural.objects.get(usuario__username=user_rut_for_db)
+            logger.info(f"PersonaNatural encontrada para el RUT: {user_rut_for_db}")
+        except PersonaNatural.DoesNotExist:
+            logger.error(f"PersonaNatural con RUT {user_rut_for_db} (formateado) no encontrada.")
+            return JsonResponse({'error': f'PersonaNatural con RUT {user_rut_raw} no encontrada.'}, status=404)
+        except Usuario.DoesNotExist: # Se mantiene tu bloque original para Usuario.DoesNotExist
+            logger.error(f"Usuario con username (RUT) {user_rut_for_db} no encontrado para la PersonaNatural.")
+            return JsonResponse({'error': f'Usuario con RUT {user_rut_raw} no encontrado.'}, status=404)
+
+        # Usamos transaction.atomic() para asegurar que la operación es atómica:
+        # o se guarda todo el CV o no se guarda nada si hay un error.
+        with transaction.atomic():
+            # Crear o actualizar la entrada principal del CV.
+            # Los campos `nombre_completo`, `email_contacto`, `resumen_profesional`
+            # se asignan al *modelo CV*, NO al modelo PersonaNatural o Usuario.
+            cv_instance, created = CV.objects.update_or_create(
+                persona=persona_natural, # Vincula el CV a la PersonaNatural
+                defaults={
+                    'archivo_cv': clean_cv_gcs_url, # <--- ¡USAR LA URL LIMPIA AQUÍ!
+                    'datos_analizados_ia': extracted_cv_data, # Aquí se guarda TODO el JSON extraído
+                    # Campos de resumen que se guardan en el modelo CV, NO en el perfil del usuario:
+                    'nombre_completo': extracted_cv_data.get('datos_personales', {}).get('nombre_completo'),
+                    'email_contacto': extracted_cv_data.get('datos_personales', {}).get('email'),
+                    'resumen_profesional': extracted_cv_data.get('resumen_ejecutivo', '')
+                }
+            )
+
+            if created:
+                logger.info(f"Nuevo CV principal creado para {user_rut_for_db} con datos de IA.")
+            else:
+                logger.info(f"CV principal actualizado para {user_rut_for_db} con datos de IA.")
+
+            # --- SE HA ELIMINADO LA LÓGICA DE ACTUALIZACIÓN DIRECTA DE DATOS EN
+            #     LOS MODELOS `PersonaNatural` Y `Usuario` AQUÍ.
+            #     Estos campos (nombres, apellidos, fecha_nacimiento, correo, telefono)
+            #     NO se sobrescriben con la información del CV.
+            #     Si necesitas detallar la experiencia, educación, etc.,
+            #     debes hacerlo creando/actualizando modelos relacionados que apunten a `cv_instance`
+            #     (o a `persona_natural` si lo modelaste así, pero que representen los datos del CV
+            #     y no los datos maestros del perfil del usuario).
+
+            # Ejemplo (comentado) de cómo podrías procesar los detalles del CV
+            # en modelos relacionados al CV, si los tienes definidos:
+            # from tu_app.models import ExperienciaLaboral, Educacion, HabilidadCV, IdiomaCV # Importa tus modelos de CV detallados si existen
+
+            # # Opcional: Borrar datos previos del CV para evitar duplicados si es una actualización
+            # # y si quieres una única versión de los detalles del CV
+            # ExperienciaLaboral.objects.filter(cv=cv_instance).delete()
+            # Educacion.objects.filter(cv=cv_instance).delete()
+            # # etc.
+
+            # # Procesar experiencia laboral (ejemplo)
+            # for exp_data in extracted_cv_data.get('experiencia_laboral', []):
+            #     # Crea una nueva instancia de ExperienciaLaboral vinculada a este CV
+            #     ExperienciaLaboral.objects.create(
+            #         cv=cv_instance, # Asegúrate de vincularlo al modelo CV
+            #         puesto=exp_data.get('puesto'),
+            #         empresa=exp_data.get('empresa'),
+            #         ciudad=exp_data.get('ciudad'),
+            #         pais=exp_data.get('pais'),
+            #         fecha_inicio=exp_data.get('fecha_inicio'), # Asegúrate de que el formato de fecha sea correcto (YYYY-MM-DD)
+            #         fecha_fin=exp_data.get('fecha_fin'),
+            #         actualmente_aqui=exp_data.get('actualmente_aqui'),
+            #         descripcion_logros_responsabilidades=exp_data.get('descripcion_logros_responsabilidades'),
+            #         # ... otros campos ...
+            #     )
+
+            # # Repite la lógica para Educacion, Habilidades, Idiomas, etc.
+            # # Siempre vinculando las instancias creadas a `cv_instance`.
+
+            logger.info("Datos del CV procesados y guardados en JSONField (y posiblemente modelos detallados asociados al CV).")
+            logger.info("--------------------------------------------------")
+            return JsonResponse({'status': 'success', 'message': 'CV data processed and saved successfully'}, status=200)
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Error: JSON inválido recibido. Detalles: {e}")
+        # Intentar loguear el cuerpo completo si es un JSON inválido y no muy grande
+        request_body_for_log = request_body_str if len(request_body_str) < 1000 else request_body_str[:1000] + "..."
+        logger.error(f"Cuerpo de la solicitud (sin JSON válido): {request_body_for_log}")
+        return JsonResponse({'error': 'Invalid JSON format', 'details': str(e)}, status=400)
     except Exception as e:
-        # Usar variables con valores por defecto para evitar errores
-        user_id = data.get('user_id', 'N/A') if data else 'N/A'
-        
-        logger.exception(f"Error inesperado al procesar datos del CV para user_id: {user_id}")
-        logger.error(f"Tipo de error: {type(e).__name__}")
-        logger.error(f"Mensaje de error: {str(e)}")
-        
-        if request_body_str:
-            logger.error(f"Cuerpo de la solicitud cuando ocurrió el error: {request_body_str[:200]}...")
-        
-        logger.info("--------------------------------------------------")
-        
-        return JsonResponse({
-            'error': f'Internal Server Error: {str(e)}',
-            'error_type': type(e).__name__
-        }, status=500)
+        # Intenta obtener el RUT para el log de errores inesperados
+        # Es necesario asegurar que 'data' esté definido antes de intentar acceder a ella
+        user_rut_for_log = data.get('user_rut', 'N/A') if 'data' in locals() else 'N/A'
+        logger.exception(f"Error inesperado al procesar y guardar datos del CV para user_rut: {user_rut_for_log}. Detalles: {e}")
+        return JsonResponse({'error': f'Internal Server Error: {str(e)}'}, status=500)
+
+
+
+
+
+
+
+
+
+
