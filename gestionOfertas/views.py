@@ -1292,6 +1292,35 @@ def receive_cv_data(request):
         return JsonResponse({'error': f'Internal Server Error: {str(e)}'}, status=500)
 
 
+@login_required
+@require_POST
+def subir_muestra_trabajo(request):
+    archivo = request.FILES.get('archivo')
+    titulo = request.POST.get('titulo')
+    descripcion = request.POST.get('descripcion')
+
+    if archivo and titulo:
+        MuestraTrabajo.objects.create(
+            usuario=request.user,
+            archivo=archivo,
+            titulo=titulo,
+            descripcion=descripcion or ''
+        )
+        messages.success(request, "Muestra subida correctamente.")
+    else:
+        messages.error(request, "Faltan datos requeridos.")
+
+    return redirect('miperfil')
+
+@login_required
+def eliminar_muestra_trabajo(request, muestra_id):
+    muestra = get_object_or_404(MuestraTrabajo, id=muestra_id, usuario=request.user)
+    muestra.delete()
+    return redirect('miperfil')
+
+def agrupar_muestras(lista, tamaño=3):
+    return [lista[i:i + tamaño] for i in range(0, len(lista), tamaño)]
+
 
 
 
