@@ -29,8 +29,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'your-very-strong-and-random-secret-key-for
 
 # DEBUG: Lee el valor de la variable de entorno DJANGO_DEBUG.
 # Por defecto es False para producción, pero puedes setear DJANGO_DEBUG=True en tu entorno local.
-# DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
-DEBUG = True # <-- ¡CAMBIA ESTO A False EN
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
+# DEBUG = True # <-- ¡CAMBIA ESTO A False EN
 
 # ALLOWED_HOSTS: Restringe los hosts permitidos en producción.
 # Esto es CRUCIAL para la seguridad. En desarrollo, '*' es aceptable.
