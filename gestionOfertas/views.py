@@ -942,6 +942,34 @@ def realizar_postulacion(request, oferta_id):
     except Exception as e:
         messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
         return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+@login_required
+def ver_perfil_publico(request, usuario_id):
+    try:
+        usuario = Usuario.objects.get(id=usuario_id)
+    except Usuario.DoesNotExist:
+        messages.error(request, "El usuario solicitado no existe.")
+        return redirect('home') # O a la página de ranking, o a donde consideres apropiado
+
+    # Si el usuario intenta ver su propio perfil público, redirigirlo a su perfil normal
+    if request.user.id == usuario.id:
+        return redirect('miperfil')
+
+    perfil = usuario.get_profile()
+
+    # Obtener las muestras de trabajo del usuario
+    # Ordenar por fecha de subida descendente para mostrar las más recientes primero
+    muestras_trabajo = usuario.muestras_trabajo.all().order_by('-fecha_subida')
+
+    return render(request, 'gestionOfertas/miperfil_publico.html', {
+        'usuario': usuario,
+        'perfil': perfil,
+        'valoracion_promedio': usuario.valoracion_promedio,
+        'cantidad_valoraciones': usuario.cantidad_valoraciones,
+        'valoraciones_recibidas': Valoracion.objects.filter(receptor=usuario)[:5],
+        'ofertas_creadas': usuario.ofertas_creadas.filter(esta_activa=True),
+        'muestras_trabajo': muestras_trabajo, # <-- Añadir esto al contexto
+    })
 
 
 @login_required
