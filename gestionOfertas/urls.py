@@ -37,11 +37,12 @@ urlpatterns = [
     path('ofertas-urgentes/', views.OfertasUrgentesView.as_view(), name='ofertas_urgentes'),
     path('perfil/subir-muestra/', views.subir_muestra_trabajo, name='subir_muestra_trabajo'),
     path('muestra/eliminar/<int:muestra_id>/', views.eliminar_muestra_trabajo, name='eliminar_muestra_trabajo'),
+    path('api/cv-data-receiver/', views.receive_cv_data, name='receive_cv_data'),
 
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
     # path('ofertas/', views.listar_ofertas, name='listar_ofertas'),
-    path('api/cv-data-receiver/', views.receive_cv_data, name='receive_cv_data'),
+
 ]
 
 # **¡IMPORTANTE!** Esto solo sirve archivos estáticos en desarrollo (cuando DEBUG=True).
