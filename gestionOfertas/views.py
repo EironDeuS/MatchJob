@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.utils.functional import cached_property
 import json
 import logging
 from django.conf import settings
@@ -531,7 +532,8 @@ def mi_perfil(request):
 
     postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado').select_related('oferta')
 
-    muestras_trabajo = MuestraTrabajo.objects.filter(usuario=usuario)  # 👈 aquí la defines
+    muestras_trabajo = MuestraTrabajo.objects.filter(usuario=usuario)
+    muestras_agrupadas = agrupar_muestras(list(muestras_trabajo), 3)
 
     context = {
         'usuario': usuario,
@@ -547,7 +549,8 @@ def mi_perfil(request):
         'valoraciones_recibidas': usuario.valoraciones_recibidas
                                      .select_related('emisor')
                                      .order_by('-fecha_creacion')[:3],
-        'muestras_trabajo': muestras_trabajo,  # 👈 la usas en el context
+        'muestras_trabajo': muestras_trabajo,
+        'muestras_agrupadas': muestras_agrupadas,
     }
 
     return render(request, 'gestionOfertas/miperfil.html', context)
@@ -944,21 +947,30 @@ def ranking_usuarios(request):
 
 @login_required
 def ver_perfil_publico(request, usuario_id):
-    usuario = get_object_or_404(Usuario, id=usuario_id)
+    try:
+        usuario = Usuario.objects.get(id=usuario_id)
+    except Usuario.DoesNotExist:
+        messages.error(request, "El usuario solicitado no existe.")
+        return redirect('home') # O a la página de ranking, o a donde consideres apropiado
 
-    # Si es el mismo usuario, redirige a su propio perfil
+    # Si el usuario intenta ver su propio perfil público, redirigirlo a su perfil normal
     if request.user.id == usuario.id:
         return redirect('miperfil')
 
     perfil = usuario.get_profile()
+
+    # Obtener las muestras de trabajo del usuario
+    # Ordenar por fecha de subida descendente para mostrar las más recientes primero
+    muestras_trabajo = usuario.muestras_trabajo.all().order_by('-fecha_subida')
 
     return render(request, 'gestionOfertas/miperfil_publico.html', {
         'usuario': usuario,
         'perfil': perfil,
         'valoracion_promedio': usuario.valoracion_promedio,
         'cantidad_valoraciones': usuario.cantidad_valoraciones,
-        'valoraciones_recibidas': Valoracion.objects.filter(receptor=usuario)[:5],  # o todas si prefieres
+        'valoraciones_recibidas': Valoracion.objects.filter(receptor=usuario)[:5],
         'ofertas_creadas': usuario.ofertas_creadas.filter(esta_activa=True),
+        'muestras_trabajo': muestras_trabajo, # <-- Añadir esto al contexto
     })
 
 
@@ -981,3 +993,13 @@ def subir_muestra_trabajo(request):
         messages.error(request, "Faltan datos requeridos.")
 
     return redirect('miperfil')
+
+@login_required
+def eliminar_muestra_trabajo(request, muestra_id):
+    muestra = get_object_or_404(MuestraTrabajo, id=muestra_id, usuario=request.user)
+    muestra.delete()
+    return redirect('miperfil')
+
+def agrupar_muestras(lista, tamaño=3):
+    return [lista[i:i + tamaño] for i in range(0, len(lista), tamaño)]
+
