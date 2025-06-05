@@ -216,6 +216,70 @@ def registro(request):
         form = RegistroForm()
     return render(request, 'gestionOfertas/registro.html', {'form': form})
 
+class OfertasUrgentesView(ListView):
+    model = OfertaTrabajo
+    template_name = 'gestionOfertas/ofertas_urgentes.html'
+    context_object_name = 'ofertas'
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Filtrar por ofertas urgentes y activas según el modelo real
+        queryset = OfertaTrabajo.objects.filter(
+            urgente=True,  # Campo correcto del modelo
+            esta_activa=True  # Campo correcto del modelo
+        ).select_related('creador', 'empresa', 'categoria')
+
+        # Filtros GET
+        q = self.request.GET.get('q', '')
+        categoria_id = self.request.GET.get('categoria')
+        tipo_contrato = self.request.GET.get('tipo_contrato')
+        tipo_oferta = self.request.GET.get('tipo_oferta')
+
+        if q:
+            queryset = queryset.filter(
+                Q(nombre__icontains=q) |
+                Q(descripcion__icontains=q) |
+                Q(empresa__nombre__icontains=q) |
+                Q(creador__first_name__icontains=q) |
+                Q(creador__last_name__icontains=q)
+            )
+
+        if categoria_id:
+            try:
+                queryset = queryset.filter(categoria_id=int(categoria_id))
+            except (ValueError, TypeError):
+                pass
+
+        if tipo_contrato and tipo_contrato in dict(OfertaTrabajo.TIPO_CONTRATO_CHOICES):
+            queryset = queryset.filter(tipo_contrato=tipo_contrato)
+
+        if tipo_oferta:
+            if tipo_oferta == 'empleo':
+                queryset = queryset.filter(es_servicio=False)
+            elif tipo_oferta == 'servicio':
+                queryset = queryset.filter(es_servicio=True)
+
+        return queryset.order_by('-fecha_publicacion')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Agregar datos para los filtros
+        context['categorias'] = Categoria.objects.all()
+        context['tipos_contrato'] = OfertaTrabajo.TIPO_CONTRATO_CHOICES
+        context['total_ofertas_urgentes'] = OfertaTrabajo.objects.filter(
+            urgente=True, 
+            esta_activa=True
+        ).count()
+        
+        # Preservar parámetros de búsqueda en el contexto
+        context['current_search'] = self.request.GET.get('q', '')
+        context['current_categoria'] = self.request.GET.get('categoria', '')
+        context['current_tipo_contrato'] = self.request.GET.get('tipo_contrato', '')
+        context['current_tipo_oferta'] = self.request.GET.get('tipo_oferta', '')
+        
+        return context
+
 class CustomPasswordResetView(PasswordResetView):
     form_class = CustomPasswordResetForm
     template_name = 'registration/password_reset_form.html'
