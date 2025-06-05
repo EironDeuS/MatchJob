@@ -3,6 +3,7 @@
 from gestionOfertas.utils import notificar_oferta_urgente, validar_rut_empresa
 from django.contrib.auth.views import PasswordResetView
 from gestionOfertas.forms import CustomPasswordResetForm
+from django.urls import reverse_lazy
 from datetime import datetime, timedelta
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
