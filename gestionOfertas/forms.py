@@ -113,48 +113,43 @@ class CVValidationMixin(forms.Form):
     Contiene el campo 'cv_archivo' y el método 'clean_cv_archivo'.
     """
     cv_archivo = forms.FileField(
-        label="Actualizar Currículum Vitae (PDF)",
-        required=False, # Es importante que sea False en edición, no siempre subirán uno
-        help_text="Sube tu CV actualizado en formato PDF. Tamaño máximo 5MB.",
+        label="Currículum Vitae (PDF)", # Usando la etiqueta original del formulario "bueno"
+        required=False, # Puede ser requerido o no según la lógica de tu clean() en el form principal
+        help_text="Sube tu CV actualizado en formato PDF.", # Usando el help_text original
         widget=forms.ClearableFileInput(attrs={'class':'form-control', 'accept': '.pdf'})
     )
 
     def clean_cv_archivo(self):
         """
-        Valida que el archivo subido sea un PDF, tenga un tamaño razonable
-        y que su contenido parezca ser un currículum vitae.
+        Valida que el archivo subido sea un PDF y tenga un tamaño razonable.
+        Además, intenta validar el contenido como CV.
         """
         archivo = self.cleaned_data.get('cv_archivo')
 
-        # Manejar casos donde no se sube un archivo nuevo o se marca para borrar el existente.
-        # Si el usuario marca el checkbox "Borrar" (ClearableFileInput), el valor es False.
-        # Si no sube nada y no marca "Borrar", el valor es None.
-        if archivo is False: # El usuario marcó para borrar el archivo existente
-            return False # Retorna False para indicar a la vista que debe borrarlo
-        elif not archivo: # No se subió un nuevo archivo y no se marcó para borrar
-            return None # Retorna None para indicar que no hay nuevo archivo para procesar
+        if archivo is False: # El usuario marcó para borrar un archivo existente (en caso de edición)
+            return False
+        elif not archivo: # No se subió un archivo nuevo
+            return None
 
         # 1. Validación de tipo de archivo por extensión
         if not archivo.name.lower().endswith('.pdf'):
             raise ValidationError("Solo se permiten archivos PDF.")
 
         # 2. Validación de tamaño del archivo
-        MAX_SIZE_MB = 5 # Definir el tamaño máximo permitido
-        if archivo.size > MAX_SIZE_MB * 1024 * 1024: # Convertir MB a bytes
+        MAX_SIZE_MB = 5
+        if archivo.size > MAX_SIZE_MB * 1024 * 1024:
             raise ValidationError(f"El archivo no puede superar los {MAX_SIZE_MB}MB.")
 
         # --- VALIDACIÓN DE CONTENIDO (Búsqueda de palabras clave en el PDF) ---
         try:
-            archivo.seek(0) # ¡MUY IMPORTANTE! Restablecer el puntero del archivo al principio
-                             # para que pypdf pueda leerlo.
+            archivo.seek(0) # Restablecer el puntero para pypdf
             reader = PdfReader(archivo)
 
-            if not reader.pages: # Si el PDF no tiene páginas o está vacío.
+            if not reader.pages:
                 raise ValidationError("El archivo PDF está vacío o corrupto.")
 
             text_content = ""
-            # Leer solo las primeras N páginas para eficiencia, no todo el documento.
-            pages_to_read = min(len(reader.pages), 5) # Lee un máximo de 5 páginas.
+            pages_to_read = min(len(reader.pages), 5)
 
             for i in range(pages_to_read):
                 page = reader.pages[i]
@@ -162,7 +157,7 @@ class CVValidationMixin(forms.Form):
                 if extracted_page_text:
                     text_content += extracted_page_text + " "
 
-            text_content = text_content.lower() # Convertir a minúsculas para una búsqueda insensible a mayúsculas/minúsculas
+            text_content = text_content.lower()
 
             cv_keywords = [
                 "experiencia laboral", "formación académica", "habilidades",
@@ -175,131 +170,179 @@ class CVValidationMixin(forms.Form):
             ]
 
             found_keywords_count = sum(1 for keyword in cv_keywords if keyword in text_content)
-            min_text_length = 150 # Longitud mínima de texto para considerar que es un CV.
+            min_text_length = 150
 
-            # Si no se encuentran suficientes palabras clave o el texto es muy corto
             if found_keywords_count < 3 or len(text_content) < min_text_length:
                 raise ValidationError(
                     "El contenido del archivo PDF no parece ser un currículum vitae. "
                     "Asegúrese de subir un CV con texto y estructura de CV."
                 )
 
-        except PdfReadError: # Errores específicos de pypdf si el PDF está malformado
+        except PdfReadError:
             raise ValidationError("El archivo PDF está corrupto o no es un PDF válido.")
         except Exception as e:
-            # Captura otros errores inesperados durante el procesamiento del PDF
-            print(f"DEBUG: Error inesperado al procesar PDF en Edición: {e}") # Útil para depuración local
+            print(f"DEBUG: Error inesperado al procesar PDF en CVValidationMixin: {e}")
             raise ValidationError(
                 "Ocurrió un error al procesar el archivo PDF. Por favor, intente con otro archivo."
             )
 
-        archivo.seek(0) # ¡MUY IMPORTANTE! Restablecer el puntero del archivo nuevamente
-                         # para que Django pueda guardarlo después de la validación.
+        archivo.seek(0) # Restablecer el puntero para que Django lo guarde
         return archivo
 
-# --- Formulario de Registro Actualizado ---
-# --- Tu RegistroForm, ahora heredando de CVValidationMixin ---
-class RegistroForm(CVValidationMixin, forms.Form):
-    # Aquí irían todos los campos que ya tienes en tu RegistroForm original
-    # (username, correo, password, tipo_usuario, etc., y los condicionales de PersonaNatural/Empresa)
 
-    username = forms.CharField(
-        label="RUT (sin puntos ni guión) o Nombre de Usuario",
-        max_length=12,
+# --- Formulario de Registro Actualizado ---
+class RegistroForm(CVValidationMixin, forms.Form):
+    # --- Campos del Modelo Usuario ---
+    # Este debe coincidir con la primera imagen (dropdown), si ese es el deseado.
+    # Si quieres radio buttons (imagen 1), usa forms.RadioSelect y el diccionario TIPO_USUARIO_CHOICES.
+    # Si quieres dropdown (imagen 2), usa forms.Select y una lista de tuplas directamente.
+    tipo_usuario = forms.ChoiceField(
+        # Asumo que Usuario.TIPO_USUARIO_CHOICES es una tupla de tuplas.
+        # Ajusta esto si tu modelo Usuario no tiene esta propiedad directamente o si quieres un subset.
+        choices=[c for c in Usuario.TIPO_USUARIO_CHOICES if c[0] != 'admin'], # Excluir admin si aplica
         required=True,
-        help_text='Para persona natural: RUT (Ej: 12345678K). Para empresa: RUT (Ej: 761234567).'
+        widget=forms.Select(attrs={'onchange': 'toggleUsuarioFields()', 'class': 'form-select'}),
+        label="Tipo de Usuario"
+    )
+
+    username = forms.CharField( # RUT
+        label="RUT (sin puntos, con guión)", # Etiqueta de la imagen 2
+        max_length=50, # Ajusta max_length si es necesario (ej: 12 para RUT chileno con guión)
+        required=True,
+        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos, con guión)', 'class': 'form-control'})
     )
     correo = forms.EmailField(
         label="Correo electrónico",
         required=True,
-        widget=forms.EmailInput(attrs={'placeholder': 'tu@ejemplo.com'})
-    )
-    password = forms.CharField(
-        label="Contraseña",
-        widget=forms.PasswordInput(attrs={'placeholder': 'Mínimo 8 caracteres'})
-    )
-    confirm_password = forms.CharField(
-        label="Confirmar Contraseña",
-        widget=forms.PasswordInput(attrs={'placeholder': 'Repite la contraseña'})
+        widget=forms.EmailInput(attrs={'placeholder': 'tu@ejemplo.com', 'class': 'form-control'})
     )
     telefono = forms.CharField(
         label="Teléfono",
         max_length=20,
         required=False,
-        widget=forms.TextInput(attrs={'placeholder': '+569 XXXXXXXX'})
+        widget=forms.TextInput(attrs={'placeholder': '+569 XXXXXXXX', 'class': 'form-control'})
     )
     direccion = forms.CharField(
         label="Dirección",
         max_length=255,
         required=False,
-        widget=forms.TextInput(attrs={'placeholder': 'Calle, número, comuna'})
+        widget=forms.TextInput(attrs={'placeholder': 'Calle, número, comuna', 'class': 'form-control'})
+    )
+    password = forms.CharField(
+        label="Contraseña",
+        required=True,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Mínimo 8 caracteres', 'class': 'form-control'})
+    )
+    # Importante: el campo de confirmación de contraseña se llama 'password2' en tu primer código
+    # y 'confirm_password' en el segundo. Debes ser consistente.
+    # Usaré 'confirm_password' para seguir el segundo código, pero verifícalo en tu plantilla.
+    confirm_password = forms.CharField(
+        label="Confirmar contraseña",
+        required=True,
+        widget=forms.PasswordInput(attrs={'placeholder': 'Repite la contraseña', 'class': 'form-control'})
     )
 
-    TIPO_USUARIO_CHOICES = [
-        ('persona', 'Persona Natural'),
-        ('empresa', 'Empresa'),
-    ]
-    tipo_usuario = forms.ChoiceField(
-        label="Tipo de Usuario",
-        choices=TIPO_USUARIO_CHOICES,
-        widget=forms.RadioSelect
+    # --- Campos del Perfil PersonaNatural ---
+    nombres = forms.CharField(
+        label="Nombres",
+        max_length=100,
+        required=False, # Requerido condicionalmente en clean()
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    apellidos = forms.CharField(
+        label="Apellidos",
+        max_length=100,
+        required=False, # Requerido condicionalmente en clean()
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    fecha_nacimiento = forms.DateField(
+        label="Fecha de Nacimiento",
+        required=False, # Requerido condicionalmente en clean()
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+    )
+    nacionalidad = forms.CharField(
+        label="Nacionalidad",
+        max_length=50,
+        initial='Chilena', # Valor inicial
+        required=False, # Requerido condicionalmente en clean()
+        widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
-    # Campos específicos para Persona Natural (serán opcionales/no requeridos por defecto)
-    nombres = forms.CharField(label="Nombres", max_length=100, required=False)
-    apellidos = forms.CharField(label="Apellidos", max_length=100, required=False)
-    fecha_nacimiento = forms.DateField(label="Fecha de Nacimiento", required=False, widget=forms.DateInput(attrs={'type': 'date'}))
-    nacionalidad = forms.CharField(label="Nacionalidad", max_length=50, required=False)
+    # El campo `cv_archivo` es heredado de `CVValidationMixin`.
+    # No lo definas aquí de nuevo.
 
-    # Campos específicos para Empresa (serán opcionales/no requeridos por defecto)
-    nombre_empresa = forms.CharField(label="Nombre de Empresa", max_length=200, required=False)
-    razon_social = forms.CharField(label="Razón Social", max_length=200, required=False)
-    giro = forms.CharField(label="Giro", max_length=200, required=False)
+    # --- Campos del Perfil Empresa ---
+    nombre_empresa = forms.CharField(
+        label="Nombre de la Empresa",
+        max_length=100,
+        required=False, # Requerido condicionalmente en clean()
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    razon_social = forms.CharField(
+        label="Razón Social",
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
+    giro = forms.CharField(
+        label="Giro Comercial",
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control'})
+    )
 
+    # --- Métodos clean (combinando lógica y consistencia) ---
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if Usuario.objects.filter(username=username).exists():
+            raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
+        return username
 
-    # El campo 'cv_archivo' y su método 'clean_cv_archivo'
-    # SON HEREDADOS automáticamente de CVValidationMixin.
-    # No necesitas definirlos aquí de nuevo.
+    def clean_correo(self):
+        correo = self.cleaned_data.get('correo')
+        if Usuario.objects.filter(correo=correo).exists():
+            raise ValidationError("Este correo electrónico ya está registrado.")
+        return correo
 
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
-        confirm_password = cleaned_data.get("confirm_password")
-        tipo_usuario = cleaned_data.get("tipo_usuario")
-        username = cleaned_data.get("username") # En registro, username es el RUT
+        confirm_password = cleaned_data.get("confirm_password") # Asegúrate de que el nombre del campo sea consistente
 
         if password and confirm_password and password != confirm_password:
             self.add_error('confirm_password', "Las contraseñas no coinciden.")
 
-        if Usuario.objects.filter(username=username).exists():
-            self.add_error('username', "Este RUT o nombre de usuario ya está registrado.")
-        if Usuario.objects.filter(correo=cleaned_data.get('correo')).exists():
-            self.add_error('correo', "Este correo electrónico ya está registrado.")
+        tipo_usuario = cleaned_data.get('tipo_usuario')
 
-        # Lógica condicional para requerir campos según el tipo_usuario
+        # Validaciones para Persona Natural
         if tipo_usuario == 'persona':
-            required_fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad']
-            for field_name in required_fields:
+            required_fields_persona = {
+                'nombres': 'Nombres',
+                'apellidos': 'Apellidos',
+                'fecha_nacimiento': 'Fecha de Nacimiento',
+                'nacionalidad': 'Nacionalidad'
+            }
+            for field_name, label_name in required_fields_persona.items():
                 if not cleaned_data.get(field_name):
-                    self.add_error(field_name, "Este campo es obligatorio para el perfil de persona natural.")
-            # Si el CV es obligatorio para personas al registrarse:
-            # if not cleaned_data.get('cv_archivo'):
-            #     self.add_error('cv_archivo', "Es obligatorio subir un Currículum Vitae.")
+                    self.add_error(field_name, f"{label_name} es requerido para personas.")
 
+            # Validación de CV si es obligatorio para Persona Natural
+            # Descomenta y ajusta si cv_archivo es siempre obligatorio para personas
+            # if not cleaned_data.get('cv_archivo'):
+            #     self.add_error('cv_archivo', 'Es obligatorio subir un Currículum Vitae.')
+
+        # Validaciones para Empresa
         elif tipo_usuario == 'empresa':
-            required_fields = ['nombre_empresa', 'razon_social', 'giro']
-            for field_name in required_fields:
+            required_fields_empresa = {
+                'nombre_empresa': 'Nombre de Empresa',
+                'razon_social': 'Razón Social',
+                'giro': 'Giro Comercial'
+            }
+            for field_name, label_name in required_fields_empresa.items():
                 if not cleaned_data.get(field_name):
-                    self.add_error(field_name, "Este campo es obligatorio para el perfil de empresa.")
+                    self.add_error(field_name, f"{label_name} es requerido para empresas.")
 
         return cleaned_data
-
-    # Puedes mantener o quitar este clean_username si tienes una validación más compleja de RUT
-    # def clean_username(self):
-    #     username = self.cleaned_data['username']
-    #     # Aquí podrías añadir una validación de formato de RUT chileno, si no la haces en la vista.
-    #     return username
-
 
 class UsuarioCreationForm(forms.ModelForm):
     """Formulario para crear usuarios DESDE EL ADMIN (o similar)."""
