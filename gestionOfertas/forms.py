@@ -1,5 +1,6 @@
 # En tu_app/forms.py
-
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth import get_user_model
 from django import forms
 # from django.contrib.auth.forms import ReadOnlyPasswordHashField # Solo si usas UsuarioChangeForm
 from .models import Usuario, PersonaNatural, Empresa, Valoracion # Importa tus modelos
@@ -655,10 +656,29 @@ class ValoracionForm(forms.ModelForm):
         model = Valoracion
         fields = ['puntuacion', 'comentario']
         widgets = {
-            'puntuacion': forms.RadioSelect(choices=[(i, f'{i} estrellas') for i in range(1, 6)]),
-            'comentario': forms.Textarea(attrs={'placeholder': 'Escribe un comentario opcional...', 'rows': 4}),
+            'comentario': forms.Textarea(attrs={
+                'rows': 3,
+                'class': 'form-control',
+                'placeholder': 'Escribe tu opinión...'
+            }),
         }
-        labels = {
-            'puntuacion': 'Calificación',
-            'comentario': 'Comentario',
-        }
+    
+    def clean_puntuacion(self):
+        puntuacion = self.cleaned_data.get('puntuacion')
+        if not puntuacion or int(puntuacion) < 1 or int(puntuacion) > 5:
+            raise forms.ValidationError("Por favor selecciona una puntuación entre 1 y 5 estrellas")
+        return puntuacion
+
+
+Usuario = get_user_model()
+
+class CustomPasswordResetForm(PasswordResetForm):
+    def get_users(self, email):
+        active_users = Usuario._default_manager.filter(correo__iexact=email, is_active=True)
+        return (u for u in active_users if u.has_usable_password())
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if not Usuario.objects.filter(correo__iexact=email, is_active=True).exists():
+            raise forms.ValidationError("No existe una cuenta con ese correo.")
+        return email

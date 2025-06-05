@@ -71,7 +71,7 @@ def validar_rut_empresa(rut):
     Returns:
         dict: {'valida': True/False, 'datos': {...} o 'mensaje': str}
     """
-    api_key = '4907-W160-6391-9273-2504'
+    api_key = settings.SIMPLEAPI_API_KEY # <--- Así debe quedar
 
     # Limpiar el RUT para la URL: quitar puntos y guiones
     rut_limpio_para_url = rut.replace('.', '').replace('-', '')

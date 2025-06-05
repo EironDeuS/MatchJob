@@ -3,6 +3,82 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/historial_valoraciones.css' %}">
+    <style>
+        /* Estilos para el sistema de valoración con estrellas */
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 15px 0;
+        }
+
+        .star {
+            font-size: 2rem;
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .star.hover,
+        .star.selected {
+            color: gold;
+        }
+
+        /* Estilos para cards de valoraciones */
+        .valoracion-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            margin-bottom: 20px;
+            border: none;
+        }
+
+        .valoracion-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .valoracion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .valoracion-puntuacion i {
+            margin-right: 2px;
+        }
+
+        .valoracion-comentario {
+            font-style: italic;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+            margin: 10px 0;
+        }
+
+        .valoracion-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        /* Estilos para el modal */
+        #valoracionModal .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+
+        #valoracionModal .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 15px 15px 0 0;
+        }
+
+        #valoracionModal .modal-title {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+    </style>
 {% endblock %}
 
 {% block title %}
@@ -18,96 +94,338 @@
 {% endblock %}
 
 {% block content %}
-<div class="container historial-valoraciones-container">
-    <h1 class="historial-valoraciones-title">
-        <i class="bi bi-star-fill text-warning me-2"></i> Historial de Valoraciones de
-        {% if usuario_perfil.personanatural %}
-            {{ usuario_perfil.personanatural.nombres }} {{ usuario_perfil.personanatural.apellidos }}
-        {% elif usuario_perfil.empresa %}
-            {{ usuario_perfil.empresa.nombre_empresa }}
-        {% else %}
-            {{ usuario_perfil.username }}
-        {% endif %}
-    </h1>
-
-    {% if postulaciones_pendientes %}
-        <h2 class="valoraciones-pendientes-title">
-            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Valoraciones Pendientes
-        </h2>
-        <p>Tienes las siguientes postulaciones contratadas pendientes de valoración:</p>
-        <ul class="list-group valoraciones-pendientes-list">
-            {% for postulacion in postulaciones_pendientes %}
-                <li class="list-group-item">
-                    <p>
-                        <i class="bi bi-briefcase-fill text-primary me-2"></i> Postulación #{{ postulacion.id }} -
-                        {% if usuario_perfil == postulacion.oferta.creador %}
-                            <i class="bi bi-person-fill text-info me-2"></i> A: {{ postulacion.persona }}
-                        {% else %}
-                            <i class="bi bi-building-fill text-success me-2"></i> De: {{ postulacion.oferta.creador }}
-                        {% endif %}
-                    </p>
-                    <a href="{% url 'demo_valoracion' postulacion.id %}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-pencil-square me-1"></i> Valorar
-                    </a>
-                </li>
-            {% endfor %}
-        </ul>
+<div class="container historial-valoraciones-container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="historial-valoraciones-title mb-0">
+            <i class="bi bi-star-fill text-warning me-2"></i> Historial de Valoraciones de
+    {% if usuario_perfil.personanatural %}
+        {{ usuario_perfil.personanatural.nombres }} {{ usuario_perfil.personanatural.apellidos }}
+    {% elif usuario_perfil.empresa %}
+        {{ usuario_perfil.empresa.nombre_empresa }}
     {% else %}
-        <p><i class="bi bi-check-circle-fill text-success me-2"></i> No tienes valoraciones pendientes en este momento.</p>
+        {{ usuario_perfil.username }}
+    {% endif %}
+        </h1>
+        <a href="{% url 'miperfil' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left me-1"></i> Volver al Perfil
+        </a>
+    </div>
+
+    <!-- Sección de Valoraciones Pendientes -->
+    {% if postulaciones_pendientes and request.user == usuario_perfil %}
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning bg-opacity-10">
+                <h2 class="valoraciones-pendientes-title mb-0">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Valoraciones Pendientes
+                </h2>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Tienes las siguientes postulaciones contratadas pendientes de valoración:</p>
+                
+                <div class="list-group">
+                    {% for postulacion in postulaciones_pendientes %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">Postulación #{{ postulacion.id }}</h5>
+                                    <p class="mb-1">
+                                        {% if usuario_perfil == postulacion.oferta.creador %}
+                                            <i class="bi bi-person-fill text-info me-2"></i> A: {{ postulacion.persona }}
+                                        {% else %}
+                                            <i class="bi bi-building-fill text-success me-2"></i> De: {{ postulacion.oferta.creador }}
+                                        {% endif %}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar me-1"></i> Contratado el {{ postulacion.fecha_contratacion|date:"d/m/Y" }}
+                                    </small>
+                                </div>
+                                <button type="button" class="btn btn-primary btn-sm" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#valoracionModal"
+                                        onclick="prepararModalValoracion('{{ postulacion.id }}')">
+                                    <i class="bi bi-pencil-square me-1"></i> Valorar
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% elif request.user == usuario_perfil %}
+        <div class="alert alert-success mb-4">
+            <i class="bi bi-check-circle-fill me-2"></i> No tienes valoraciones pendientes en este momento.
+        </div>
     {% endif %}
 
-    <hr>
-    {% if valoraciones %}
-        <h2 class="historial-title">
-            <i class="bi bi-archive-fill text-primary me-2"></i> Historial de Valoraciones
-        </h2>
-        <div class="row row-cols-1 g-3">
-            {% for valoracion in valoraciones %}
-                <div class="col">
-                    <div class="card valoracion-card">
-                        <div class="card-body valoracion-card-body">
-                            <div class="valoracion-header">
-                                <h6 class="card-subtitle mb-0 text-muted valoracion-emisor">
-                                    {% if valoracion.emisor.personanatural %}
-                                        <i class="bi bi-person-circle text-info me-2"></i> {{ valoracion.emisor.personanatural.nombres }} {{ valoracion.emisor.personanatural.apellidos }}
-                                    {% elif valoracion.emisor.empresa %}
-                                        <i class="bi bi-building text-success me-2"></i> {{ valoracion.emisor.empresa.nombre_empresa }}
+    <!-- Sección de Historial de Valoraciones -->
+    <div class="card border-primary">
+        <div class="card-header bg-primary bg-opacity-10">
+            <h2 class="historial-title mb-0">
+                <i class="bi bi-archive-fill text-primary me-2"></i> Valoraciones Recibidas
+            </h2>
+        </div>
+        <div class="card-body">
+            {% if valoraciones %}
+                <div class="row row-cols-1 g-3">
+                    {% for valoracion in valoraciones %}
+                        <div class="col">
+                            <div class="card valoracion-card">
+                                <div class="card-body valoracion-card-body">
+                                    <div class="valoracion-header">
+                                        <h6 class="card-subtitle mb-0 text-muted valoracion-emisor">
+                                            {% if valoracion.emisor.personanatural %}
+                                                <i class="bi bi-person-circle text-info me-2"></i> 
+                                                {{ valoracion.emisor.personanatural.nombres }} {{ valoracion.emisor.personanatural.apellidos }}
+                                            {% elif valoracion.emisor.empresa %}
+                                                <i class="bi bi-building text-success me-2"></i> 
+                                                {{ valoracion.emisor.empresa.nombre_empresa }}
+                                            {% else %}
+                                                <i class="bi bi-person-circle text-info me-2"></i> 
+                                                {{ valoracion.emisor.username }}
+                                            {% endif %}
+                                        </h6>
+                                        <div class="valoracion-puntuacion">
+                                            {% for i in "12345" %}
+                                                {% if forloop.counter <= valoracion.puntuacion %}
+                                                    <i class="bi bi-star-fill text-warning"></i>
+                                                {% else %}
+                                                    <i class="bi bi-star text-warning"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    
+                                    {% if valoracion.comentario %}
+                                        <p class="card-text valoracion-comentario">
+                                            <i class="bi bi-chat-left-text-fill text-secondary me-2"></i> 
+                                            {{ valoracion.comentario }}
+                                        </p>
                                     {% else %}
-                                        <i class="bi bi-person-circle text-info me-2"></i> {{ valoracion.emisor.username }}
+                                        <p class="card-text text-muted valoracion-comentario">
+                                            <i class="bi bi-chat-left-text text-secondary me-2"></i> 
+                                            Sin comentario.
+                                        </p>
                                     {% endif %}
-                                </h6>
-                                <div class="valoracion-puntuacion">
-                                    {% for i in "12345" %}
-                                        {% if forloop.counter <= valoracion.puntuacion %}
-                                            <i class="bi bi-star-fill text-warning"></i>
-                                        {% else %}
-                                            <i class="bi bi-star text-warning"></i>
-                                        {% endif %}
-                                    {% endfor %}
+                                    
+                                    <p class="card-text valoracion-meta">
+                                        <i class="bi bi-tag-fill text-dark me-2"></i> 
+                                        Postulación #{{ valoracion.postulacion.id }} -
+                                        <i class="bi bi-calendar-fill text-info me-2"></i> 
+                                        {{ valoracion.fecha_creacion|date:"d/m/Y H:i" }}
+                                    </p>
                                 </div>
                             </div>
-                            {% if valoracion.comentario %}
-                                <p class="card-text valoracion-comentario"><i class="bi bi-chat-left-text-fill text-secondary me-2"></i> {{ valoracion.comentario }}</p>
-                            {% else %}
-                                <p class="card-text text-muted valoracion-comentario"><i class="bi bi-chat-left-text text-secondary me-2"></i> Sin comentario.</p>
-                            {% endif %}
-                            <p class="card-text valoracion-meta">
-                                <i class="bi bi-tag-fill text-dark me-2"></i> En la postulación #{{ valoracion.postulacion.id }} -
-                                <i class="bi bi-calendar-fill text-info me-2"></i> {{ valoracion.fecha_creacion|date:"d/m/Y H:i" }}
-                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle-fill me-2"></i> 
+                    {% if request.user == usuario_perfil %}
+                        No has recibido valoraciones aún.
+                    {% else %}
+                        Este usuario no ha recibido valoraciones aún.
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Valoración -->
+<div class="modal fade" id="valoracionModal" tabindex="-1" aria-labelledby="valoracionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="valoracionModalLabel">Valorar Postulación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="valoracionForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="postulacion_id" id="postulacion_id">
+                
+                <div class="modal-body">
+                    <div class="mb-4 text-center">
+                        <label class="form-label d-block mb-3 fw-bold">¿Cómo calificarías esta experiencia?</label>
+                        <div class="star-rating">
+                            {% for i in "12345" %}
+                                <span class="star" data-value="{{ i }}">&#9733;</span>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" name="puntuacion" id="puntuacion" value="">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="comentario" class="form-label fw-bold">Comentario (opcional):</label>
+                        <textarea name="comentario" class="form-control" id="comentario" rows="4" 
+                                  placeholder="Escribe tu opinión sobre la experiencia..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send-check me-1"></i> Enviar Valoración
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+// Configuración del sistema de estrellas
+function setupStarRating() {
+    const stars = document.querySelectorAll('#valoracionModal .star');
+    const puntuacionInput = document.getElementById('puntuacion');
+    
+    stars.forEach(star => {
+        star.addEventListener('mouseover', function() {
+            resetStars();
+            this.classList.add('hover');
+            let prev = this.previousElementSibling;
+            while (prev) {
+                prev.classList.add('hover');
+                prev = prev.previousElementSibling;
+            }
+        });
+
+        star.addEventListener('mouseout', resetStars);
+
+        star.addEventListener('click', function() {
+            puntuacionInput.value = this.dataset.value;
+            stars.forEach(s => s.classList.remove('selected'));
+            this.classList.add('selected');
+            let prev = this.previousElementSibling;
+            while (prev) {
+                prev.classList.add('selected');
+                prev = prev.previousElementSibling;
+            }
+        });
+    });
+
+    function resetStars() {
+        stars.forEach(star => star.classList.remove('hover'));
+    }
+}
+
+// Preparar el modal antes de mostrarlo
+function prepararModalValoracion(postulacionId) {
+    document.getElementById('postulacion_id').value = postulacionId;
+    document.getElementById('puntuacion').value = '';
+    document.getElementById('comentario').value = '';
+    
+    // Reiniciar estrellas
+    // Añadir este evento para limpiar el backdrop al cerrar
+document.getElementById('valoracionModal').addEventListener('hidden.bs.modal', function() {
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.paddingRight = '';
+});
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('valoracionModal'));
+    modal.show();
+}
+
+// Manejar envío del formulario via AJAX
+document.getElementById('valoracionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    
+    // Mostrar spinner de carga
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Enviando...';
+    
+    const formData = new FormData(form);
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Mostrar mensaje de éxito y recargar
+            const toastHTML = `
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+                    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header bg-success text-white">
+                            <strong class="me-auto">Éxito</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            <i class="bi bi-check-circle-fill me-2"></i> Valoración enviada correctamente.
                         </div>
                     </div>
                 </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p><i class="bi bi-info-circle-fill text-info me-2"></i> Este usuario no ha recibido valoraciones aún.</p>
-    {% endif %}
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', toastHTML);
+            
+            // Cerrar modal y recargar después de 1.5 segundos
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('valoracionModal')).hide();
+                location.reload();
+            }, 1500);
+        } else {
+            // Mostrar errores
+            let errorMsg = 'Error al enviar la valoración';
+            if (data.errors) {
+                const errors = JSON.parse(data.errors);
+                errorMsg += ': ' + Object.values(errors).join(' ');
+            }
+            
+            const errorToastHTML = `
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+                    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header bg-danger text-white">
+                            <strong class="me-auto">Error</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i> ${errorMsg}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', errorToastHTML);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Ocurrió un error al enviar la valoración');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnText;
+    });
+});
 
-    <div class="volver-perfil-btn">
-        <a href="{% url 'miperfil' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left-circle-fill me-1"></i> Volver al Perfil
-        </a>
-    </div>
-</div>
+// Inicializar el sistema de estrellas cuando el modal se muestra
+document.getElementById('valoracionModal').addEventListener('shown.bs.modal', setupStarRating);
+
+// Eliminar toasts después de 5 segundos
+setTimeout(() => {
+    const toasts = document.querySelectorAll('.toast');
+    toasts.forEach(toast => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    });
+}, 5000);
+</script>
 {% endblock %}

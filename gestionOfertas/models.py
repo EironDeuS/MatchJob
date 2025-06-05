@@ -116,6 +116,10 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         elif self.tipo_usuario == 'empresa':
             return getattr(self, 'empresa', None)
         return None
+    
+    @property
+    def email(self):
+        return self.correo
 
 # -----------------------------
 # Persona Natural (Sin RUT ni Direccion)
@@ -511,3 +515,20 @@ class Valoracion(models.Model):
         contexto = f" (Post. ID: {self.postulacion.id})" if self.postulacion else ""
         # Accede al RUT/username del emisor/receptor
         return f"Valoración de {self.emisor.username} a {self.receptor.username}{contexto} ({self.puntuacion}/5)"
+    
+
+# -----------------------------
+# Muestra Trabajo
+# -----------------------------
+class MuestraTrabajo(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='muestras_trabajo')
+    archivo = models.FileField(upload_to='muestras_trabajo/')
+    titulo = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.titulo} ({self.usuario.username})"
+
+    def es_imagen(self):
+        return self.archivo.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))

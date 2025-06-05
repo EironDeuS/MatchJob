@@ -3,6 +3,8 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/ranking.css' %}">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
 {% endblock %}
 
 {% block content %}
@@ -35,38 +37,40 @@
     </div>
 
     <h2 class="ranking-subtitle mb-4"><i class="bi bi-star-half text-warning me-2"></i> Top 3 Destacados</h2>
-    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 top-3-cards">
+    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5 top-3-cards" data-aos="fade-up">
         {% for usuario in top_3 %}
             <div class="col">
                 <div class="card h-100 shadow-lg ranking-card top-{{ forloop.counter }} text-center">
-                    <div class="card-body">
-                        <h5 class="card-title fw-bold">
-                            {% if forloop.counter == 1 %}
-                                <i class="bi bi-trophy-fill text-warning me-2"></i> #{{ usuario.ranking }}
-                            {% elif forloop.counter == 2 %}
-                                <i class="bi bi-award-fill text-secondary me-2"></i> #{{ usuario.ranking }}
-                            {% elif forloop.counter == 3 %}
-                                <i class="bi bi-award text-bronze me-2"></i> #{{ usuario.ranking }}
-                            {% endif %}
-                        </h5>
-                        <div class="avatar-container rounded-circle mx-auto mb-2">
-                            <i class="bi bi-person-circle avatar-icon"></i>
-                            {% if tipo_usuario == 'empresa' %}
-                                <i class="bi bi-building avatar-icon-secondary"></i>
-                            {% else %}
-                                <i class="bi bi-briefcase-fill avatar-icon-secondary"></i>
-                            {% endif %}
+                    <a href="{% url 'ver_perfil_publico' usuario.id %}" class="text-decoration-none text-dark">
+                        <div class="card-body">
+                            <h5 class="card-title fw-bold">
+                                {% if forloop.counter == 1 %}
+                                    <i class="bi bi-trophy-fill text-warning me-2"></i> #{{ usuario.ranking }}
+                                {% elif forloop.counter == 2 %}
+                                    <i class="bi bi-award-fill text-secondary me-2"></i> #{{ usuario.ranking }}
+                                {% elif forloop.counter == 3 %}
+                                    <i class="bi bi-award text-bronze me-2"></i> #{{ usuario.ranking }}
+                                {% endif %}
+                            </h5>
+                            <div class="avatar-container rounded-circle mx-auto mb-2" aria-label="Avatar de usuario">
+                                <i class="bi bi-person-circle avatar-icon"></i>
+                                {% if tipo_usuario == 'empresa' %}
+                                    <i class="bi bi-building avatar-icon-secondary"></i>
+                                {% else %}
+                                    <i class="bi bi-briefcase-fill avatar-icon-secondary"></i>
+                                {% endif %}
+                            </div>
+                            <p class="card-text nombre fw-semibold">
+                                {% if tipo_usuario == 'empresa' %}
+                                    {{ usuario.empresa.nombre_empresa|default:usuario.username }}
+                                {% else %}
+                                    {{ usuario.personanatural.nombre_completo|default:usuario.username }}
+                                {% endif %}
+                            </p>
+                            <p class="card-text"><i class="bi bi-star-fill text-warning me-1"></i> <span class="fw-medium">Promedio:</span> {{ usuario.promedio_periodo|default_if_none:"Sin valoraciones" }}</p>
+                            <p class="card-text"><i class="bi bi-chat-dots-fill text-muted me-1"></i> <span class="fw-medium">Valoraciones:</span> {{ usuario.cantidad_periodo }}</p>
                         </div>
-                        <p class="card-text nombre fw-semibold">
-                            {% if tipo_usuario == 'empresa' %}
-                                {{ usuario.empresa.nombre_empresa|default:usuario.username }}
-                            {% else %}
-                                {{ usuario.personanatural.nombre_completo|default:usuario.username }}
-                            {% endif %}
-                        </p>
-                        <p class="card-text"><i class="bi bi-star-fill text-warning me-1"></i> <span class="fw-medium">Promedio:</span> {{ usuario.promedio_periodo|default_if_none:"Sin valoraciones" }}</p>
-                        <p class="card-text"><i class="bi bi-chat-dots-fill text-muted me-1"></i> <span class="fw-medium">Valoraciones:</span> {{ usuario.cantidad_periodo }}</p>
-                    </div>
+                    </a>
                     <div class="card-footer bg-light border-top-0">
                         <small class="text-muted">Posición actual</small>
                     </div>
@@ -84,7 +88,7 @@
     <h2 class="ranking-subtitle mb-3"><i class="bi bi-list-ol text-primary me-2"></i> Resto del Ranking</h2>
     <ol class="list-group list-group-numbered shadow-sm">
         {% for usuario in resto %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
+            <a href="{% url 'ver_perfil_publico' usuario.id %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center text-decoration-none text-dark">
                 <span class="d-flex align-items-center">
                     <span class="me-2 fw-semibold">#{{ forloop.counter|add:3 }}</span>
                     {% if tipo_usuario == 'empresa' %}
@@ -97,7 +101,7 @@
                     <i class="bi bi-star-fill text-warning me-1"></i> {{ usuario.promedio_periodo|default_if_none:"Sin valoraciones" }}
                     <span class="small">({{ usuario.cantidad_periodo }} valoraciones)</span>
                 </span>
-            </li>
+            </a>
         {% empty %}
             <li class="list-group-item">No hay más usuarios con valoraciones en este periodo.</li>
         {% endfor %}
