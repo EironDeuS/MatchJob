@@ -284,3 +284,9 @@ LOGGING = {
         },
     },
 }
+
+GOOGLE_MAPS_API_KEY ='AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0'
+SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
+
+
+LOGIN_URL = '/iniciar_sesion/'
