@@ -71,7 +71,7 @@
                             </li>
                         {% elif user.tipo_usuario == 'empresa' %}
                             <li class="nav-item">
-                                <a class="nav-link {% if request.resolver_match.url_name == 'oferta_crear' %}active{% endif %}" href="{% url 'inicio' %}">
+                                <a class="nav-link {% if request.resolver_match.url_name == 'crear_oferta' %}active{% endif %}" href="{% url 'crear_oferta' %}">
                                     <i class="bi bi-plus-circle-fill nav-icon"></i> Crear Oferta
                                     <span class="nav-indicator"></span>
                                 </a>

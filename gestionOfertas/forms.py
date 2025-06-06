@@ -494,14 +494,17 @@ class OfertaTrabajoForm(forms.ModelForm):
 
         return instance
     
+
 class EditarOfertaTrabajoForm(forms.ModelForm):
+    # El campo 'ubicacion' visible
     ubicacion = forms.CharField(
         label=_('Ubicación'),
-        required=False,
+        # Lo marcamos como no requerido aquí inicialmente, y lo haremos requerido dinámicamente en __init__ para empresas
+        required=False, 
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'id': 'ubicacionInput',
-            'placeholder': _('Ej: Santiago, Chile')
+            'id': 'id_ubicacion', # **IMPORTANTE: Usar 'id_ubicacion' para que coincida con el JS**
+            'placeholder': _('Escribe una dirección y selecciona una sugerencia')
         })
     )
     
@@ -509,7 +512,8 @@ class EditarOfertaTrabajoForm(forms.ModelForm):
         model = OfertaTrabajo
         fields = [
             'categoria', 'nombre', 'descripcion', 'requisitos',
-            'beneficios', 'salario', 'latitud', 'longitud', 'direccion',
+            'beneficios', 'salario', 
+            'latitud', 'longitud', 'direccion', # Estos campos ocultos recibirán los datos del JS
             'tipo_contrato', 'fecha_cierre', 'esta_activa', 'urgente'
         ]
         widgets = {
@@ -537,6 +541,8 @@ class EditarOfertaTrabajoForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': _('Ej: $1,000,000 - $1,500,000')
             }),
+            # Los campos de ubicación ocultos deben coincidir con los IDs esperados por Django por defecto
+            # Ya tienes id_latitud, id_longitud, id_direccion en tu plantilla, lo cual es correcto.
             'latitud': forms.HiddenInput(),
             'longitud': forms.HiddenInput(),
             'direccion': forms.HiddenInput(),
@@ -557,68 +563,76 @@ class EditarOfertaTrabajoForm(forms.ModelForm):
         # Configuración dinámica según tipo de usuario
         if self.user and hasattr(self.user, 'empresa'):
             self.fields['tipo_contrato'].required = True
-            self.fields['ubicacion'].required = True
+            # **Hacemos el campo 'ubicacion' visible obligatorio para empresas**
+            self.fields['ubicacion'].required = True 
             self.fields['nombre'].label = _('Nombre del puesto')
         else:
             self.fields['nombre'].label = _('Título de tu servicio')
             self.fields['descripcion'].label = _('Descripción de tu servicio')
             self.fields['requisitos'].label = _('Qué necesitas para el servicio')
-            self.fields.pop('tipo_contrato', None)
+            self.fields.pop('tipo_contrato', None) # Eliminar el campo si no aplica
         
         # Configuración común
         self.fields['categoria'].queryset = Categoria.objects.filter(activa=True)
         
-        # Establecer fecha mínima
+        # Establecer fecha mínima para fecha_cierre
         min_date = timezone.now().date()
         if self.instance and self.instance.fecha_cierre:
             min_date = min(min_date, self.instance.fecha_cierre)
         self.fields['fecha_cierre'].widget.attrs['min'] = min_date.isoformat()
         
-        # Inicializar valores de ubicación si existen
-        if self.instance.pk and self.instance.latitud and self.instance.longitud:
-            self.fields['ubicacion'].initial = self.instance.direccion
-            self.initial['latitud'] = self.instance.latitud
-            self.initial['longitud'] = self.instance.longitud
-            self.initial['direccion'] = self.instance.direccion
+        # Inicializar valores de ubicación si existen en la instancia
+        # Aseguramos que el campo visible 'ubicacion' tenga la 'direccion' del modelo
+        if self.instance.pk: # Si es una instancia existente
+            if self.instance.direccion:
+                self.fields['ubicacion'].initial = self.instance.direccion
+            # Los initial de latitud, longitud, direccion se poblarán automáticamente
+            # cuando Django carga la instancia en el formulario, porque son campos del Meta.
+            # No necesitas asignarlos explícitamente a self.initial aquí si son campos del modelo.
+            # Sin embargo, si quieres asegurar que los campos ocultos también tengan initial, puedes:
+            # self.initial['latitud'] = self.instance.latitud
+            # self.initial['longitud'] = self.instance.longitud
+            # self.initial['direccion'] = self.instance.direccion
+
 
     def clean(self):
         cleaned_data = super().clean()
         
         # Validación para empresas
-        if hasattr(self.user, 'empresa') and not cleaned_data.get('tipo_contrato'):
-            self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
-        
-        # Validación de ubicación
-        ubicacion = cleaned_data.get('ubicacion')
-        if hasattr(self.user, 'empresa') and not (cleaned_data.get('latitud') and cleaned_data.get('longitud')):
-            self.add_error('ubicacion', _('Debes seleccionar una ubicación válida en el mapa'))
-        
+        if hasattr(self.user, 'empresa'):
+            # Si el tipo de contrato es obligatorio y no se proporcionó
+            if self.fields.get('tipo_contrato') and not cleaned_data.get('tipo_contrato'):
+                self.add_error('tipo_contrato', _('Este campo es obligatorio para ofertas de empleo'))
+            
+            # **Validación de ubicación más estricta para empresas**
+            # Si ubicacion (el campo visible) es obligatorio, ya se validará automáticamente
+            # por Django. Pero también validamos las coordenadas.
+            latitud = cleaned_data.get('latitud')
+            longitud = cleaned_data.get('longitud')
+            direccion_oculta = cleaned_data.get('direccion') # La dirección que viene del campo oculto
+
+            if not (latitud and longitud and direccion_oculta):
+                self.add_error('ubicacion', _('Debes seleccionar una ubicación válida en el mapa usando el autocompletado o arrastrando el marcador.'))
+            elif self.fields['ubicacion'].required and not cleaned_data.get('ubicacion'):
+                # Esto es si el campo visible 'ubicacion' está vacío a pesar de tener lat/lng (caso raro)
+                self.add_error('ubicacion', _('La dirección de ubicación es obligatoria.'))
+
         return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         
-        # Procesar ubicación si se proporcionó
-        ubicacion = self.cleaned_data.get('ubicacion')
-        latitud = self.cleaned_data.get('latitud')
-        longitud = self.cleaned_data.get('longitud')
+        # **ELIMINAMOS la lógica de geocodificación inversa aquí.**
+        # Confiamos en que el JavaScript ya pobló 'latitud', 'longitud' y 'direccion'
+        # desde el frontend (ya sea por autocompletado o arrastre de marcador).
         
-        if latitud and longitud:
-            # Geocodificación inversa para obtener dirección si no está proporcionada
-            if not instance.direccion and ubicacion:
-                instance.direccion = ubicacion
-            elif not instance.direccion:
-                try:
-                    gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
-                    reverse_geocode = gmaps.reverse_geocode((latitud, longitud))
-                    if reverse_geocode:
-                        instance.direccion = reverse_geocode[0]['formatted_address']
-                except Exception as e:
-                    print(f"Error en geocodificación inversa: {e}")
+        # La línea instance.direccion = ubicacion no es necesaria aquí,
+        # porque 'direccion' ya es un campo del modelo que el formulario
+        # está manejando directamente desde el HiddenInput.
 
         if commit:
             instance.save()
-            self.save_m2m()  # Para relaciones many-to-many si las hay
+            self.save_m2m() # Para relaciones many-to-many si las hay
 
         return instance
 
