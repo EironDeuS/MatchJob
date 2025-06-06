@@ -235,6 +235,28 @@
                         <!-- Sección de Ubicación y Detalles -->
                         <div class="mb-4">
                             <h5 class="mb-3 text-primary"><i class="bi bi-geo-alt me-2"></i>Ubicación y Detalles</h5>
+                            
+                            <!-- Campo de ubicación con mapa -->
+                            <div class="form-group {% if form.ubicacion.field.required %}required-field{% endif %}">
+                                <label for="{{ form.ubicacion.id_for_label }}" class="form-label">{{ form.ubicacion.label }}</label>
+                                <div class="location-input-container">
+                                    {{ form.ubicacion|add_class:"form-control" }}
+                                    <i class="bi bi-geo-alt"></i>
+                                </div>
+                                {% for error in form.ubicacion.errors %}
+                                <div class="invalid-feedback d-block">
+                                    <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                </div>
+                                {% endfor %}
+                                <div id="map" class="map-container"></div>
+                                <small class="text-muted">Busca una ubicación o arrastra el marcador en el mapa</small>
+                                
+                                <!-- Campos ocultos para coordenadas -->
+                                {{ form.latitud }}
+                                {{ form.longitud }}
+                                {{ form.direccion }}
+                            </div>
+                            
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group {% if form.salario.field.required %}required-field{% endif %}">
@@ -264,22 +286,6 @@
                                     </div>
                                 </div>
                                 {% endif %}
-                            </div>
-                            
-                            <!-- Campo de ubicación con mapa -->
-                            <div class="form-group required-field">
-                                <label for="ubicacionInput" class="form-label">Ubicación</label>
-                                <div class="location-input-container">
-                                    <input type="text" class="form-control" id="ubicacionInput" 
-                                           value="{{ form.direccion.value|default:'' }}" 
-                                           placeholder="Ej: Santiago, Chile">
-                                    <i class="bi bi-geo-alt"></i>
-                                    {{ form.latitud.as_hidden }}
-                                    {{ form.longitud.as_hidden }}
-                                    {{ form.direccion.as_hidden }}
-                                </div>
-                                <div id="map" style="height: 400px;"></div>
-                                <small class="text-muted">Busca una ubicación o arrastra el marcador en el mapa</small>
                             </div>
                             
                             <div class="row">
@@ -342,7 +348,7 @@
                                 <div class="form-check form-switch">
                                     {{ form.urgente|add_class:"form-check-input" }}
                                     <label class="form-check-label" for="{{ form.urgente.id_for_label }}">
-                                        ¿Deseas marcar esta oferta como urgente?
+                                        {{ form.urgente.label }}
                                     </label>
                                 </div>
                                 <small class="text-muted">Las ofertas urgentes aparecerán destacadas en los listados.</small>
@@ -366,113 +372,184 @@
 
 <!-- Google Maps API -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
-
 <script>
-let map, marker, autocomplete;
+    let map, marker, autocomplete;
+    let initialLat, initialLng, initialAddress; // Variables para almacenar los valores iniciales
 
-function initMap() {
-    console.log('Inicializando mapa...');
+    function initMap() {
+        console.log('Inicializando mapa...');
 
-    const initialLat = parseFloat("{{ form.latitud.value|default:'-33.4489' }}") || -33.4489;
-    const initialLng = parseFloat("{{ form.longitud.value|default:'-70.6693' }}") || -70.6693;
-    const initialPosition = { lat: initialLat, lng: initialLng };
+        // Obtener valores iniciales del formulario (campos ocultos)
+        const latField = document.getElementById("id_latitud");
+        const lngField = document.getElementById("id_longitud");
+        const dirField = document.getElementById("id_direccion");
+        const ubicacionField = document.getElementById("id_ubicacion");
 
-    const mapElement = document.getElementById("map");
-    if (!mapElement) {
-        console.error('Elemento del mapa no encontrado');
-        return;
-    }
+        // Usar valores existentes o valores por defecto para Santiago, Chile
+        initialLat = latField && latField.value ? parseFloat(latField.value) : -33.4489;
+        initialLng = lngField && lngField.value ? parseFloat(lngField.value) : -70.6693;
+        initialAddress = dirField && dirField.value ? dirField.value : ''; // Dirección guardada
+        
+        const initialPosition = { lat: initialLat, lng: initialLng };
 
-    map = new google.maps.Map(mapElement, {
-        center: initialPosition,
-        zoom: 15,
-        streetViewControl: false,
-        mapTypeControl: true,
-        mapTypeControlOptions: {
-            style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-            position: google.maps.ControlPosition.TOP_RIGHT
+        const mapElement = document.getElementById("map");
+        if (!mapElement) {
+            console.error('Elemento del mapa no encontrado');
+            return;
         }
-    });
 
-    marker = new google.maps.Marker({
-        position: initialPosition,
-        map: map,
-        draggable: true,
-        title: "Arrástrame para ajustar la ubicación"
-    });
-
-    const inputElement = document.getElementById("ubicacionInput");
-    if (inputElement) {
-        autocomplete = new google.maps.places.Autocomplete(inputElement, {
-            types: ['geocode'],
-            componentRestrictions: { country: 'cl' },
-            fields: ['formatted_address', 'geometry']
+        // Configurar el mapa
+        map = new google.maps.Map(mapElement, {
+            center: initialPosition,
+            zoom: initialAddress ? 15 : 12, // Mayor zoom si ya hay una dirección
+            streetViewControl: false,
+            mapTypeControl: true,
+            mapTypeControlOptions: {
+                style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                position: google.maps.ControlPosition.TOP_RIGHT
+            }
         });
 
-        autocomplete.addListener('place_changed', onPlaceChanged);
-    }
+        // Crear marcador
+        marker = new google.maps.Marker({
+            position: initialPosition,
+            map: map,
+            draggable: true,
+            title: "Arrástrame para ajustar la ubicación"
+        });
 
-    marker.addListener('dragend', onMarkerDragEnd);
-
-    const form = document.getElementById('edit-offer-form');
-    if (form) {
-        form.addEventListener('submit', validateForm);
-    }
-
-    console.log('Mapa inicializado correctamente');
-}
-
-function onPlaceChanged() {
-    const place = autocomplete.getPlace();
-    if (!place.geometry) {
-        alert("No se encontró la ubicación: '" + place.name + "'");
-        return;
-    }
-
-    map.setCenter(place.geometry.location);
-    map.setZoom(15);
-    marker.setPosition(place.geometry.location);
-    updateLocationFields(place.geometry.location, place.formatted_address);
-}
-
-function onMarkerDragEnd() {
-    const position = marker.getPosition();
-    map.panTo(position);
-
-    document.getElementById("id_latitud").value = position.lat();
-    document.getElementById("id_longitud").value = position.lng();
-
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ location: position }, function(results, status) {
-        if (status === 'OK' && results[0]) {
-            document.getElementById("ubicacionInput").value = results[0].formatted_address;
-            document.getElementById("id_direccion").value = results[0].formatted_address;
+        // Inicializar el campo de texto 'ubicacion' con la dirección guardada
+        if (ubicacionField && initialAddress) {
+            ubicacionField.value = initialAddress;
         }
-    });
-}
 
-function updateLocationFields(latLng, address = null) {
-    document.getElementById('id_latitud').value = latLng.lat();
-    document.getElementById('id_longitud').value = latLng.lng();
-    if (address) {
-        document.getElementById('id_direccion').value = address;
+        // Configurar autocompletado
+        if (ubicacionField) {
+            autocomplete = new google.maps.places.Autocomplete(ubicacionField, {
+                types: ['geocode'],
+                componentRestrictions: { country: 'cl' }, // Restringe a Chile
+                fields: ['formatted_address', 'geometry']
+            });
+
+            autocomplete.addListener('place_changed', onPlaceChanged);
+
+            // Clear map and marker if user types and doesn't select from autocomplete
+            ubicacionField.addEventListener('input', function() {
+                // Si el usuario empieza a escribir, asume que quiere una nueva ubicación
+                // Podrías poner un delay o un botón para "limpiar" la selección actual
+                // Por ahora, solo vaciamos los campos de lat/lng para forzar la selección
+                latField.value = '';
+                lngField.value = '';
+                dirField.value = '';
+                // Opcional: remover el marcador o moverlo a una posición neutra
+                // marker.setMap(null); 
+            });
+        }
+
+        // Event listeners
+        marker.addListener('dragend', onMarkerDragEnd);
+
+        const form = document.getElementById('edit-offer-form');
+        if (form) {
+            form.addEventListener('submit', validateForm);
+        }
+
+        console.log('Mapa inicializado correctamente con la ubicación actual:', initialAddress || 'Santiago, Chile');
     }
-}
 
-function validateForm(e) {
-    if (!document.getElementById('id_latitud').value || 
-        !document.getElementById('id_longitud').value) {
-        e.preventDefault();
-        alert('Por favor selecciona una ubicación válida en el mapa');
-        const input = document.getElementById('ubicacionInput');
-        if (input) input.focus();
+    function onPlaceChanged() {
+        const place = autocomplete.getPlace();
+        if (!place.geometry || !place.geometry.location) {
+            alert("No se encontró la ubicación. Por favor, selecciona una de las sugerencias.");
+            // Si el lugar no tiene geometría (ej. usuario escribe y no selecciona),
+            // se limpia el campo de ubicación para forzar una selección válida.
+            document.getElementById("id_ubicacion").value = '';
+            document.getElementById('id_latitud').value = '';
+            document.getElementById('id_longitud').value = '';
+            document.getElementById('id_direccion').value = '';
+            // Podrías resetear el mapa a la ubicación inicial o a una por defecto
+            map.setCenter({ lat: initialLat, lng: initialLng });
+            marker.setPosition({ lat: initialLat, lng: initialLng });
+            return;
+        }
+
+        map.setCenter(place.geometry.location);
+        map.setZoom(15);
+        marker.setPosition(place.geometry.location);
+        updateLocationFields(place.geometry.location, place.formatted_address);
+        document.getElementById("id_ubicacion").value = place.formatted_address; // Asegura que el input visible tenga la dirección formateada
     }
-}
 
-window.gm_authFailure = function() {
-    alert('Error al cargar Google Maps. Por favor recarga la página.');
-    console.error('Error de autenticación con Google Maps API');
-};
+    function onMarkerDragEnd() {
+        const position = marker.getPosition();
+        map.panTo(position);
+
+        // Geocodificación inversa para obtener la dirección y actualizar campos
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: position }, function(results, status) {
+            if (status === 'OK' && results[0]) {
+                const formattedAddress = results[0].formatted_address;
+                updateLocationFields(position, formattedAddress);
+                document.getElementById("id_ubicacion").value = formattedAddress; // Actualiza el campo visible
+            } else {
+                console.error('Error al geocodificar la ubicación:', status);
+                alert('No se pudo obtener la dirección para la ubicación seleccionada.');
+                // En caso de error, podríamos limpiar los campos o revertir
+                document.getElementById("id_ubicacion").value = '';
+                document.getElementById('id_latitud').value = '';
+                document.getElementById('id_longitud').value = '';
+                document.getElementById('id_direccion').value = '';
+            }
+        });
+    }
+
+    function updateLocationFields(latLng, address = null) {
+        const latField = document.getElementById('id_latitud');
+        const lngField = document.getElementById('id_longitud');
+        const dirField = document.getElementById('id_direccion');
+        
+        if (latField) latField.value = latLng.lat();
+        if (lngField) lngField.value = latLng.lng();
+        if (address && dirField) dirField.value = address;
+        // Si no se proporciona una dirección (ej. al arrastrar el marcador antes de geocodificar),
+        // mantenemos la anterior o la dejamos vacía hasta que se obtenga.
+    }
+
+    function validateForm(e) {
+        const latField = document.getElementById('id_latitud');
+        const lngField = document.getElementById('id_longitud');
+        const ubicacionField = document.getElementById('id_ubicacion');
+        
+        // La validación clave es que los campos ocultos de lat/lng tengan valores
+        // y que el campo visible de ubicación no esté vacío.
+        if (!latField.value || !lngField.value || !ubicacionField.value) {
+            e.preventDefault();
+            alert('Por favor, selecciona una ubicación válida en el mapa o utiliza el autocompletado.');
+            ubicacionField.focus(); // Enfocar el campo para que el usuario lo corrija
+            return false;
+        }
+        return true;
+    }
+
+    // Manejo de errores de Google Maps
+    window.gm_authFailure = function() {
+        alert('Error al cargar Google Maps. Por favor, verifica tu clave API y recarga la página.');
+        console.error('Error de autenticación con Google Maps API');
+    };
+
+    // Asegurar que el mapa se inicialice correctamente incluso si el script de GMaps ya estaba cargado
+    // Esto es importante si el script de la API se carga antes que este JS.
+    if (typeof google !== 'undefined' && google.maps) {
+        initMap();
+    } else {
+        // En caso de que el callback no funcione por alguna razón, se podría añadir un listener al window
+        // Esto es menos común si el `callback=initMap` está bien configurado.
+        window.addEventListener('load', function() {
+            if (typeof google !== 'undefined' && google.maps) {
+                initMap();
+            }
+        });
+    }
 </script>
 
 {% endblock %}

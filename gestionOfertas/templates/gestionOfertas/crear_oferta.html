@@ -2,27 +2,181 @@
 {% load static %}
 {% load widget_tweaks %}
 
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .main-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px 15px 0 0 !important;
+        padding: 1.2rem;
+        border: none;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-outline-secondary {
+        border-radius: 10px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .form-switch .form-check-input {
+        border-radius: 2rem;
+    }
+    
+    #map {
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        min-height: 200px;
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+        backdrop-filter: blur(10px);
+    }
+    
+    .input-group-text {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px 0 0 10px;
+    }
+    
+    .input-group .form-control {
+        border-radius: 0 10px 10px 0;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+    
+    .invalid-feedback {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .text-primary {
+        color: #667eea !important;
+    }
+    
+    .location-input-wrapper {
+        position: relative;
+    }
+    
+    .location-icon {
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #667eea;
+        z-index: 10;
+        pointer-events: none;
+    }
+    
+    .header-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-5">
-    <div class="mx-auto shadow-lg rounded-4 bg-white p-4 p-md-5" style="max-width: 1000px;">
+    <div class="main-container mx-auto p-4 p-md-5" style="max-width: 1000px;">
+        
+        <!-- Header -->
         <div class="text-center mb-5">
-            <h1 class="display-5 fw-bold text-primary"><i class="bi bi-briefcase-fill me-2"></i>Publica una oferta</h1>
-            <p class="lead text-muted">Conecta con el mejor talento para tu empresa o proyecto en Chile</p>
+            <h1 class="display-5 fw-bold header-gradient mb-3">
+                <i class="bi bi-briefcase-fill me-2"></i>
+                {% if user.empresa %}
+                    Publica una Oferta de Empleo
+                {% else %}
+                    Publica tu Servicio
+                {% endif %}
+            </h1>
+            <p class="lead text-muted">
+                {% if user.empresa %}
+                    Conecta con el mejor talento para tu empresa en Chile
+                {% else %}
+                    Ofrece tus servicios profesionales y conecta con clientes
+                {% endif %}
+            </p>
         </div>
 
+        <!-- Mensajes de Django -->
         {% if messages %}
         <div class="mb-4">
             {% for message in messages %}
             <div class="alert alert-{{ message.tags }} d-flex align-items-center" role="alert">
-                <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% else %}bi-exclamation-triangle-fill{% endif %} me-2"></i>
+                <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% elif message.tags == 'error' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %} me-2"></i>
                 <div>{{ message }}</div>
             </div>
             {% endfor %}
         </div>
         {% endif %}
 
+        <!-- Errores no específicos del formulario -->
         {% if form.non_field_errors %}
-        <div class="alert alert-danger d-flex align-items-center" role="alert">
+        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
             <div>
                 {% for error in form.non_field_errors %}
@@ -36,14 +190,19 @@
             {% csrf_token %}
 
             <!-- Información básica -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>Información básica</h5>
+            <div class="card">
+                <div class="card-header text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        Información Básica
+                    </h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="{{ form.categoria.id_for_label }}" class="form-label">{{ form.categoria.label }}</label>
+                            <label for="{{ form.categoria.id_for_label }}" class="form-label">
+                                {{ form.categoria.label }} *
+                            </label>
                             {{ form.categoria|add_class:"form-select" }}
                             {% if form.categoria.errors %}
                             <div class="invalid-feedback d-block">
@@ -52,7 +211,9 @@
                             {% endif %}
                         </div>
                         <div class="col-md-6">
-                            <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+                            <label for="{{ form.nombre.id_for_label }}" class="form-label">
+                                {{ form.nombre.label }} *
+                            </label>
                             {{ form.nombre|add_class:"form-control" }}
                             {% if form.nombre.errors %}
                             <div class="invalid-feedback d-block">
@@ -61,7 +222,9 @@
                             {% endif %}
                         </div>
                         <div class="col-12">
-                            <label for="{{ form.descripcion.id_for_label }}" class="form-label">{{ form.descripcion.label }}</label>
+                            <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                                {{ form.descripcion.label }} *
+                            </label>
                             {{ form.descripcion|add_class:"form-control" }}
                             {% if form.descripcion.errors %}
                             <div class="invalid-feedback d-block">
@@ -73,15 +236,20 @@
                 </div>
             </div>
 
-            <!-- Detalles -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-map-fill me-2"></i>Ubicación y detalles</h5>
+            <!-- Ubicación y detalles -->
+            <div class="card">
+                <div class="card-header text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-geo-alt-fill me-2"></i>
+                        Ubicación y Detalles
+                    </h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <label for="{{ form.salario.id_for_label }}" class="form-label">{{ form.salario.label }} (CLP)</label>
+                            <label for="{{ form.salario.id_for_label }}" class="form-label">
+                                {{ form.salario.label }} (CLP)
+                            </label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
                                 {{ form.salario|add_class:"form-control" }}
@@ -93,30 +261,47 @@
                             {% endif %}
                         </div>
 
-                        <div class="col-md-4">
-                            <label for="ubicacionInput" class="form-label">Ubicación *</label>
-                            <div class="position-relative">
-                                <input type="text" class="form-control {% if form.latitud.errors or form.longitud.errors %}is-invalid{% endif %}" 
-                                       id="ubicacionInput" placeholder="Ej: Santiago, Chile" required>
-                                <i class="bi bi-geo-alt position-absolute top-50 end-0 translate-middle-y me-3 text-primary"></i>
-                                {{ form.latitud.as_hidden }}
-                                {{ form.longitud.as_hidden }}
-                                <input type="hidden" id="id_direccion" name="direccion">
+                        <div class="col-md-8">
+                            <label for="ubicacionInput" class="form-label">
+                                {{ form.ubicacion.label }} *
+                            </label>
+                            <div class="location-input-wrapper">
+                                <input type="text" 
+                                       class="form-control {% if form.latitud.errors or form.longitud.errors %}is-invalid{% endif %}" 
+                                       id="ubicacionInput" 
+                                       name="ubicacion"
+                                       placeholder="Ej: Santiago, Chile"
+                                       value="{{ form.ubicacion.value|default:'' }}"
+                                       required>
+                                <i class="bi bi-geo-alt location-icon"></i>
                             </div>
+                            
+                            <!-- Campos ocultos para coordenadas -->
+                            {{ form.latitud }}
+                            {{ form.longitud }}
+                            {{ form.direccion }}
+                            
                             {% if form.latitud.errors or form.longitud.errors %}
                             <div class="invalid-feedback d-block">
                                 Por favor selecciona una ubicación válida en el mapa
                             </div>
                             {% endif %}
-                            <div class="mt-2 rounded overflow-hidden border" style="height: 200px;">
-                                <div id="map" style="height: 100%;"></div>
+                            
+                            <!-- Mapa -->
+                            <div class="mt-3">
+                                <div id="map" style="height: 200px; width: 100%;"></div>
                             </div>
-                            <small class="text-muted">Busca una ubicación o arrastra el marcador en el mapa</small>
+                            <small class="text-muted">
+                                Busca una ubicación o arrastra el marcador en el mapa
+                            </small>
                         </div>
 
+                        <!-- Tipo de contrato (solo para empresas) -->
                         {% if form.tipo_contrato %}
-                        <div class="col-md-4">
-                            <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">{{ form.tipo_contrato.label }}</label>
+                        <div class="col-md-6">
+                            <label for="{{ form.tipo_contrato.id_for_label }}" class="form-label">
+                                {{ form.tipo_contrato.label }} *
+                            </label>
                             {{ form.tipo_contrato|add_class:"form-select" }}
                             {% if form.tipo_contrato.errors %}
                             <div class="invalid-feedback d-block">
@@ -127,7 +312,9 @@
                         {% endif %}
 
                         <div class="col-md-6">
-                            <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">{{ form.fecha_cierre.label }}</label>
+                            <label for="{{ form.fecha_cierre.id_for_label }}" class="form-label">
+                                {{ form.fecha_cierre.label }}
+                            </label>
                             {{ form.fecha_cierre|add_class:"form-control" }}
                             {% if form.fecha_cierre.errors %}
                             <div class="invalid-feedback d-block">
@@ -135,168 +322,269 @@
                             </div>
                             {% endif %}
                         </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">{{ form.esta_activa.label }}</label>
-                            <div class="form-check form-switch">
-                                {{ form.esta_activa|add_class:"form-check-input" }}
-                                <label class="form-check-label" for="{{ form.esta_activa.id_for_label }}">Visible</label>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Requisitos y beneficios -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="bi bi-card-checklist me-2"></i>Requisitos y beneficios</h5>
-                </div>
-                <div class="card-body row g-3">
-                    <div class="col-md-6">
-                        <label for="{{ form.requisitos.id_for_label }}" class="form-label">{{ form.requisitos.label }}</label>
-                        {{ form.requisitos|add_class:"form-control" }}
-                        {% if form.requisitos.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.requisitos.errors|join:", " }}
-                        </div>
+            <div class="card">
+                <div class="card-header text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-card-checklist me-2"></i>
+                        {% if user.empresa %}
+                            Requisitos y Beneficios
+                        {% else %}
+                            Detalles del Servicio
                         {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label for="{{ form.beneficios.id_for_label }}" class="form-label">{{ form.beneficios.label }}</label>
-                        {{ form.beneficios|add_class:"form-control" }}
-                        {% if form.beneficios.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.beneficios.errors|join:", " }}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Urgente -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="mb-0"><i class="bi bi-exclamation-diamond me-2"></i>Urgencia</h5>
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="form-check form-switch">
-                        {{ form.urgente|add_class:"form-check-input" }}
-                        <label class="form-check-label" for="{{ form.urgente.id_for_label }}">
-                            ¿Deseas marcar esta oferta como urgente?
-                        </label>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.requisitos.id_for_label }}" class="form-label">
+                                {{ form.requisitos.label }}
+                            </label>
+                            {{ form.requisitos|add_class:"form-control" }}
+                            {% if form.requisitos.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.requisitos.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.beneficios.id_for_label }}" class="form-label">
+                                {{ form.beneficios.label }}
+                            </label>
+                            {{ form.beneficios|add_class:"form-control" }}
+                            {% if form.beneficios.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.beneficios.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    <small class="text-muted">Las ofertas urgentes aparecerán destacadas.</small>
                 </div>
             </div>
 
-            <!-- Enviar -->
-            <div class="text-end">
-                <button type="submit" class="btn btn-lg btn-primary shadow-sm px-4">
-                    <i class="bi bi-send-check me-2"></i>Publicar oferta
+            <!-- Configuración adicional -->
+            <div class="card">
+                <div class="card-header text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear-fill me-2"></i>
+                        Configuración de Publicación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                {{ form.esta_activa|add_class:"form-check-input" }}
+                                <label class="form-check-label fw-bold" for="{{ form.esta_activa.id_for_label }}">
+                                    {{ form.esta_activa.label }}
+                                </label>
+                            </div>
+                            <small class="text-muted">La oferta será visible inmediatamente</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                {{ form.urgente|add_class:"form-check-input" }}
+                                <label class="form-check-label fw-bold" for="{{ form.urgente.id_for_label }}">
+                                    {{ form.urgente.label }}
+                                </label>
+                            </div>
+                            <small class="text-muted">Las ofertas urgentes aparecen destacadas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="text-end mt-4">
+                <button type="submit" class="btn btn-primary btn-lg me-2">
+                    <i class="bi bi-send-check me-2"></i>
+                    {% if user.empresa %}
+                        Publicar Oferta
+                    {% else %}
+                        Publicar Servicio
+                    {% endif %}
                 </button>
-                <a href="{% url 'miperfil' %}" class="btn btn-lg btn-outline-secondary ms-2">
-                    <i class="bi bi-x-circle me-2"></i>Cancelar
+                <a href="{% url 'miperfil' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-x-circle me-2"></i>
+                    Cancelar
                 </a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Google Maps -->
+<!-- Google Maps API -->
 <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
 
 <script>
-    let map, marker, autocomplete;
-    const defaultLocation = { lat: -33.4489, lng: -70.6693 };
-    let isInitialLoad = true;
+    let map, marker, autocomplete, geocoder;
+    const defaultLocation = { lat: -33.4489, lng: -70.6693 }; // Santiago, Chile
 
     function initMap() {
+        // Inicializar mapa
         map = new google.maps.Map(document.getElementById("map"), {
             center: defaultLocation,
             zoom: 6,
             streetViewControl: false,
+            mapTypeControl: true,
             mapTypeControlOptions: {
                 style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
                 position: google.maps.ControlPosition.TOP_RIGHT
-            }
+            },
+            zoomControl: true,
+            scaleControl: true
         });
 
+        // Inicializar marcador
         marker = new google.maps.Marker({
             map: map,
             draggable: true,
             animation: google.maps.Animation.DROP,
-            title: "Arrástrame para ajustar la ubicación"
+            title: "Arrastra para ajustar la ubicación"
         });
 
-        autocomplete = new google.maps.places.Autocomplete(document.getElementById("ubicacionInput"), {
-            componentRestrictions: { country: "cl" },
-            fields: ["formatted_address", "geometry"],
-            types: ["establishment", "geocode"]
-        });
+        // Inicializar geocoder
+        geocoder = new google.maps.Geocoder();
 
-        autocomplete.addListener("place_changed", fillInAddress);
-        marker.addListener("dragend", updateMarkerPosition);
-        
-        // Si hay valores previos, cargarlos
-        {% if form.latitud.value and form.longitud.value %}
-            const initialLatLng = new google.maps.LatLng({{ form.latitud.value }}, {{ form.longitud.value }});
-            marker.setPosition(initialLatLng);
-            map.setCenter(initialLatLng);
-            map.setZoom(15);
-            
-            // Realizar geocodificación inversa para obtener la dirección
-            const geocoder = new google.maps.Geocoder();
-            geocoder.geocode({ location: initialLatLng }, (results, status) => {
-                if (status === "OK" && results[0]) {
-                    document.getElementById("ubicacionInput").value = results[0].formatted_address;
-                    document.getElementById("id_direccion").value = results[0].formatted_address;
-                }
-            });
-        {% endif %}
-
-        // Validar que se haya seleccionado una ubicación al enviar el formulario
-        document.getElementById('jobOfferForm').addEventListener('submit', function(e) {
-            if (!document.getElementById('id_latitud').value || !document.getElementById('id_longitud').value) {
-                e.preventDefault();
-                alert('Por favor selecciona una ubicación válida en el mapa');
-                document.getElementById('ubicacionInput').focus();
+        // Configurar autocompletado
+        autocomplete = new google.maps.places.Autocomplete(
+            document.getElementById("ubicacionInput"), 
+            {
+                componentRestrictions: { country: "cl" },
+                fields: ["formatted_address", "geometry"],
+                types: ["establishment", "geocode"]
             }
-        });
+        );
+
+        // Event listeners
+        autocomplete.addListener("place_changed", onPlaceChanged);
+        marker.addListener("dragend", onMarkerDragEnd);
+
+        // Cargar ubicación inicial si existe
+        loadInitialLocation();
+
+        // Validación del formulario
+        document.getElementById('jobOfferForm').addEventListener('submit', validateForm);
     }
 
-    function fillInAddress() {
+    function onPlaceChanged() {
         const place = autocomplete.getPlace();
+        
         if (!place.geometry) {
-            document.getElementById("ubicacionInput").classList.add('is-invalid');
+            showError("No se pudo encontrar la ubicación. Por favor, selecciona una opción de la lista.");
             return;
         }
 
-        document.getElementById("ubicacionInput").classList.remove('is-invalid');
-        map.setCenter(place.geometry.location);
-        map.setZoom(15);
-        marker.setPosition(place.geometry.location);
-        
-        // Actualizar campos ocultos
-        document.getElementById("id_latitud").value = place.geometry.location.lat();
-        document.getElementById("id_longitud").value = place.geometry.location.lng();
-        document.getElementById("id_direccion").value = place.formatted_address;
+        updateMapAndForm(place.geometry.location, place.formatted_address);
     }
 
-    function updateMarkerPosition() {
+    function onMarkerDragEnd() {
         const position = marker.getPosition();
-        document.getElementById("id_latitud").value = position.lat();
-        document.getElementById("id_longitud").value = position.lng();
         
-        // Realizar geocodificación inversa para obtener la dirección
-        const geocoder = new google.maps.Geocoder();
+        // Geocodificación inversa
         geocoder.geocode({ location: position }, (results, status) => {
             if (status === "OK" && results[0]) {
-                document.getElementById("ubicacionInput").value = results[0].formatted_address;
-                document.getElementById("id_direccion").value = results[0].formatted_address;
-                document.getElementById("ubicacionInput").classList.remove('is-invalid');
+                const address = results[0].formatted_address;
+                document.getElementById("ubicacionInput").value = address;
+                updateHiddenFields(position.lat(), position.lng(), address);
+                clearError();
+            } else {
+                showError("No se pudo obtener la dirección para esta ubicación.");
             }
         });
     }
+
+    function updateMapAndForm(location, address) {
+        // Actualizar mapa
+        map.setCenter(location);
+        map.setZoom(15);
+        marker.setPosition(location);
+        
+        // Actualizar formulario
+        document.getElementById("ubicacionInput").value = address;
+        updateHiddenFields(location.lat(), location.lng(), address);
+        clearError();
+    }
+
+    function updateHiddenFields(lat, lng, address) {
+        document.getElementById("id_latitud").value = lat;
+        document.getElementById("id_longitud").value = lng;
+        document.getElementById("id_direccion").value = address;
+    }
+
+    function loadInitialLocation() {
+        const latInput = document.getElementById("id_latitud");
+        const lngInput = document.getElementById("id_longitud");
+        
+        if (latInput.value && lngInput.value) {
+            const lat = parseFloat(latInput.value);
+            const lng = parseFloat(lngInput.value);
+            const initialLocation = new google.maps.LatLng(lat, lng);
+            
+            marker.setPosition(initialLocation);
+            map.setCenter(initialLocation);
+            map.setZoom(15);
+            
+            // Si no hay dirección, hacer geocodificación inversa
+            if (!document.getElementById("ubicacionInput").value) {
+                geocoder.geocode({ location: initialLocation }, (results, status) => {
+                    if (status === "OK" && results[0]) {
+                        document.getElementById("ubicacionInput").value = results[0].formatted_address;
+                        document.getElementById("id_direccion").value = results[0].formatted_address;
+                    }
+                });
+            }
+        }
+    }
+
+    function validateForm(event) {
+        const latInput = document.getElementById("id_latitud");
+        const lngInput = document.getElementById("id_longitud");
+        const ubicacionInput = document.getElementById("ubicacionInput");
+        
+        if (!latInput.value || !lngInput.value) {
+            event.preventDefault();
+            showError("Por favor selecciona una ubicación válida en el mapa.");
+            ubicacionInput.focus();
+            return false;
+        }
+        
+        return true;
+    }
+
+    function showError(message) {
+        const ubicacionInput = document.getElementById("ubicacionInput");
+        ubicacionInput.classList.add("is-invalid");
+        
+        // Crear o actualizar mensaje de error
+        let errorDiv = document.querySelector("#ubicacionInput + .invalid-feedback");
+        if (!errorDiv) {
+            errorDiv = document.createElement("div");
+            errorDiv.className = "invalid-feedback";
+            ubicacionInput.parentNode.insertBefore(errorDiv, ubicacionInput.nextSibling);
+        }
+        errorDiv.textContent = message;
+        errorDiv.style.display = "block";
+    }
+
+    function clearError() {
+        const ubicacionInput = document.getElementById("ubicacionInput");
+        ubicacionInput.classList.remove("is-invalid");
+        
+        const errorDiv = document.querySelector("#ubicacionInput + .invalid-feedback");
+        if (errorDiv) {
+            errorDiv.style.display = "none";
+        }
+    }
+
+    // Manejo de errores de Google Maps
+    window.gm_authFailure = function() {
+        console.error("Error de autenticación de Google Maps");
+        alert("Error al cargar Google Maps. Por favor, verifica la configuración de la API key.");
+    };
 </script>
 {% endblock %}

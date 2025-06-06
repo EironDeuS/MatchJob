@@ -352,6 +352,7 @@ from django.shortcuts import render, redirect
 from django.utils.translation import gettext as _
 from django.conf import settings
 import googlemaps
+from django.db import transaction
 from .forms import OfertaTrabajoForm
 
 @login_required
@@ -436,56 +437,48 @@ def mis_ofertas(request):
         'ofertas': ofertas
     }
     return render(request, 'gestionOfertas/mis_ofertas.html', context)
-
 @login_required
 def editar_oferta(request, oferta_id):
-    # Obtener la oferta asegurando que pertenece al usuario
+    """
+    Vista para editar una oferta de trabajo existente.
+    """
+    # Obtener la oferta asegurando que pertenece al usuario logueado
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
     
     if request.method == 'POST':
-        form = EditarOfertaTrabajoForm(request.POST, instance=oferta, user=request.user)
+        # El formulario ya debe manejar la ubicación directamente de los campos ocultos
+        form = EditarOfertaTrabajoForm(request.POST, request.FILES, instance=oferta, user=request.user)
+        
         if form.is_valid():
             try:
-                # Guardar la oferta con los datos del formulario
-                oferta_actualizada = form.save(commit=False)
-                
-                # Procesar ubicación si hay cambios
-                if form.cleaned_data.get('latitud') and form.cleaned_data.get('longitud'):
-                    # Actualizar coordenadas
-                    oferta_actualizada.latitud = form.cleaned_data['latitud']
-                    oferta_actualizada.longitud = form.cleaned_data['longitud']
+                with transaction.atomic():
+                    # Aquí simplemente guardamos la oferta.
+                    # Los campos 'latitud', 'longitud' y 'direccion'
+                    # ya deberían estar en form.cleaned_data y se guardarán
+                    # directamente con form.save()
+                    oferta_actualizada = form.save(commit=True) # Guardamos directamente, ya que la dirección viene del form
                     
-                    # Si no hay dirección o cambió la ubicación, hacer geocodificación inversa
-                    if not oferta_actualizada.direccion or \
-                       (oferta.latitud != oferta_actualizada.latitud or 
-                        oferta.longitud != oferta_actualizada.longitud):
-                        try:
-                            gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
-                            reverse_geocode = gmaps.reverse_geocode(
-                                (oferta_actualizada.latitud, oferta_actualizada.longitud)
-                            )
-                            if reverse_geocode:
-                                oferta_actualizada.direccion = reverse_geocode[0]['formatted_address']
-                        except (googlemaps.exceptions.ApiError, googlemaps.exceptions.HTTPError) as e:
-                            messages.warning(
-                                request, 
-                                'La oferta se actualizó, pero no pudimos actualizar la dirección automáticamente'
-                            )
-                            print(f"Error en geocodificación inversa: {e}")
-                
-                # Guardar los cambios
-                oferta_actualizada.save()
-                form.save_m2m()  # Para relaciones many-to-many si las hay
-                
-                messages.success(request, '¡Oferta actualizada correctamente!')
-                return redirect('mis_ofertas')
-                
+                    # form.save_m2m() es importante para relaciones many-to-many
+                    # si tu formulario las maneja.
+                    form.save_m2m() 
+                    
+                    messages.success(request, '¡Oferta actualizada correctamente!')
+                    return redirect('mis_ofertas')
+                    
             except Exception as e:
+                # Captura cualquier error que ocurra durante el guardado
                 messages.error(
                     request, 
                     'Ocurrió un error al actualizar la oferta. Por favor intenta nuevamente.'
                 )
                 print(f"Error al actualizar oferta: {e}")
+        else:
+            # Si el formulario no es válido, se renderiza la página con los errores del formulario
+            messages.error(
+                request, 
+                'Por favor, corrige los errores en el formulario.'
+            )
+            print("Errores del formulario:", form.errors) # Para depuración
     else:
         # Inicializar el formulario con la instancia de la oferta
         form = EditarOfertaTrabajoForm(instance=oferta, user=request.user)
@@ -493,13 +486,12 @@ def editar_oferta(request, oferta_id):
     context = {
         'form': form,
         'oferta': oferta,
-        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY,
+        'GOOGLE_MAPS_API_KEY': settings.GOOGLE_MAPS_API_KEY,
         'es_empresa': hasattr(request.user, 'empresa'),
         'es_persona': hasattr(request.user, 'personanatural')
     }
     
     return render(request, 'gestionOfertas/editar_oferta.html', context)
-
 @login_required
 def eliminar_oferta(request, oferta_id):
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
