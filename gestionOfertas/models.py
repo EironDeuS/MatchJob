@@ -288,6 +288,7 @@ class CV(models.Model):
     @property
     def idiomas_ia_list(self):
         return self.datos_analizados_ia.get('idiomas', []) if self.datos_analizados_ia else []
+
 # -----------------------------
 # Categoría
 # -----------------------------
