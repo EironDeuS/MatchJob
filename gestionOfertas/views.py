@@ -24,7 +24,7 @@ from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout # logout añadido por si acaso
 from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, EditarPerfilPersonaForm,EditarOfertaTrabajoForm
-from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV
+from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria, Postulacion, Valoracion, CV, MuestraTrabajo
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
