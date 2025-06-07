@@ -221,25 +221,23 @@
               </div>
               <div class="col-md-6">
                 <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
-                 {{ form.password.errors }}
-                <div class="input-with-icon position-relative">
-                <i class="bi bi-lock-fill"></i>
-                {{ form.password }}
-                    <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
-                  </div>
-                {# Puedes incluir las validaciones de contraseña aquí si quieres #}
-                {# <small class="text-muted"><ul>...</ul></small> #}
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.password2.id_for_label }}" class="form-label">{{ form.password2.label }}</label>
-                 {{ form.password2.errors }}
+                {{ form.password.errors }}
                 <div class="input-with-icon position-relative">
                   <i class="bi bi-lock-fill"></i>
-                  {{ form.password2 }}
+                  {{ form.password }}
                   <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
                 </div>
-                 {# <small class="text-muted">Ingresa la misma contraseña para verificación</small> #}
               </div>
+              <div class="col-md-6">
+                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">{{ form.confirm_password.label }}</label>
+                {{ form.confirm_password.errors }}
+                <div class="input-with-icon position-relative">
+                <i class="bi bi-lock-fill"></i>
+                {{ form.confirm_password }}
+                <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_confirm_password', this)"></i> {# ¡IMPORTANTE! También cambia el ID #}
+                </div>
+                {# <small class="text-muted">Ingresa la misma contraseña para verificación</small> #}
+                </div>
             </div>
 
             <div class="d-grid mt-4">
