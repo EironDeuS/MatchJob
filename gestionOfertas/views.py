@@ -985,6 +985,17 @@ from django.views.decorators.http import require_POST
 # Configurar el logger
 logger = logging.getLogger(__name__)
 
+# Función auxiliar para formatear el RUT como se guarda en la DB
+def format_rut_for_db_lookup(rut_sin_guion):
+    """
+    Formatea un RUT sin guion (ej. '187847419') a un RUT con guion (ej. '18784741-9')
+    asumiendo que el último dígito es el verificador.
+    """
+    if len(rut_sin_guion) > 1:
+        return rut_sin_guion[:-1] + '-' + rut_sin_guion[-1].upper()
+    return rut_sin_guion # O manejar un error si el RUT es demasiado corto
+
+
 @csrf_exempt
 @require_POST
 def receive_cv_data(request):
@@ -1113,4 +1124,3 @@ def receive_cv_data(request):
         user_rut_for_log = data.get('user_rut', 'N/A') if 'data' in locals() else 'N/A'
         logger.exception(f"Error inesperado al procesar y guardar datos del CV para user_rut: {user_rut_for_log}. Detalles: {e}")
         return JsonResponse({'error': f'Internal Server Error: {str(e)}'}, status=500)
-
