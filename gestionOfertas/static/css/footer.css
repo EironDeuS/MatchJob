@@ -1,0 +1,32 @@
+/* Estilos generales para que el footer quede al fondo */
+  html, body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  main {
+    flex: 1;
+  }
+
+  /* Forzar color blanco en el footer */
+  footer.bg-dark,
+  footer.bg-dark * {
+    color: #ffffff !important;
+  }
+
+  footer.bg-dark a {
+    color: #aad1ff !important;
+    text-decoration: none;
+  }
+
+  footer.bg-dark a:hover {
+    color: #ffffff !important;
+    text-decoration: underline;
+  }
+
+  /* Asegura que los íconos y texto se alineen bien */
+  footer i {
+    vertical-align: middle;
+    margin-right: 4px;
+  }
