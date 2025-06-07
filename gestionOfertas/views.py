@@ -975,3 +975,13 @@ def eliminar_muestra_trabajo(request, muestra_id):
 def agrupar_muestras(lista, tamaño=3):
     return [lista[i:i + tamaño] for i in range(0, len(lista), tamaño)]
 
+import json
+import datetime
+import logging
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+# Configurar el logger
+logger = logging.getLogger(__name__)
+
