@@ -1,31 +1,33 @@
-# Usa una imagen base de Python con las dependencias necesarias
-FROM python:3.11-slim-buster
+# Usa una imagen base de Python
+FROM python:3.11-slim
 
-# Establece el directorio de trabajo dentro del contenedor
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos de requirements y las instala
+# Copia los archivos de requerimientos y las instala
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Reinstala Gunicorn explícitamente (para asegurar que esté presente)
-RUN pip install gunicorn
-
-# Copia el archivo de credenciales JSON
-COPY matchjob-458200-6a0cfe7aa83a.json /app/matchjob-458200-6a0cfe7aa83a.json
-
-# Copia el resto de tu aplicación Django al contenedor
+# Copia el resto de tu código de la aplicación # <-- LÍNEA CORREGIDA
 COPY . .
 
-# Recopila los archivos estáticos
+# --- CONFIGURACIÓN DE VARIABLES DE ENTORNO PARA EL ENTORNO DE BUILD ---
+# (Asegúrate de haber quitado los comentarios en la misma línea de los ENV)
+ENV DJANGO_DEBUG="False" \
+    GS_STATIC_BUCKET_NAME="matchjob-static-files" \
+    GS_LOCATION="static" \
+    GS_PROJECT_ID="matchjob-458200" \
+    GS_QUERYSTRING_AUTH="False"
+
+# --- PASO PARA RECOLECTAR Y SUBIR ARCHIVOS ESTÁTICOS A GCS ---
 RUN python manage.py collectstatic --noinput
 
-# Establece las variables de entorno (ajústalas según tu configuración)
+# Variables de entorno para la ejecución de la aplicación
 ENV DJANGO_SETTINGS_MODULE=MatchJob.settings
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED True
 
-# Expone el puerto en el que correrá tu aplicación (el default de Django es 8000)
-EXPOSE 8000
+# Expone el puerto que tu aplicación usa (generalmente 8000 para Gunicorn)
+# EXPOSE 8000
 
-# Comando para ejecutar tu aplicación Django con Gunicorn (un servidor WSGI recomendado para producción)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "MatchJob.wsgi"]
+# Comando para iniciar la aplicación (ej. Gunicorn)
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 MatchJob.wsgi:application
