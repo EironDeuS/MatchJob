@@ -37,7 +37,6 @@ from django.core.mail import send_mail
 from django.core.files.storage import FileSystemStorage
 
 
-# --- Vista iniciar_sesion (Sin cambios, parece correcta) ---
 def iniciar_sesion(request):
     if request.user.is_authenticated: # Redirigir si ya está logueado
         return redirect('inicio')
@@ -263,88 +262,69 @@ class OfertasUrgentesView(ListView):
 
 
 
+
 def inicio(request):
-    # Obtener parámetros de búsqueda y filtros
+    # Obtener parámetros de búsqueda válidos según el modelo
     busqueda = request.GET.get('q', '')
     categoria_id = request.GET.get('categoria', '')
     tipo_contrato = request.GET.get('tipo_contrato', '')
-    ubicacion_id = request.GET.get('ubicacion', '')
-    modalidad = request.GET.get('modalidad', '')
     salario_min = request.GET.get('salario_min', '')
     salario_max = request.GET.get('salario_max', '')
-    experiencia = request.GET.get('experiencia', '')
-    fecha_filtro = request.GET.get('fecha', '')
     
-    # Iniciar con todas las ofertas activas
-    ofertas = OfertaTrabajo.objects.filter(esta_activa=True)
+    # Obtener ofertas activas y vigentes
+    hoy = timezone.now().date()
+    ofertas = OfertaTrabajo.objects.filter(
+        esta_activa=True
+    ).filter(
+        Q(fecha_cierre__gte=hoy) | Q(fecha_cierre__isnull=True)
+    ).order_by('-fecha_publicacion')
     
     # Aplicar filtro de búsqueda por texto
     if busqueda:
         ofertas = ofertas.filter(
             Q(nombre__icontains=busqueda) |
             Q(descripcion__icontains=busqueda) |
-            Q(empresa__nombre_empresa__icontains=busqueda) |  # Asegúrate de ajustar estos campos según tu modelo
-            Q(creador__personanatural__nombres__icontains=busqueda) |
-            Q(creador__personanatural__apellidos__icontains=busqueda)
+            Q(empresa__nombre_empresa__icontains=busqueda)
         ).distinct()
     
     # Aplicar filtro por categoría
     if categoria_id:
         ofertas = ofertas.filter(categoria_id=categoria_id)
     
-    # Aplicar filtro por tipo de contrato
+    # Aplicar filtro por tipo de contrato (según choices del modelo)
     if tipo_contrato:
-        ofertas = ofertas.filter(tipo_contrato=tipo_contrato)
+        tipos_validos = [choice[0] for choice in OfertaTrabajo.TIPO_CONTRATO_CHOICES]
+        if tipo_contrato in tipos_validos:
+            ofertas = ofertas.filter(tipo_contrato=tipo_contrato)
     
-    # Aplicar filtro por ubicación
-    if ubicacion_id:
-        ofertas = ofertas.filter(ubicacion_id=ubicacion_id)
-    
-    # Aplicar filtro por modalidad de trabajo
-    if modalidad:
-        ofertas = ofertas.filter(modalidad=modalidad)
-    
-    # Aplicar filtros de salario
+    # Aplicar filtros por salario (si es numérico)
     if salario_min:
-        ofertas = ofertas.filter(salario_min__gte=float(salario_min))
+        try:
+            # Asumiendo que el salario se almacena como texto, necesitarías una lógica especial
+            # Esta es una implementación básica que deberías adaptar
+            ofertas = [oferta for oferta in ofertas if float(salario_min) <= float(oferta.salario or 0)]
+        except (ValueError, TypeError):
+            pass
+    
     if salario_max:
-        ofertas = ofertas.filter(salario_max__lte=float(salario_max))
-    
-    # Aplicar filtro por experiencia mínima
-    if experiencia:
-        ofertas = ofertas.filter(experiencia_requerida__gte=int(experiencia))
-    
-    # Aplicar filtro por fecha de publicación
-    if fecha_filtro:
-        hoy = datetime.now().date()
-        if fecha_filtro == 'hoy':
-            ofertas = ofertas.filter(fecha_oferta__date=hoy)
-        elif fecha_filtro == '3dias':
-            tres_dias_atras = hoy - timedelta(days=3)
-            ofertas = ofertas.filter(fecha_oferta__date__gte=tres_dias_atras)
-        elif fecha_filtro == '7dias':
-            semana_atras = hoy - timedelta(days=7)
-            ofertas = ofertas.filter(fecha_oferta__date__gte=semana_atras)
-        elif fecha_filtro == '30dias':
-            mes_atras = hoy - timedelta(days=30)
-            ofertas = ofertas.filter(fecha_oferta__date__gte=mes_atras)
+        try:
+            ofertas = [oferta for oferta in ofertas if float(salario_max) >= float(oferta.salario or float('inf'))]
+        except (ValueError, TypeError):
+            pass
     
     # Preparar contexto para la plantilla
     context = {
-        'ofertas': ofertas.select_related('creador', 'categoria', 'empresa'),
-        'categorias': Categoria.objects.filter(activa=True),  # Debes reemplazar esto con tu modelo de ubicaciones
+        'ofertas': ofertas,
+        'categorias': Categoria.objects.filter(activa=True),
         'busqueda_actual': busqueda,
         'categoria_actual': categoria_id,
         'tipo_contrato_actual': tipo_contrato,
-        'modalidad_actual': modalidad,
         'salario_min_actual': salario_min,
         'salario_max_actual': salario_max,
-        'experiencia_actual': experiencia,
-        'fecha_actual': fecha_filtro
+        # Eliminados los filtros que no existen en el modelo
     }
     
     return render(request, 'gestionOfertas/Inicio.html', context)
-  # Asegúrate de tener esta función en utils.py (o donde esté)
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -730,7 +710,7 @@ def detalle_oferta(request, oferta_id):
     context = {
         'oferta': oferta,
         'es_urgente': oferta.es_urgente(),  # Si tienes un método para determinar urgencia
-        'meta_title': f"{oferta.nombre} - {oferta.empresa.nombre}" if oferta.empresa else oferta.nombre,
+        'meta_title': f"{oferta.nombre} - {oferta.empresa.nombre_empresa}" if oferta.empresa else oferta.nombre,
         'meta_description': f"Oferta de trabajo: {oferta.nombre}. {oferta.descripcion[:160]}...",
     }
     
