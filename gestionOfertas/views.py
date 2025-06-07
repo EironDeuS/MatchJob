@@ -593,102 +593,85 @@ def mapa(request):
 
 
 
-@login_required # Asegura que solo usuarios logueados accedan
+@login_required
 def editar_perfil(request):
-    # Asumimos que solo las personas naturales pueden editar este perfil específico
-    # Puedes añadir lógica para redirigir a empresas a otro form/view
-    if request.user.tipo_usuario != 'persona':
-        messages.error(request, "Esta sección es solo para personas naturales.")
-        return redirect('inicio') # O a donde corresponda
+    usuario = request.user
+    if not hasattr(usuario, 'personanatural'):
+        messages.error(request, "No tienes un perfil de persona natural para editar.")
+        return redirect('some_redirect_url')
 
-    # Obtener perfil PersonaNatural asociado al usuario logueado
-    # Usamos get_object_or_404 para manejar el caso raro de que no exista
-    perfil = get_object_or_404(PersonaNatural, usuario=request.user)
-    # Obtener o crear el objeto CV asociado (por si nunca subió uno)
-    cv_obj, created = CV.objects.get_or_create(persona=perfil)
+    persona_natural = usuario.personanatural
+    cv_obj = None # Inicializamos cv_obj
+    if hasattr(persona_natural, 'cv'): # Buscamos si la persona natural tiene un CV
+        cv_obj = persona_natural.cv
+    
+    # La variable para el template sigue siendo necesaria para el enlace al CV actual
+    cv_actual_url = None
+    cv_actual_name = None
+    if cv_obj and cv_obj.archivo_cv:
+        cv_actual_url = cv_obj.archivo_cv.url
+        # Usamos cv_obj.archivo_cv.name para obtener el nombre completo con la ruta (ej. 'cvs/mi_cv.pdf')
+        # Luego lo cortaremos en el template si queremos solo el nombre del archivo.
+        cv_actual_name = cv_obj.archivo_cv.name
+
 
     if request.method == 'POST':
-        # Pasar instance=perfil podría funcionar si usaras ModelForm,
-        # pero con forms.Form, procesamos manualmente. Pasamos request.FILES.
-        form = EditarPerfilPersonaForm(request.POST, request.FILES)
+        form = EditarPerfilPersonaForm(request.POST, request.FILES, user=request.user, instance=persona_natural)
+
         if form.is_valid():
-            # Actualizar datos del Usuario
-            request.user.correo = form.cleaned_data['correo']
-            request.user.telefono = form.cleaned_data.get('telefono')
-            request.user.direccion = form.cleaned_data.get('direccion')
-            request.user.save()
+            usuario.correo = form.cleaned_data['correo']
+            usuario.telefono = form.cleaned_data['telefono']
+            usuario.direccion = form.cleaned_data['direccion']
+            usuario.save()
 
-            # Actualizar datos del Perfil PersonaNatural
-            perfil.nombres = form.cleaned_data['nombres']
-            perfil.apellidos = form.cleaned_data['apellidos']
-            perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
-            perfil.nacionalidad = form.cleaned_data.get('nacionalidad')
-            perfil.save()
+            form.save() # Guarda los campos de PersonaNatural
 
-            # --- Procesar actualización de CV ---
             nuevo_cv_archivo = form.cleaned_data.get('cv_archivo')
-            if nuevo_cv_archivo:
-                # 1. Borrar el archivo antiguo de GCS (si existe)
-                if cv_obj.archivo_cv:
+
+            if nuevo_cv_archivo: # Si se subió un nuevo archivo, siempre lo reemplazamos
+                if cv_obj:
+                    # Eliminar el archivo antiguo del storage si existe
                     try:
-                        # save=False evita guardar el modelo solo por borrar el archivo
-                        cv_obj.archivo_cv.delete(save=False)
-                        print(f"DEBUG: Archivo CV antiguo borrado de GCS: {cv_obj.archivo_cv.name}")
+                        cv_obj.archivo_cv.delete(save=False) # delete(save=False) para no guardar la instancia aún
                     except Exception as e:
-                         print(f"DEBUG: Error al intentar borrar CV antiguo: {e}")
-                         messages.warning(request, "No se pudo borrar el CV anterior del almacenamiento, pero se intentará subir el nuevo.")
-
-
-                # 2. Asignar el nuevo archivo al campo
-                cv_obj.archivo_cv = nuevo_cv_archivo
-
-                # 3. Guardar el objeto CV (esto subirá el nuevo archivo a GCS y usará tu función de renombrar)
-                try:
+                        print(f"Advertencia: No se pudo borrar el CV antiguo en storage: {e}")
+                    # Actualizar la instancia de CV existente
+                    cv_obj.archivo_cv = nuevo_cv_archivo
                     cv_obj.save()
-                    print(f"DEBUG: Nuevo CV guardado: {cv_obj.archivo_cv.name}")
-                    messages.success(request, 'Tu CV ha sido actualizado exitosamente.')
-                except Exception as e:
-                    print(f"DEBUG: Error al guardar/subir nuevo CV: {e}")
-                    messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
-            # ------------------------------------
-            elif 'cv_archivo-clear' in request.POST:
-                 # Si el usuario marcó el checkbox "clear" del ClearableFileInput
-                 if cv_obj.archivo_cv:
-                    try:
-                        cv_obj.archivo_cv.delete(save=True) # save=True aquí para guardar el campo vacío
-                        print("DEBUG: CV existente eliminado por petición del usuario.")
-                        messages.info(request, 'Tu CV ha sido eliminado.')
-                    except Exception as e:
-                        print(f"DEBUG: Error al eliminar CV existente: {e}")
-                        messages.error(request, f'Hubo un error al eliminar el CV: {e}')
+                    messages.success(request, "Tu perfil y CV han sido actualizados con éxito.")
+                else:
+                    # Si no había CV, crear uno nuevo
+                    CV.objects.create(persona=persona_natural, archivo_cv=nuevo_cv_archivo)
+                    messages.success(request, "Tu perfil y CV han sido cargados con éxito.")
+                
+                # Actualizar las variables para el contexto en caso de éxito y re-render
+                cv_actual_url = cv_obj.archivo_cv.url if cv_obj else nuevo_cv_archivo.url
+                cv_actual_name = cv_obj.archivo_cv.name if cv_obj else nuevo_cv_archivo.name
 
+            else: # No se subió un nuevo archivo CV, simplemente no hacemos nada con el CV
+                messages.success(request, "Tu perfil ha sido actualizado con éxito (CV sin cambios).")
 
-            if not nuevo_cv_archivo and 'cv_archivo-clear' not in request.POST :
-                 messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
-
-            return redirect('editar_perfil') # Redirige a la misma página para ver cambios
+            return redirect('miperfil')
 
         else: # Formulario no válido
-             print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
-             messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, "Por favor, corrige los errores en el formulario.")
 
-    else: # Método GET <--- AQUÍ DENTRO
+    else: # Método GET
         initial_data = {
-            'correo': request.user.correo,
-            'telefono': request.user.telefono,
-            'direccion': request.user.direccion,
-            'nombres': perfil.nombres,
-            'apellidos': perfil.apellidos,
-            'fecha_nacimiento': perfil.fecha_nacimiento,
-            'nacionalidad': perfil.nacionalidad,
+            'correo': usuario.correo,
+            'telefono': usuario.telefono,
+            'direccion': usuario.direccion,
         }
-        form = EditarPerfilPersonaForm(initial=initial_data)
+        form = EditarPerfilPersonaForm(instance=persona_natural, initial=initial_data, user=request.user)
 
-        context = {
-            'form': form,
-            'cv_actual': cv_obj.archivo_cv
-        }
-        return render(request, 'gestionOfertas/editar_perfil.html', context)
+    context = {
+        'form': form,
+        # Pasamos solo las URLs y nombres si existen
+        'cv_actual_url': cv_actual_url,
+        'cv_actual_name': cv_actual_name,
+    }
+    return render(request, 'gestionOfertas/editar_perfil.html', context)
+
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')
