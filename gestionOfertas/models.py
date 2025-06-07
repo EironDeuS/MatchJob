@@ -422,13 +422,6 @@ class OfertaTrabajo(models.Model):
         """Indica si la oferta está marcada como urgente."""
         return self.urgente
 
-    def esta_vigente(self):
-        """Determina si la oferta está vigente (activa y no ha expirado)"""
-        if not self.esta_activa:
-            return False
-        if self.fecha_cierre is None:
-            return True
-        return self.fecha_cierre >= timezone.now().date()
 # -----------------------------
 # Postulación
 # -----------------------------
