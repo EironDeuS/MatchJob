@@ -36,6 +36,9 @@ import requests
 from urllib.parse import quote
 from django.core.mail import send_mail
 from django.core.files.storage import FileSystemStorage
+import io # Necesario para manejar el PDF en memoria
+from django.template.loader import get_template # Para cargar templates para el PDF
+from xhtml2pdf import pisa # La librería para generar PDFs
 
 
 def iniciar_sesion(request):
@@ -56,7 +59,7 @@ def iniciar_sesion(request):
             else:
                 messages.error(request, 'RUT o contraseña incorrectos.') # Mensaje más claro
         else:
-             messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
         form = LoginForm()
     return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form})
@@ -132,9 +135,9 @@ def registro(request):
                         print("DEBUG: cv_obj.save() ejecutado.") # <--- DEBUG
                         # Verificar si el campo tiene valor DESPUÉS de guardar
                         if cv_obj.archivo_cv and hasattr(cv_obj.archivo_cv, 'name'):
-                             print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}") # <--- DEBUG
+                            print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}") # <--- DEBUG
                         else:
-                             print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.") # <--- DEBUG
+                            print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.") # <--- DEBUG
                         
                         try:
                             # Verificación adicional de almacenamiento
@@ -381,7 +384,7 @@ def crear_oferta(request):
                 
                 # Mensaje de éxito
                 msg = _('¡Oferta de empleo creada con éxito!') if hasattr(request.user, 'empresa') \
-                      else _('¡Servicio publicado correctamente!')
+                    else _('¡Servicio publicado correctamente!')
                 messages.success(request, msg)
                 
                 return redirect('miperfil')
@@ -520,8 +523,8 @@ def mi_perfil(request):
         'postulaciones_filtradas': postulaciones_filtradas,
         'tiene_postulaciones_filtradas': postulaciones_filtradas.exists(),
         'valoraciones_recibidas': usuario.valoraciones_recibidas
-                                     .select_related('emisor')
-                                     .order_by('-fecha_creacion')[:3],
+                                        .select_related('emisor')
+                                        .order_by('-fecha_creacion')[:3],
         'muestras_trabajo': muestras_trabajo,
         'muestras_agrupadas': muestras_agrupadas,
     }
@@ -530,35 +533,99 @@ def mi_perfil(request):
 
 
 @login_required
+@require_POST
 def cambiar_estado_postulacion(request, postulacion_id):
-    """
-    Cambia el estado de una postulación específica.
+    # ... (la primera parte de tu función es la misma) ...
 
-    Args:
-        request: La solicitud HTTP.
-        postulacion_id: El ID de la postulación a cambiar.
+    with transaction.atomic():
+        try:
+            postulacion = get_object_or_404(
+                Postulacion,
+                id=postulacion_id,
+                oferta__creador=request.user
+            )
 
-    Returns:
-        Una redirección a la página del perfil.
-    """
-    postulacion = get_object_or_404(
-        Postulacion,
-        id=postulacion_id,
-        oferta__creador=request.user  # ¡SEGURIDAD!
-    )
+            estado_original = postulacion.estado
+            nuevo_estado = request.POST.get('nuevo_estado')
+            estados_validos = ['pendiente', 'filtrado', 'match', 'contratado', 'rechazado', 'finalizado']
 
-    if request.method == 'POST':
-        nuevo_estado = request.POST.get('nuevo_estado')
-        estados_validos = ['pendiente', 'filtrado', 'match', 'contratado', 'rechazado', 'finalizado']  # Ajusta esto a tus estados
+            if nuevo_estado not in estados_validos:
+                messages.error(request, "Estado no válido.")
+                return redirect('miperfil')
 
-        if nuevo_estado in estados_validos:
             postulacion.estado = nuevo_estado
             postulacion.save()
-            messages.success(request, "Estado de la postulación actualizado.")
-        else:
-            messages.error(request, "Estado no válido.")
 
-    return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
+            messages.success(request, f"Estado de la postulación actualizado a '{nuevo_estado}'.")
+
+            # --- Lógica de Contratación (Envío de Correo y PDF adjunto) ---
+            if nuevo_estado == 'contratado' and estado_original != 'contratado':
+                # Esto significa que la postulación acaba de ser marcada como 'contratado' por primera vez
+                try:
+                    # 1. Preparar datos para el template del correo Y el PDF
+                    contexto = {
+                        'postulacion': postulacion,
+                        'postulante': postulacion.persona, # Instancia de PersonaNatural
+                        'oferta': postulacion.oferta,
+                        'empresa': postulacion.oferta.empresa, # La empresa que ofrece el trabajo
+                        'fecha_actual': timezone.now().strftime("%d-%m-%Y"),
+                        'url_sitio': request.build_absolute_uri('/') # Para links absolutos
+                    }
+
+                    # 2. Renderizar el template HTML del correo (el cuerpo del email)
+                    html_content = render_to_string('gestionOfertas/emails/confirmacion_contratacion.html', contexto)
+                    text_content = strip_tags(html_content)
+
+                    # 3. Generar el PDF
+                    # Carga el template HTML específico para el PDF
+                    template_pdf = get_template('gestionOfertas/pdfs/carta_confirmacion_contratacion.html')
+                    html_pdf = template_pdf.render(contexto)
+
+                    # Crea un objeto BytesIO para guardar el PDF en memoria temporalmente
+                    result_file = io.BytesIO()
+
+                    # Genera el PDF a partir del HTML
+                    pisa_status = pisa.CreatePDF(
+                        html_pdf,
+                        dest=result_file,
+                        encoding='utf-8' # Asegura la correcta codificación de caracteres
+                    )
+
+                    # Verifica si hubo errores en la generación del PDF
+                    if pisa_status.err:
+                        # Si hay un error al generar el PDF, lo capturamos y lo mostramos
+                        raise Exception(f"Error al generar el documento PDF: {pisa_status.err}")
+
+                    # 4. Configurar y enviar el correo electrónico con el PDF adjunto
+                    email = EmailMultiAlternatives(
+                        subject=f"¡Felicitaciones! Has sido contratado/a para {postulacion.oferta.nombre}",
+                        body=text_content, # Contenido de texto plano del email
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        to=[postulacion.persona.usuario.correo] # Correo del postulante
+                    )
+                    email.attach_alternative(html_content, "text/html") # Adjunta la versión HTML del email
+
+                    # ¡Adjuntar el PDF generado!
+                    email.attach(
+                        f"Confirmacion_Contratacion_{postulacion.persona.usuario.username}_{postulacion.oferta.id}.pdf",
+                        result_file.getvalue(), # Obtiene el contenido binario del PDF del BytesIO
+                        'application/pdf' # Tipo MIME del archivo adjunto
+                    )
+
+                    email.send() # Envía el correo completo con el adjunto
+
+                    messages.info(request, "Correo de confirmación de contratación con documento adjunto enviado.")
+
+                except Exception as e:
+                    messages.error(request, f"Error al procesar la confirmación de contratación: {e}")
+                    # Opcional: logging.getLogger(__name__).exception("Error en la lógica de contratación:")
+
+        except Postulacion.DoesNotExist:
+            messages.error(request, "La postulación no existe o no tienes permiso para modificarla.")
+        except Exception as e:
+            messages.error(request, f"Ocurrió un error inesperado: {e}")
+
+    return redirect('miperfil')
 
 
 
@@ -636,8 +703,8 @@ def editar_perfil(request):
                         cv_obj.archivo_cv.delete(save=False)
                         print(f"DEBUG: Archivo CV antiguo borrado de GCS: {cv_obj.archivo_cv.name}")
                     except Exception as e:
-                         print(f"DEBUG: Error al intentar borrar CV antiguo: {e}")
-                         messages.warning(request, "No se pudo borrar el CV anterior del almacenamiento, pero se intentará subir el nuevo.")
+                        print(f"DEBUG: Error al intentar borrar CV antiguo: {e}")
+                        messages.warning(request, "No se pudo borrar el CV anterior del almacenamiento, pero se intentará subir el nuevo.")
 
 
                 # 2. Asignar el nuevo archivo al campo
@@ -653,25 +720,25 @@ def editar_perfil(request):
                     messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
             # ------------------------------------
             elif 'cv_archivo-clear' in request.POST:
-                 # Si el usuario marcó el checkbox "clear" del ClearableFileInput
-                 if cv_obj.archivo_cv:
-                    try:
-                        cv_obj.archivo_cv.delete(save=True) # save=True aquí para guardar el campo vacío
-                        print("DEBUG: CV existente eliminado por petición del usuario.")
-                        messages.info(request, 'Tu CV ha sido eliminado.')
-                    except Exception as e:
-                        print(f"DEBUG: Error al eliminar CV existente: {e}")
-                        messages.error(request, f'Hubo un error al eliminar el CV: {e}')
+                    # Si el usuario marcó el checkbox "clear" del ClearableFileInput
+                    if cv_obj.archivo_cv:
+                        try:
+                            cv_obj.archivo_cv.delete(save=True) # save=True aquí para guardar el campo vacío
+                            print("DEBUG: CV existente eliminado por petición del usuario.")
+                            messages.info(request, 'Tu CV ha sido eliminado.')
+                        except Exception as e:
+                            print(f"DEBUG: Error al eliminar CV existente: {e}")
+                            messages.error(request, f'Hubo un error al eliminar el CV: {e}')
 
 
             if not nuevo_cv_archivo and 'cv_archivo-clear' not in request.POST :
-                 messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+                    messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
 
             return redirect('editar_perfil') # Redirige a la misma página para ver cambios
 
         else: # Formulario no válido
-             print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
-             messages.error(request, 'Por favor corrige los errores en el formulario.')
+            print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
+            messages.error(request, 'Por favor corrige los errores en el formulario.')
 
     else: # Método GET <--- AQUÍ DENTRO
         initial_data = {
