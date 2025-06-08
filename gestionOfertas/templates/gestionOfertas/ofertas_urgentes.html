@@ -369,6 +369,20 @@
             padding: 1rem;
         }
     }
+
+        /* Botón para 'Volver a Inicio' */
+    .btn-back-home {
+        background-color: var(--urgent-text); /* Botón morado */
+        color: rgb(255, 255, 255);
+        border: #FEF2F2;
+        border-radius: 10px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 {% endblock %}
 
@@ -376,6 +390,11 @@
 <div class="urgent-hero">
     <div class="container">
         <div class="urgent-hero-content text-center">
+            <div class="col-md-4">
+                <a href="{% url 'inicio' %}" class="btn btn-back-home">
+                    <i class="bi bi-arrow-left me-1"></i> Volver a Inicio
+                </a>
+            </div>    
             <div class="urgent-badge">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 ¡ATENCIÓN INMEDIATA!
