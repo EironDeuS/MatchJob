@@ -352,9 +352,11 @@ def crear_oferta(request):
                 # Asignar empresa si el usuario es una empresa
                 if hasattr(request.user, 'empresa'):
                     oferta.empresa = request.user.empresa
-                    oferta.es_servicio = False
-                else:
-                    oferta.es_servicio = True
+                # --- ÚNICA MODIFICACIÓN AQUÍ ---
+                # Queremos que TODAS las ofertas creadas aquí (ofertas de trabajo)
+                # permitan ver postulantes, por lo tanto, NO son servicios.
+                oferta.es_servicio = False 
+                # --- FIN ÚNICA MODIFICACIÓN ---
                 
                 # Procesar ubicación si se proporcionó
                 if form.cleaned_data.get('latitud') and form.cleaned_data.get('longitud'):
@@ -415,12 +417,38 @@ def crear_oferta(request):
 @login_required
 def mis_ofertas(request):
     usuario = request.user
-    ofertas = OfertaTrabajo.objects.filter(creador=usuario).select_related('categoria', 'empresa')
+    # MODIFICACIÓN: Usamos prefetch_related para cargar eficientemente
+    # todas las postulaciones y los datos de los postulantes asociados a cada oferta.
+    # Esto evita hacer múltiples consultas a la base de datos desde la plantilla.
+    ofertas = OfertaTrabajo.objects.filter(creador=usuario).select_related(
+        'categoria', 'empresa'
+    ).prefetch_related(
+        'postulaciones_recibidas', 
+        'postulaciones_recibidas__persona'
+    )
 
+    # El contexto ahora es más completo, pero la plantilla lo manejará fácilmente.
+    # Añadimos la variable 'es_empresa' para usarla en la plantilla.
     context = {
-        'ofertas': ofertas
+        'ofertas': ofertas,
+        'es_empresa': hasattr(usuario, 'empresa')
     }
     return render(request, 'gestionOfertas/mis_ofertas.html', context)
+
+@login_required
+def postulantes_por_oferta(request, oferta_id):
+    usuario = request.user
+    oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=usuario)
+
+    postulaciones = oferta.postulaciones_recibidas.select_related('persona', 'persona__usuario')
+
+    context = {
+        'oferta': oferta,
+        'postulaciones': postulaciones,
+    }
+    return render(request, 'gestionOfertas/postulantes_oferta.html', context)
+
+
 @login_required
 def editar_oferta(request, oferta_id):
     """
@@ -881,6 +909,28 @@ def realizar_postulacion(request, oferta_id):
         return redirect('detalle_oferta', oferta_id=oferta_id)
 
 
+@login_required
+def mis_postulaciones_persona(request):
+    usuario = request.user
+
+    # Asegurarse que solo accedan personas naturales
+    if usuario.tipo_usuario != 'persona':
+        return redirect('inicio')  # o lanzar un 403
+
+    perfil = usuario.get_profile()
+
+    todas_las_postulaciones = Postulacion.objects.filter(
+        persona=perfil
+    ).select_related('oferta', 'oferta__creador')
+
+    context = {
+        'usuario': usuario,
+        'perfil': perfil,
+        'todas_las_postulaciones': todas_las_postulaciones,
+        'tiene_todas_las_postulaciones': todas_las_postulaciones.exists(),
+    }
+
+    return render(request, 'gestionOfertas/mis_postulaciones_persona.html', context)
 
 
 @login_required

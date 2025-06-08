@@ -22,7 +22,7 @@ class UsuarioManager(BaseUserManager):
         email = self.normalize_email(correo)
         # Quitar campos de perfil para que save() los maneje
         profile_fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad', # Persona
-                          'nombre_empresa', 'razon_social', 'giro'] # Empresa
+                            'nombre_empresa', 'razon_social', 'giro'] # Empresa
         # Dirección y teléfono ahora están en Usuario, no son de perfil específico
         user_extra_fields = {k: v for k, v in extra_fields.items() if k not in profile_fields}
         user = self.model(username=username, correo=email, **user_extra_fields)

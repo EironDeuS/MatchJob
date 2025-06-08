@@ -1,0 +1,89 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Postulantes - {{ oferta.nombre }}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/postulantes_oferta.css' %}">
+{% endblock %}
+
+
+{% block content %}
+<div class="container my-5">
+<h2 class="mb-4">
+    <i class="bi bi-people-fill me-2"></i> Postulantes para: <strong>{{ oferta.nombre }}</strong>
+</h2>
+
+{% if postulaciones %}
+<div class="table-responsive">
+    <table class="table table-hover">
+    <thead class="table-light">
+        <tr>
+            <th><i class="bi bi-person-fill text-muted"></i> Postulante</th>
+            <th><i class="bi bi-calendar-date text-muted"></i> Fecha</th>
+            <th><i class="bi bi-tag text-muted"></i> Estado</th>
+            <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
+            <th><i class="bi bi-arrow-left-right text-muted"></i> Cambiar Estado</th>
+            </tr>
+    </thead>
+    <tbody>
+        {% for postulacion in postulaciones %}
+        <tr>
+        <td>
+            <div class="d-flex align-items-center">
+            {% if postulacion.persona.foto_perfil %}
+                <img src="{{ postulacion.persona.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
+            {% else %}
+                <i class="bi bi-person-circle me-2 fs-4 text-muted"></i>
+            {% endif %}
+            {{ postulacion.persona.nombre_completo }}
+            </div>
+        </td>
+        <td>
+            <small class="text-muted">
+            <i class="bi bi-clock-fill text-secondary me-1"></i>
+            {{ postulacion.fecha_postulacion|date:"d/m/Y" }}
+            </small>
+        </td>
+        <td>
+            <span class="badge bg-{% if postulacion.estado == 'pendiente' %}warning text-dark{% elif postulacion.estado == 'filtrado' %}primary{% elif postulacion.estado == 'match' %}info{% elif postulacion.estado == 'contratado' %}success{% elif postulacion.estado == 'rechazado' %}danger{% elif postulacion.estado == 'finalizado' %}secondary{% endif %}">
+            {{ postulacion.get_estado_display }}
+            </span>
+        </td>
+        <td>
+            <a href="{% url 'ver_perfil_publico' postulacion.persona.usuario.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye me-1"></i> Ver Perfil
+            </a>
+            </td>
+            <td>
+            <form method="post" action="{% url 'cambiar_estado_postulacion' postulacion.id %}?next={% url 'postulantes_por_oferta' oferta.id %}">
+                {% csrf_token %}
+                <select name="nuevo_estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="" disabled selected>Selecciona estado...</option>
+                <option value="pendiente" {% if postulacion.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                <option value="filtrado" {% if postulacion.estado == 'filtrado' %}selected{% endif %}>Filtrado</option>
+                <option value="match" {% if postulacion.estado == 'match' %}selected{% endif %}>Match</option>
+                <option value="contratado" {% if postulacion.estado == 'contratado' %}selected{% endif %}>Contratado</option>
+                <option value="rechazado" {% if postulacion.estado == 'rechazado' %}selected{% endif %}>Rechazado</option>
+                <option value="finalizado" {% if postulacion.estado == 'finalizado' %}selected{% endif %}>Finalizado</option>
+                </select>
+            </form>
+        </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+    <i class="bi bi-info-circle-fill me-2"></i> No hay postulantes para esta oferta.
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+    <a href="{% url 'mis_ofertas' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Volver a Mis Ofertas
+    </a>
+    </div>
+</div>
+{% endblock %}

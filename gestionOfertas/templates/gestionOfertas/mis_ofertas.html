@@ -5,239 +5,21 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="{% static 'css/mis_ofertas.css' %}">
 <style>
-    :root {
-        --primary-color: #6c63ff;
-        --primary-light: #a29bfe;
-        --primary-dark: #483dff;
-        --success-color: #00b894;
-        --warning-color: #fdcb6e;
-        --danger-color: #d63031;
-        --dark-color: #2d3436;
-        --light-color: #f5f6fa;
-    }
-    
-    .hero-section {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        /* Botón para 'Volver a Inicio' */
+    .btn-back-home {
+        background-color: var(--primary-color); /* Botón morado */
         color: white;
-        padding: 3rem 0;
-        border-radius: 0 0 20px 20px;
-        margin-bottom: 3rem;
-        box-shadow: 0 10px 30px rgba(108, 99, 255, 0.2);
-    }
-    
-    .card-oferta {
-        border: none;
-        border-radius: 15px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        margin-bottom: 30px;
-        background: white;
-        position: relative;
-    }
-    
-    .card-oferta:hover {
-        transform: translateY(-10px) scale(1.02);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
-    }
-    
-    .card-oferta::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 5px;
-        height: 100%;
-        background: var(--primary-color);
-    }
-    
-    .card-header-oferta {
-        background: white;
-        padding: 1.5rem;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        position: relative;
-    }
-    
-    .avatar-container {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        background: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        margin-right: 1.5rem;
-        overflow: hidden;
-    }
-    
-    .avatar-empresa {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .avatar-persona {
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 28px;
-    }
-    
-    .badge-estado {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        padding: 0.5em 1em;
-        border-radius: 50px;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-    }
-    
-    .badge-activa {
-        background-color: var(--success-color);
-        color: white;
-    }
-    
-    .badge-inactiva {
-        background-color: var(--danger-color);
-        color: white;
-    }
-    
-    .badge-servicio {
-        background-color: var(--warning-color);
-        color: var(--dark-color);
-    }
-    
-    .tag {
-        display: inline-block;
-        padding: 0.35em 0.65em;
-        font-size: 0.75em;
-        font-weight: 600;
-        line-height: 1;
-        text-align: center;
-        white-space: nowrap;
-        vertical-align: baseline;
-        border-radius: 50px;
-        margin-right: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .tag-primary {
-        background-color: rgba(108, 99, 255, 0.1);
-        color: var(--primary-color);
-    }
-    
-    .tag-info {
-        background-color: rgba(74, 144, 226, 0.1);
-        color: #4a90e2;
-    }
-    
-    .tag-secondary {
-        background-color: rgba(108, 117, 125, 0.1);
-        color: #6c757d;
-    }
-    
-    .btn-action {
         border: none;
         border-radius: 50px;
-        padding: 0.5rem 1.25rem;
+        padding: 0.75rem 1.5rem;
         font-weight: 600;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
         transition: all 0.3s;
         display: inline-flex;
         align-items: center;
-    }
-    
-    .btn-action i {
-        margin-right: 0.5rem;
-    }
-    
-    .btn-edit {
-        background-color: var(--warning-color);
-        color: var(--dark-color);
-    }
-    
-    .btn-edit:hover {
-        background-color: #f5b747;
-        transform: translateY(-2px);
-    }
-    
-    .btn-delete {
-        background-color: var(--danger-color);
-        color: white;
-    }
-    
-    .btn-delete:hover {
-        background-color: #c0392b;
-        transform: translateY(-2px);
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    }
-    
-    .empty-state-icon {
-        width: 100px;
-        height: 100px;
-        background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
         justify-content: center;
-        margin: 0 auto 1.5rem;
-        color: white;
-        font-size: 2.5rem;
-        box-shadow: 0 10px 25px rgba(108, 99, 255, 0.3);
-    }
-    
-    .floating-btn {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        box-shadow: 0 10px 25px rgba(108, 99, 255, 0.4);
-        transition: all 0.3s;
-        z-index: 100;
-    }
-    
-    .floating-btn:hover {
-        transform: translateY(-5px) scale(1.1);
-        background: var(--primary-dark);
-        color: white;
-    }
-    
-    @media (max-width: 768px) {
-        .hero-section {
-            border-radius: 0;
-            padding: 2rem 0;
-        }
-        
-        .avatar-container {
-            width: 50px;
-            height: 50px;
-            margin-right: 1rem;
-        }
+        margin-top: 2rem; /* Espacio desde la tabla */
     }
 </style>
 {% endblock %}
@@ -250,7 +32,7 @@
                 <h1 class="display-5 fw-bold mb-3">Mis Ofertas</h1>
                 <p class="lead mb-0">
                     {% if es_empresa %}
-                    Gestiona tus ofertas de empleo publicadas
+                    Gestiona tus ofertas de empleo y sus postulantes
                     {% else %}
                     Administra los servicios que estás ofreciendo
                     {% endif %}
@@ -268,112 +50,189 @@
 
 <div class="container mb-5">
     {% if ofertas %}
-    <div class="row">
-        {% for oferta in ofertas %}
-        <div class="col-lg-6">
-            <div class="card card-oferta animate__animated animate__fadeInUp">
-                <div class="card-header card-header-oferta">
-                    <div class="d-flex align-items-center">
-                        <div class="avatar-container">
-                            {% if oferta.empresa %}
-                            <img src="{{ oferta.empresa.logo.url }}" alt="{{ oferta.empresa.nombre_empresa }}" class="avatar-empresa">
-                            {% else %}
-                            <div class="avatar-persona">
-                                <i class="bi bi-person-fill"></i>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div>
-                            <h3 class="h5 mb-1">{{ oferta.nombre }}</h3>
-                            <p class="mb-0 text-muted">
-                                {% if oferta.empresa %}
-                                {{ oferta.empresa.nombre_empresa }}
+        <div class="row">
+            {% for oferta in ofertas %}
+            <div class="col-lg-6">
+                <div class="card card-oferta animate__animated animate__fadeInUp">
+                    <div class="card-header card-header-oferta">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-container">
+                                {% if oferta.empresa.logo %}
+                                <img src="{{ oferta.empresa.logo.url }}" alt="{{ oferta.empresa.nombre_empresa }}" class="avatar-empresa">
                                 {% else %}
-                                {{ oferta.creador.personanatural.nombres }} {{ oferta.creador.personanatural.apellidos }}
+                                <div class="avatar-persona">
+                                    <i class="bi bi-{% if es_empresa %}building{% else %}person-fill{% endif %}"></i>
+                                </div>
                                 {% endif %}
-                            </p>
+                            </div>
+                            <div>
+                                <h3 class="h5 mb-1">{{ oferta.nombre }}</h3>
+                                <p class="mb-0 text-muted">
+                                    {% if oferta.empresa %}
+                                    {{ oferta.empresa.nombre_empresa }}
+                                    {% else %}
+                                    {{ oferta.creador.personanatural.nombres }} {{ oferta.creador.personanatural.apellidos }}
+                                    {% endif %}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <span class="badge-estado {% if oferta.esta_activa %}badge-activa{% else %}badge-inactiva{% endif %}">
-                        {% if oferta.esta_activa %}ACTIVA{% else %}INACTIVA{% endif %}
-                    </span>
-                    {% if oferta.es_servicio %}
-                    <span class="badge-estado badge-servicio">SERVICIO</span>
-                    {% endif %}
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        {% if oferta.descripcion %}
-                        <p class="card-text">{{ oferta.descripcion|truncatewords:25 }}</p>
+                        <span class="badge-estado {% if oferta.esta_activa %}badge-activa{% else %}badge-inactiva{% endif %}">
+                            {% if oferta.esta_activa %}ACTIVA{% else %}INACTIVA{% endif %}
+                        </span>
+                        {% if oferta.es_servicio %}
+                        <span class="badge-estado badge-servicio">SERVICIO</span>
                         {% endif %}
                     </div>
-                    
-                    <div class="mb-4">
-                        <span class="tag tag-primary">
-                            <i class="bi bi-tag-fill me-1"></i>{{ oferta.categoria.nombre_categoria }}
-                        </span>
-                        {% if oferta.tipo_contrato %}
-                        <span class="tag tag-info">
-                            <i class="bi bi-file-earmark-text me-1"></i>{{ oferta.get_tipo_contrato_display }}
-                        </span>
-                        {% endif %}
-                        {% if oferta.ubicacion %}
-                        <span class="tag tag-secondary">
-                            <i class="bi bi-geo-alt-fill me-1"></i>{{ oferta.ubicacion }}
-                        </span>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <small class="text-muted d-block">
-                                <i class="bi bi-calendar me-1"></i>
-                                Publicada: {{ oferta.fecha_publicacion|date:"d/m/Y" }}
-                            </small>
-                            {% if oferta.fecha_cierre %}
-                            <small class="text-muted d-block mt-1">
-                                <i class="bi bi-clock me-1"></i>
-                                Cierra: {{ oferta.fecha_cierre|date:"d/m/Y" }}
-                            </small>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {% if oferta.descripcion %}
+                            <p class="card-text">{{ oferta.descripcion|truncatewords:25 }}</p>
                             {% endif %}
                         </div>
-                        <div>
-                            <a href="{% url 'editar_oferta' oferta.id %}" class="btn-action btn-edit me-2">
-                                <i class="bi bi-pencil-fill"></i> Editar
-                            </a>
-                            <a href="{% url 'eliminar_oferta' oferta.id %}" class="btn-action btn-delete">
-                                <i class="bi bi-trash-fill"></i> Eliminar
-                            </a>
+                        
+                        <div class="mb-4">
+                            <span class="tag tag-primary">
+                                <i class="bi bi-tag-fill me-1"></i>{{ oferta.categoria.nombre_categoria }}
+                            </span>
+                            {% if oferta.tipo_contrato %}
+                            <span class="tag tag-info">
+                                <i class="bi bi-file-earmark-text me-1"></i>{{ oferta.get_tipo_contrato_display }}
+                            </span>
+                            {% endif %}
+                            {% if oferta.ubicacion %}
+                            <span class="tag tag-secondary">
+                                <i class="bi bi-geo-alt-fill me-1"></i>{{ oferta.ubicacion }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    Publicada: {{ oferta.fecha_publicacion|date:"d/m/Y" }}
+                                </small>
+                                {% if oferta.fecha_cierre %}
+                                <small class="text-muted d-block mt-1">
+                                    <i class="bi bi-clock me-1"></i>
+                                    Cierra: {{ oferta.fecha_cierre|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                            </div>
+                            <div>
+                                {% if not oferta.es_servicio %}
+                                <a href="{% url 'postulantes_por_oferta' oferta.id %}" class="btn-action btn-view me-2">
+                                    <i class="bi bi-people-fill"></i> Ver Postulantes
+                                    <span class="badge bg-light text-dark ms-2">{{ oferta.postulaciones_recibidas.count }}</span>
+                                </a>
+                                {% endif %}
+
+                                <a href="{% url 'editar_oferta' oferta.id %}" class="btn-action btn-edit me-2">
+                                    <i class="bi bi-pencil-fill"></i> Editar
+                                </a>
+                                <a href="{% url 'eliminar_oferta' oferta.id %}" class="btn-action btn-delete">
+                                    <i class="bi bi-trash-fill"></i> Eliminar
+                                </a>
+                                </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state animate__animated animate__fadeIn">
-        <div class="empty-state-icon">
-            <i class="bi bi-briefcase"></i>
-        </div>
-        <h3 class="h4 mb-3">No has publicado ofertas aún</h3>
-        <p class="mb-4">
-            {% if es_empresa %}
-            Crea tu primera oferta para encontrar al mejor talento para tu empresa
-            {% else %}
-            Publica tus servicios profesionales para que los clientes puedan encontrarte
+
+            {% if not oferta.es_servicio %}
+            <div class="modal fade" id="modalPostulantes{{ oferta.id }}" tabindex="-1" aria-labelledby="modalPostulantesLabel{{ oferta.id }}" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalPostulantesLabel{{ oferta.id }}">Postulantes para: {{ oferta.nombre }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            {% if oferta.postulaciones_recibidas.all %}
+                                <ul class="list-group list-group-flush">
+                                    {% for postulacion in oferta.postulaciones_recibidas.all %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                                        <div class="me-auto">
+                                            <strong>{{ postulacion.persona.nombre_completo }}</strong>
+                                            <small class="d-block text-muted">Postuló el: {{ postulacion.fecha_postulacion|date:"d M, Y" }}</small>
+                                        </div>
+                                        <div class="my-2">
+                                            <span class="badge bg-{% if postulacion.estado == 'pendiente' %}warning text-dark{% elif postulacion.estado == 'filtrado' %}primary{% elif postulacion.estado == 'match' %}info{% elif postulacion.estado == 'contratado' %}success{% elif postulacion.estado == 'rechazado' %}danger{% elif postulacion.estado == 'finalizado' %}secondary{% endif %}">
+                                                {{ postulacion.get_estado_display }}
+                                            </span>
+                                        </div>
+                                        <div class="ms-3 my-2 d-flex gap-2">
+                                            <a href="{% url 'ver_perfil_publico' postulacion.persona.usuario.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-person-circle"></i> Ver Perfil
+                                            </a>
+                                            <form method="post" action="{% url 'cambiar_estado_postulacion' postulacion.id %}?next={% url 'mis_ofertas' %}" class="d-inline-flex gap-1">
+                                                {% csrf_token %}
+                                                <select name="nuevo_estado" class="form-select form-select-sm" onchange="this.form.submit()">
+                                                    <option value="" disabled selected>Cambiar estado...</option>
+                                                    <option value="pendiente">Pendiente</option>
+                                                    <option value="filtrado">Filtrado</option>
+                                                    <option value="contratado">Contratado</option>
+                                                    <option value="rechazado">Rechazado</option>
+                                                    <option value="finalizado">Finalizado</option>
+                                                </select>
+                                            </form>
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info text-center">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Aún no hay postulantes para esta oferta.
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             {% endif %}
-        </p>
-        <a href="{% url 'crear_oferta' %}" class="btn btn-primary btn-lg px-4">
-            <i class="bi bi-plus-lg me-2"></i>Crear nueva oferta
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state animate__animated animate__fadeIn">
+            <div class="empty-state-icon">
+                <i class="bi bi-briefcase"></i>
+            </div>
+            <h3 class="h4 mb-3">No has publicado ofertas aún</h3>
+            <p class="mb-4">
+                {% if es_empresa %}
+                Crea tu primera oferta para encontrar al mejor talento para tu empresa
+                {% else %}
+                Publica tus servicios profesionales para que los clientes puedan encontrarte
+                {% endif %}
+            </p>
+            <a href="{% url 'crear_oferta' %}" class="btn btn-primary btn-lg px-4">
+                <i class="bi bi-plus-lg me-2"></i>Crear nueva oferta
+            </a>
+        </div>
+
+    {% endif %}
+    
+
+
+    <div class="mt-4 text-center">
+        <a href="{% url 'inicio' %}" class="btn btn-back-home">
+            <i class="bi bi-arrow-left me-1"></i> Volver a Inicio
         </a>
     </div>
-    {% endif %}
+
+    <div>
+        <a href="{% url 'crear_oferta' %}" class="floating-btn animate__animated animate__bounceIn">
+            <i class="bi bi-plus-lg"></i>
+        </a>
+    </div>
+
 </div>
 
-{% if es_empresa %}
-<a href="{% url 'crear_oferta' %}" class="floating-btn animate__animated animate__bounceIn">
-    <i class="bi bi-plus-lg"></i>
-</a>
-{% endif %}
+
+
+
 {% endblock %}

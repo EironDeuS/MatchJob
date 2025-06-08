@@ -102,3 +102,78 @@
 .valoracion-meta i {
     font-size: 0.9em;
 }
+
+        /* Estilos para el sistema de valoración con estrellas */
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 15px 0;
+        }
+
+        .star {
+            font-size: 2rem;
+            color: #ccc;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .star.hover,
+        .star.selected {
+            color: gold;
+        }
+
+        /* Estilos para cards de valoraciones */
+        .valoracion-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+            margin-bottom: 20px;
+            border: none;
+        }
+
+        .valoracion-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .valoracion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .valoracion-puntuacion i {
+            margin-right: 2px;
+        }
+
+        .valoracion-comentario {
+            font-style: italic;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+            margin: 10px 0;
+        }
+
+        .valoracion-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        /* Estilos para el modal */
+        #valoracionModal .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+
+        #valoracionModal .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 15px 15px 0 0;
+        }
+
+        #valoracionModal .modal-title {
+            color: #3b82f6;
+            font-weight: 600;
+        }
