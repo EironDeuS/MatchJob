@@ -231,18 +231,4 @@
     </div>
 </div>
 
-<script>
-    // Efecto hover mejorado para el botón
-    document.querySelector('a[href="{% url 'realizar_postulacion' oferta.id %}"]').addEventListener('mouseenter', function() {
-        this.querySelector('span:last-child').style.opacity = '1';
-        this.style.transform = 'translateY(-3px)';
-        this.style.boxShadow = '0 12px 20px rgba(67, 56, 202, 0.4)';
-    });
-    
-    document.querySelector('a[href="{% url 'realizar_postulacion' oferta.id %}"]').addEventListener('mouseleave', function() {
-        this.querySelector('span:last-child').style.opacity = '0';
-        this.style.transform = 'translateY(0)';
-        this.style.boxShadow = '0 8px 15px rgba(67, 56, 202, 0.3)';
-    });
-</script>
 {% endblock %}

@@ -1,7 +1,7 @@
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import PersonaNatural
-import logging, requests
+import logging, requests, os
 from django.utils.html import strip_tags
 from django.template.loader import render_to_string
 
@@ -63,7 +63,7 @@ def notificar_oferta_urgente(oferta):
 
 def validar_rut_empresa(rut):
     """
-    Consulta el RUT en SimpleAPI y retorna si es una empresa activa válida.
+    Consulta el RUT en SimpleAPI (v2) y retorna si es una empresa activa válida.
 
     Args:
         rut (str): RUT de la empresa (puede venir con o sin puntos y guion).
@@ -71,42 +71,68 @@ def validar_rut_empresa(rut):
     Returns:
         dict: {'valida': True/False, 'datos': {...} o 'mensaje': str}
     """
-    api_key = settings.SIMPLEAPI_API_KEY # <--- Así debe quedar
+    api_key = settings.SIMPLEAPI_API_KEY
 
-    # Limpiar el RUT para la URL: quitar puntos y guiones
-    rut_limpio_para_url = rut.replace('.', '').replace('-', '')
+    # Limpiar el RUT para enviarlo en el path de la URL (sin puntos ni guion)
+    rut_limpio = rut.replace('.', '').replace('-', '')
+    
+    # Nueva URL base del endpoint de SimpleAPI (v2)
+    URL_BASE_V2 = "https://rut.simpleapi.cl/v2" 
+    
+    headers = {
+        # El valor del header 'Authorization' debe ser solo la API Key, sin 'Bearer '.
+        "Authorization": api_key, 
+        "Content-Type": "application/json" 
+    }
 
-    # Construir la URL con el RUT limpio
-    url = f'https://api.simpleapi.cl/api/v1/rut/empresa/{rut_limpio_para_url}'
+    # Construir la URL completa con el RUT en el path
+    url_completa = f"{URL_BASE_V2}/{rut_limpio}"
 
     try:
-        # Aquí, podrías enviar el RUT original en un payload JSON si la API lo requiere,
-        # pero para este endpoint GET, se espera en la URL.
-        response = requests.get(url, headers={'Authorization': f'Bearer {api_key}'})
+        logger.debug(f"Intentando conectar a: {url_completa}")
+        logger.debug(f"Usando API Key (primeros 5 caracteres): {api_key[:5]}...")
 
-        if response.status_code == 200:
-            data = response.json()
-            # Asumo que la API de SimpleAPI devuelve 'activo': True/False o 'estado': 'Activo'
-            # Es importante verificar la estructura de la respuesta de la API de SimpleAPI
-            # según su documentación oficial.
-            # Si el campo es 'estado', y valor 'Activo'
-            if data.get('estado') == 'Activo':
-                return {'valida': True, 'datos': data}
-            else:
-                # Si no está activo o el estado no es 'Activo'
-                mensaje_error = data.get('mensaje', 'RUT no está activo o no encontrado')
-                return {'valida': False, 'mensaje': f'RUT no es una empresa activa: {mensaje_error}'}
-        elif response.status_code == 404:
-            # Ahora este 404 debería ser más específico si el RUT está limpio
-            return {'valida': False, 'mensaje': f'RUT no encontrado en la base de datos de SimpleAPI.'}
-        elif response.status_code == 401:
-            return {'valida': False, 'mensaje': 'API Key inválida o no autorizada.'}
+        # Aumentar el tiempo de espera (timeout) a 30 segundos
+        response = requests.get(url_completa, headers=headers, timeout=30) # CAMBIO AQUÍ: de 20 a 30
+        response.raise_for_status()  # Levanta HTTPError para códigos de error 4xx/5xx
+
+        data = response.json()
+
+        # Lógica de validación de la respuesta para 200 OK (según docs v2)
+        if data and data.get('rut') and data.get('razonSocial'):
+             return {'valida': True, 'datos': data}
         else:
-            # Capturar otros códigos de estado HTTP
-            return {'valida': False, 'mensaje': f'Error al consultar RUT (código {response.status_code}): {response.text}'}
-    except requests.RequestException as e:
-        logger.error(f"Error de conexión o HTTP al validar RUT {rut}: {e}", exc_info=True)
-        return {'valida': False, 'mensaje': f'Error de conexión con el servicio de verificación: {str(e)}'}
+            return {'valida': False, 'mensaje': f"RUT encontrado, pero respuesta de SimpleAPI incompleta o inesperada.", 'datos': data}
+
+
+    except requests.exceptions.HTTPError as http_err:
+        error_message = response.text or str(http_err) 
+
+        if response.status_code == 404:
+            logger.warning(f"Error 404 de SimpleAPI para RUT {rut}: {error_message}")
+            return {'valida': False, 'mensaje': 'RUT no encontrado en la base de datos de SimpleAPI (v2).'}
+        elif response.status_code == 401:
+            logger.error(f"Error 401 de SimpleAPI (API Key inválida) para RUT {rut}: {error_message}")
+            return {'valida': False, 'mensaje': 'Error de autenticación con SimpleAPI. API Key inválida o formato incorrecto.'}
+        elif response.status_code == 400:
+            logger.warning(f"Error 400 de SimpleAPI (Solicitud incorrecta) para RUT {rut}: {error_message}")
+            return {'valida': False, 'mensaje': f'Error en el formato del RUT o solicitud inválida: {error_message}'}
+        else:
+            logger.error(f"Error HTTP inesperado de SimpleAPI para RUT {rut}: {response.status_code} - {error_message}")
+            return {'valida': False, 'mensaje': f'Error al validar RUT con SimpleAPI: Código {response.status_code} - {error_message}'}
+            
+    except requests.exceptions.ConnectionError as conn_err:
+        logger.error(f"Error de conexión con SimpleAPI para RUT {rut}: {conn_err}")
+        return {'valida': False, 'mensaje': 'Error de conexión con SimpleAPI. Verifique su conexión a internet o proxy.'}
+    except requests.exceptions.Timeout as timeout_err:
+        logger.error(f"Timeout al conectar con SimpleAPI para RUT {rut}: La API no respondió a tiempo ({timeout_err}).")
+        return {'valida': False, 'mensaje': 'La validación del RUT con SimpleAPI excedió el tiempo de espera. La API tarda en responder.'}
+    except requests.exceptions.RequestException as req_err:
+        logger.error(f"Error general de request con SimpleAPI para RUT {rut}: {req_err}")
+        return {'valida': False, 'mensaje': f'Error inesperado al comunicarse con SimpleAPI: {req_err}'}
+    except ValueError as json_err: # Si la respuesta no es un JSON válido
+        logger.error(f"Error al decodificar JSON de SimpleAPI para RUT {rut}: {json_err} - Respuesta cruda: {response.text}")
+        return {'valida': False, 'mensaje': 'Respuesta inválida de SimpleAPI.'}
     except Exception as e:
-        logger.error(f"Error inesperado al validar RUT {rut}: {e}", exc_info=True)
-        return {'valida': False, 'mensaje': f'Ocurrió un error inesperado durante la validación.'}
+        logger.exception(f"Error inesperado en validar_rut_empresa para RUT {rut}: {e}") 
+        return {'valida': False, 'mensaje': 'Ocurrió un error inesperado durante la validación.'}

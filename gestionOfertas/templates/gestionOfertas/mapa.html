@@ -1,471 +1,344 @@
-{% extends "gestionOfertas/base.html" %}
+{% extends 'gestionOfertas/base.html' %}
 {% load static %}
 
-{% block title %}Ofertas de Trabajo en Mapa{% endblock %}
-
-{% block head %}
-<style>
-    /* Estilos para el mapa y la interfaz */
-    .map-container {
-        position: relative;
-        width: 100%;
-        height: 80vh;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-    }
-    
-    #map {
-        height: 100%;
-        width: 100%;
-    }
-    
-    .map-controls {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 1000;
-        background: white;
-        padding: 10px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-    
-    .filter-panel {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        margin-bottom: 2rem;
-    }
-    
-    .offer-counter {
-        background: #4f46e5;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 20px;
-        font-weight: bold;
-        margin-left: 10px;
-    }
-    
-    .urgent-badge {
-        background: #ef4444;
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        margin-left: 8px;
-    }
-    
-    .urgent-badge svg {
-        margin-right: 4px;
-    }
-    
-    @media (max-width: 768px) {
-        .map-container {
-            height: 60vh;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container py-5">
-    <h1 class="mb-4">
-        Ofertas de Trabajo en el Mapa
-        <span class="offer-counter">{{ ofertas.count }}</span>
-    </h1>
-    
-    <!-- Panel de filtros -->
-    <div class="filter-panel">
-        <div class="row">
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="category-filter">Filtrar por categoría:</label>
-                    <select id="category-filter" class="form-control">
-                        <option value="all">Todas las categorías</option>
-                        {% for categoria in categorias %}
-                        <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="form-group">
-                    <label for="contract-filter">Filtrar por tipo de contrato:</label>
-                    <select id="contract-filter" class="form-control">
-                        <option value="all">Todos los tipos</option>
-                        {% for tipo in OfertaTrabajo.TIPO_CONTRATO_CHOICES %}
-                        <option value="{{ tipo.0 }}">{{ tipo.1 }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-        </div>
-        <div class="form-check mt-3">
-            <input class="form-check-input" type="checkbox" id="urgent-filter" checked>
-            <label class="form-check-label" for="urgent-filter">
-                Mostrar solo ofertas urgentes
-                <span class="urgent-badge">
-                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    Urgentes
-                </span>
-            </label>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Ofertas de Trabajo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .stats {
+            margin-top: 10px;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .map-container {
+            position: relative;
+            height: 80vh;
+            margin: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 200px;
+        }
+        
+        .legend h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .empleo { background-color: #4285f4; }
+        .servicio { background-color: #34a853; }
+        .urgente { background-color: #ea4335; }
+        
+        .info-window {
+            max-width: 300px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .info-window h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .info-window .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            margin: 2px;
+            color: white;
+        }
+        
+        .badge-empleo { background-color: #4285f4; }
+        .badge-servicio { background-color: #34a853; }
+        .badge-urgente { background-color: #ea4335; }
+        .badge-empresa { background-color: #9c27b0; }
+        .badge-persona { background-color: #ff9800; }
+        
+        .info-window p {
+            margin: 5px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .info-window .direccion {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .map-container {
+                margin: 10px;
+                height: 70vh;
+            }
+            
+            .legend {
+                position: static;
+                margin: 10px;
+                max-width: none;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ Mapa de Ofertas de Trabajo</h1>
+        <div class="stats">
+            Mostrando {{ total_ofertas }} ofertas activas en Chile
         </div>
     </div>
     
-    <!-- Contenedor del mapa -->
     <div class="map-container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Cargando mapa...</p>
+        </div>
+        
+        <div class="legend">
+            <h4>Leyenda</h4>
+            <div class="legend-item">
+                <div class="legend-color empleo"></div>
+                <span>Empleo</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color servicio"></div>
+                <span>Servicio</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color urgente"></div>
+                <span>Urgente</span>
+            </div>
+        </div>
+        
         <div id="map"></div>
-        <div class="map-controls">
-            <button id="locate-me" class="btn btn-sm btn-primary">
-                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path d="M12 8a4 4 0 100 8 4 4 0 000-8zm0 12a8 8 0 100-16 8 8 0 000 16zm8-8a1 1 0 10-2 0 1 1 0 002 0zm-14 0a1 1 0 10-2 0 1 1 0 002 0z"/>
-                </svg>
-                Mi ubicación
-            </button>
-        </div>
     </div>
+
+    <!-- Datos de ofertas usando json_script -->
+    {{ ofertas_json|json_script:"ofertas-data" }}
     
-    <!-- Lista de ofertas (opcional) -->
-    <div class="d-none d-md-block">
-        <h3 class="mb-3">Ofertas mostradas en el mapa</h3>
-        <div class="row" id="offer-list">
-            {% for oferta in ofertas %}
-            <div class="col-md-4 mb-4 offer-card" 
-                 data-category="{{ oferta.categoria.id }}" 
-                 data-contract="{{ oferta.tipo_contrato }}"
-                 data-urgent="{{ oferta.urgente|yesno:'true,false' }}">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            {{ oferta.nombre }}
-                            {% if oferta.urgente %}
-                            <span class="urgent-badge">Urgente</span>
-                            {% endif %}
-                        </h5>
-                        <h6 class="card-subtitle mb-2 text-muted">
-                            {{ oferta.empresa.nombre_empresa|default:"Empresa no especificada" }}
-                        </h6>
-                        <p class="card-text text-truncate">{{ oferta.descripcion|truncatewords:20 }}</p>
-                        <span class="badge bg-primary">{{ oferta.get_tipo_contrato_display }}</span>
-                        <span class="badge bg-secondary">{{ oferta.categoria.nombre }}</span>
-                    </div>
-                    <div class="card-footer bg-white">
-                        <a href="{% url 'detalle_oferta' oferta.id %}" class="btn btn-sm btn-outline-primary">Ver detalles</a>
-                        {% if oferta.direccion %}
-                        <small class="text-muted d-block mt-2">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                                <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            {{ oferta.direccion }}
-                        </small>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% empty %}
-            <div class="col-12">
-                <div class="alert alert-info">
-                    No hay ofertas activas para mostrar en el mapa.
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- Modal para detalles de oferta -->
-<div class="modal fade" id="offerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="offerModalTitle">Título de la oferta</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="offerModalBody">
-                Cargando detalles...
-            </div>
-            <div class="modal-footer">
-                <a href="#" class="btn btn-primary" id="offerModalLink">Ver detalles completos</a>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
+    
 <script>
-    // Datos para el mapa
-    const offersData = [
-        {% for oferta in ofertas %}
-        {
-            id: {{ oferta.id }},
-            title: "{{ oferta.nombre|escapejs }}",
-            company: "{{ oferta.empresa.nombre_empresa|default:'Empresa no especificada'|escapejs }}",
-            description: "{{ oferta.descripcion|truncatewords:30|escapejs }}",
-            category: "{{ oferta.categoria.nombre|escapejs }}",
-            categoryId: {{ oferta.categoria.id }},
-            contractType: "{{ oferta.tipo_contrato|escapejs }}",
-            contractTypeDisplay: "{{ oferta.get_tipo_contrato_display|escapejs }}",
-            salary: "{{ oferta.salario|default:'No especificado'|escapejs }}",
-            address: "{{ oferta.direccion|default:'Ubicación no especificada'|escapejs }}",
-            urgent: {{ oferta.urgente|yesno:"true,false" }},
-            position: {
-                lat: {{ oferta.latitud|default:0 }},
-                lng: {{ oferta.longitud|default:0 }}
-            },
-            url: "{% url 'detalle_oferta' oferta.id %}"
-        },
-        {% endfor %}
-    ];
-    
-    // Inicialización del mapa
     let map;
     let markers = [];
     let infoWindow;
-    
+
     function initMap() {
-        // Centro inicial (Santiago de Chile como ejemplo)
-        const initialCenter = { lat: -33.4489, lng: -70.6693 };
-        
-        // Crear mapa
-        map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 12,
-            center: initialCenter,
+        document.getElementById('loading').style.display = 'none';
+
+        map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 6,
+            center: { lat: -33.4489, lng: -70.6693 }, // Santiago, Chile
+            mapTypeId: 'roadmap',
             styles: [
                 {
-                    "featureType": "all",
-                    "elementType": "labels.text.fill",
-                    "stylers": [{"saturation": 36}, {"color": "#333333"}, {"lightness": 40}]
-                },
-                {
-                    "featureType": "all",
-                    "elementType": "labels.text.stroke",
-                    "stylers": [{"visibility": "on"}, {"color": "#ffffff"}, {"lightness": 16}]
-                },
-                {
-                    "featureType": "all",
-                    "elementType": "labels.icon",
-                    "stylers": [{"visibility": "off"}]
-                },
-                {
-                    "featureType": "administrative",
-                    "elementType": "geometry.fill",
-                    "stylers": [{"color": "#fefefe"}, {"lightness": 20}]
-                },
-                {
-                    "featureType": "administrative",
-                    "elementType": "geometry.stroke",
-                    "stylers": [{"color": "#fefefe"}, {"lightness": 17}, {"weight": 1.2}]
-                },
-                {
-                    "featureType": "landscape",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#f5f5f5"}, {"lightness": 20}]
-                },
-                {
-                    "featureType": "poi",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#f5f5f5"}, {"lightness": 21}]
-                },
-                {
-                    "featureType": "road.highway",
-                    "elementType": "geometry.fill",
-                    "stylers": [{"color": "#ffffff"}, {"lightness": 17}]
-                },
-                {
-                    "featureType": "road.highway",
-                    "elementType": "geometry.stroke",
-                    "stylers": [{"color": "#ffffff"}, {"lightness": 29}, {"weight": 0.2}]
-                },
-                {
-                    "featureType": "road.arterial",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#ffffff"}, {"lightness": 18}]
-                },
-                {
-                    "featureType": "road.local",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#ffffff"}, {"lightness": 16}]
-                },
-                {
-                    "featureType": "transit",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#f2f2f2"}, {"lightness": 19}]
-                },
-                {
-                    "featureType": "water",
-                    "elementType": "geometry",
-                    "stylers": [{"color": "#e9e9e9"}, {"lightness": 17}]
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
                 }
             ]
         });
-        
+
         infoWindow = new google.maps.InfoWindow();
-        
-        // Añadir marcadores para cada oferta con coordenadas válidas
-        offersData.forEach(offer => {
-            if (offer.position.lat && offer.position.lng) {
-                addMarker(offer);
+
+        const ofertasData = JSON.parse(document.getElementById('ofertas-data').textContent);
+        console.log('Ofertas cargadas:', ofertasData);
+
+        if (!Array.isArray(ofertasData)) {
+            console.error("Error: Las ofertas no están en formato de arreglo");
+            return;
+        }
+
+        createMarkers(ofertasData);
+
+        if (markers.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            markers.forEach(marker => bounds.extend(marker.getPosition()));
+            map.fitBounds(bounds);
+
+            if (markers.length > 20) {
+                map.setZoom(Math.min(map.getZoom(), 10));
             }
-        });
-        
-        // Botón para ubicación del usuario
-        document.getElementById('locate-me').addEventListener('click', () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    position => {
-                        const userLocation = {
-                            lat: position.coords.latitude,
-                            lng: position.coords.longitude
-                        };
-                        
-                        // Centrar mapa en la ubicación del usuario
-                        map.setCenter(userLocation);
-                        map.setZoom(14);
-                        
-                        // Añadir marcador temporal
-                        new google.maps.Marker({
-                            position: userLocation,
-                            map: map,
-                            icon: {
-                                url: "{% static 'img/user-marker.png' %}",
-                                scaledSize: new google.maps.Size(32, 32)
-                            },
-                            title: "Tu ubicación"
-                        });
-                    },
-                    error => {
-                        console.error("Error al obtener ubicación:", error);
-                        alert("No pudimos obtener tu ubicación. Asegúrate de haber dado los permisos necesarios.");
+        } else {
+            console.warn('No se encontraron ofertas con coordenadas válidas');
+        }
+    }
+
+    function createMarkers(ofertas) {
+        markers.forEach(marker => marker.setMap(null));
+        markers = [];
+
+        ofertas.forEach(oferta => {
+            if (oferta.latitud && oferta.longitud) {
+                let iconColor = '#4285f4';
+                if (oferta.urgente) {
+                    iconColor = '#ea4335';
+                } else if (oferta.tipo_oferta === 'Servicio') {
+                    iconColor = '#34a853';
+                }
+
+                const marker = new google.maps.Marker({
+                    position: { lat: oferta.latitud, lng: oferta.longitud },
+                    map: map,
+                    title: oferta.nombre,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: iconColor,
+                        fillOpacity: 0.8,
+                        strokeWeight: 2,
+                        strokeColor: '#ffffff'
                     }
-                );
-            } else {
-                alert("Tu navegador no soporta geolocalización.");
+                });
+
+                const infoContent = createInfoWindowContent(oferta);
+                marker.addListener('click', () => {
+                    infoWindow.setContent(infoContent);
+                    infoWindow.open(map, marker);
+                });
+
+                markers.push(marker);
             }
         });
-        
-        // Filtros
-        document.getElementById('category-filter').addEventListener('change', updateFilters);
-        document.getElementById('contract-filter').addEventListener('change', updateFilters);
-        document.getElementById('urgent-filter').addEventListener('change', updateFilters);
     }
-    
-    function addMarker(offer) {
-        const marker = new google.maps.Marker({
-            position: offer.position,
-            map: map,
-            title: offer.title,
-            icon: {
-                url: offer.urgent ? "{% static 'img/marker-urgent.png' %}" : "{% static 'img/marker-normal.png' %}",
-                scaledSize: new google.maps.Size(32, 32)
-            },
-            offerData: offer
-        });
-        
-        markers.push(marker);
-        
-        marker.addListener('click', () => {
-            showOfferDetails(marker);
-        });
-    }
-    
-    function showOfferDetails(marker) {
-        const offer = marker.offerData;
-        
-        // Actualizar modal
-        document.getElementById('offerModalTitle').textContent = offer.title;
-        document.getElementById('offerModalLink').href = offer.url;
-        
-        let content = `
-            <div>
-                <h6>${offer.company}</h6>
-                <p><strong>Tipo:</strong> ${offer.contractTypeDisplay}</p>
-                <p><strong>Categoría:</strong> ${offer.category}</p>
-                ${offer.salary ? `<p><strong>Salario:</strong> ${offer.salary}</p>` : ''}
-                <p><strong>Ubicación:</strong> ${offer.address}</p>
-                ${offer.urgent ? '<span class="urgent-badge">Urgente</span>' : ''}
-                <hr>
-                <p>${offer.description}</p>
+
+    function createInfoWindowContent(oferta) {
+        const badges = [];
+
+        if (oferta.tipo_oferta === 'Servicio') {
+            badges.push('<span class="badge badge-servicio">Servicio</span>');
+        } else {
+            badges.push('<span class="badge badge-empleo">Empleo</span>');
+        }
+
+        if (oferta.urgente) {
+            badges.push('<span class="badge badge-urgente">Urgente</span>');
+        }
+
+        if (oferta.tipo_publicador === 'Empresa') {
+            badges.push('<span class="badge badge-empresa">Empresa</span>');
+        } else {
+            badges.push('<span class="badge badge-persona">Persona</span>');
+        }
+
+        return `
+            <div class="info-window">
+                <h3>${oferta.nombre}</h3>
+                <div style="margin-bottom: 10px;">
+                    ${badges.join('')}
+                </div>
+                <p class="direccion">📍 ${oferta.direccion || 'Dirección no especificada'}</p>
+                <p><strong>Publicado por:</strong> ${oferta.publicador || 'No especificado'}</p>
+                <p><strong>Categoría:</strong> ${oferta.categoria || 'No especificada'}</p>
+                ${oferta.salario ? `<p><strong>Salario:</strong> ${oferta.salario}</p>` : ''}
+                ${oferta.tipo_contrato ? `<p><strong>Tipo:</strong> ${oferta.tipo_contrato}</p>` : ''}
+                <p><strong>Descripción:</strong> ${oferta.descripcion || 'No hay descripción disponible'}</p>
+                <p><strong>Publicado:</strong> ${oferta.fecha_publicacion}</p>
+                <p><strong>Cierre:</strong> ${oferta.fecha_cierre}</p>
             </div>
         `;
-        
-        document.getElementById('offerModalBody').innerHTML = content;
-        
-        // Mostrar modal
-        const modal = new bootstrap.Modal(document.getElementById('offerModal'));
-        modal.show();
-        
-        // También mostrar infowindow en el mapa
-        infoWindow.setContent(`
-            <div style="max-width: 250px;">
-                <h6 style="margin: 0 0 5px 0; color: #4f46e5;">${offer.title}</h6>
-                <p style="margin: 0 0 3px 0; font-size: 0.9em; color: #6b7280;">${offer.company}</p>
-                <p style="margin: 0 0 3px 0; font-size: 0.8em;">
-                    <svg width="12" height="12" fill="none" stroke="#6b7280" stroke-width="2" viewBox="0 0 24 24" style="vertical-align: middle;">
-                        <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                        <path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    ${offer.address}
-                </p>
-                ${offer.urgent ? '<span class="urgent-badge" style="margin-top: 5px; display: inline-block;">Urgente</span>' : ''}
-                <a href="${offer.url}" style="display: block; margin-top: 8px; font-size: 0.9em;">Ver detalles</a>
-            </div>
-        `);
-        infoWindow.open(map, marker);
     }
-    
-    function updateFilters() {
-        const categoryFilter = document.getElementById('category-filter').value;
-        const contractFilter = document.getElementById('contract-filter').value;
-        const urgentFilter = document.getElementById('urgent-filter').checked;
-        
-        // Filtrar marcadores
-        markers.forEach(marker => {
-            const offer = marker.offerData;
-            let show = true;
-            
-            if (categoryFilter !== 'all' && offer.categoryId != categoryFilter) {
-                show = false;
-            }
-            
-            if (contractFilter !== 'all' && offer.contractType !== contractFilter) {
-                show = false;
-            }
-            
-            if (urgentFilter && !offer.urgent) {
-                show = false;
-            }
-            
-            marker.setVisible(show);
-        });
-        
-        // Filtrar tarjetas de ofertas
-        document.querySelectorAll('.offer-card').forEach(card => {
-            const categoryMatch = categoryFilter === 'all' || card.dataset.category === categoryFilter;
-            const contractMatch = contractFilter === 'all' || card.dataset.contract === contractFilter;
-            const urgentMatch = !urgentFilter || card.dataset.urgent === 'true';
-            
-            if (categoryMatch && contractMatch && urgentMatch) {
-                card.style.display = 'block';
-            } else {
-                card.style.display = 'none';
-            }
-        });
+
+    function handleMapError() {
+        document.getElementById('loading').innerHTML = `
+            <div style="color: red;">
+                <h3>Error al cargar el mapa</h3>
+                <p>Por favor, verifica que la clave de API de Google Maps esté configurada correctamente.</p>
+            </div>
+        `;
     }
 </script>
 
-<!-- Cargar API de Google Maps -->
-<script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0&callback=initMap">
+<!-- Google Maps API -->
+<script async defer 
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap&libraries=places"
+    onerror="handleMapError()">
 </script>
+</body>
+</html>
 {% endblock %}

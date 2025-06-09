@@ -1,0 +1,300 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load static %}
+
+{% block title %}Mis Postulaciones | MatchJob{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Define variables - IMPORTANTE: Estas idealmente deberían venir de un archivo CSS global o tu base.html */
+    :root {
+        --primary-color: #6c63ff; /* Morado original */
+        --primary-light: #a29bfe; /* Morado claro */
+        --primary-dark: #483dff; /* Morado oscuro */
+        --success-color: #00b894; /* Verde éxito */
+        --warning-color: #fdcb6e; /* Naranja advertencia */
+        --danger-color: #d63031; /* Rojo peligro */
+        --dark-color: #2d3436; /* Color oscuro para texto */
+        --light-color: #f5f6fa; /* Color claro para fondo/resaltados */
+        --info-color: #3498db; /* Azul información */
+
+        /* Variables para el esquema de color de Mis Postulaciones */
+        --main-bg-color: var(--primary-color); /* El fondo principal de la página es morado */
+        --content-bg-color: white;             /* El fondo para el bloque de contenido principal (tabla/estado vacío) es blanco */
+        --content-text-color: var(--dark-color); /* Color de texto predeterminado en el bloque de contenido blanco */
+        --accent-text-color: var(--primary-color); /* Texto morado para encabezados/íconos en el bloque de contenido blanco */
+        --icon-color-in-content: var(--info-color); /* Color de los íconos y texto de encabezado dentro del contenido principal (AZUL) */
+    }
+
+    body {
+        background-color: var(--main-bg-color); /* El fondo de todo el cuerpo es morado */
+    }
+
+    /* Sección de Encabezado (el banner superior) - Ahora es MORADA con texto BLANCO */
+    .hero-section-postulaciones {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); /* Degradado morado */
+        color: white; /* Texto blanco */
+        padding: 3rem 0;
+        border-radius: 0 0 20px 20px;
+        margin-bottom: 3rem;
+        box-shadow: 0 10px 30px rgba(108, 99, 255, 0.2); /* Sombra morada */
+    }
+
+    .hero-section-postulaciones h1 {
+        color: white; /* Asegurar que el encabezado sea blanco */
+    }
+
+    .hero-section-postulaciones p {
+        color: rgba(255, 255, 255, 0.8); /* Blanco ligeramente atenuado para la descripción */
+    }
+
+    /* Insignia de conteo para Mis Postulaciones - BLANCA con texto MORADO */
+    .postulaciones-count {
+        background-color: white; /* Fondo blanco */
+        color: var(--primary-color); /* Texto morado */
+        padding: 10px 20px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 1.1rem;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); /* Sombra estándar para elementos blancos */
+    }
+
+    /* Contenedor Principal de Contenido (para tabla o estado vacío) - Fondo BLANCO */
+    .postulaciones-main-card {
+        background: var(--content-bg-color); /* Fondo blanco para el bloque de contenido principal */
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 2rem; /* Añadir padding para el contenido interno */
+        color: var(--content-text-color); /* Color de texto predeterminado dentro del bloque blanco */
+    }
+
+    /* Estilos de tabla dentro del contenedor principal de contenido */
+    .postulaciones-main-card .table {
+        color: var(--content-text-color); /* Texto oscuro para el contenido de la tabla */
+    }
+
+    /* CÓDIGO MODIFICADO: Las letras de los encabezados de la tabla ahora son AZULES */
+    .postulaciones-main-card .table thead th {
+        color: var(--icon-color-in-content); /* Texto AZUL para los encabezados de la tabla */
+        border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .postulaciones-main-card .table tbody tr {
+        background-color: var(--content-bg-color); /* Las filas en sí mismas permanecen blancas */
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05); /* Borde sutil entre filas */
+    }
+
+    .postulaciones-main-card .table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .postulaciones-main-card .table tbody tr:hover {
+        background-color: var(--light-color); /* Gris claro al pasar el ratón */
+    }
+
+    /* Íconos dentro de la tabla (container my-5) ahora son AZULES */
+    .postulaciones-main-card .table i.bi {
+        color: var(--icon-color-in-content) !important; /* Asegurar que todos los íconos dentro de la tabla sean AZULES */
+    }
+
+    /* Botón para 'Ver Oferta' dentro de la tabla */
+    .postulaciones-main-card .btn-outline-primary {
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+        transition: all 0.3s ease;
+    }
+
+    .postulaciones-main-card .btn-outline-primary:hover {
+        background-color: var(--primary-color);
+        color: white;
+    }
+
+    /* Botón para 'Volver a Inicio' */
+    .btn-back-home {
+        background-color: var(--primary-color); /* Botón morado */
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 2rem; /* Espacio desde la tabla */
+    }
+
+    .btn-back-home:hover {
+        background-color: var(--primary-dark);
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    .btn-back-home i {
+        margin-right: 0.5rem;
+    }
+
+    /* Estado Vacío - Ahora debería ser una tarjeta BLANCA */
+    .empty-state-postulaciones {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--content-bg-color); /* Fondo blanco */
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        color: var(--content-text-color); /* Texto oscuro para la descripción */
+    }
+
+    .empty-state-postulaciones .empty-state-icon-postulaciones {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%); /* Degradado morado */
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        color: white; /* Ícono blanco */
+        font-size: 2.5rem;
+        box-shadow: 0 10px 25px rgba(108, 99, 255, 0.3); /* Sombra morada */
+    }
+
+    /* El encabezado del estado vacío sigue siendo morado, pero los íconos de la tabla ahora son azules */
+    .empty-state-postulaciones h3 {
+        color: var(--accent-text-color); /* Encabezado morado */
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-postulaciones p {
+        color: #555; /* Texto ligeramente atenuado */
+        margin-bottom: 2rem;
+    }
+
+    /* El ícono del botón de "Buscar Ofertas" ahora es AZUL */
+    .empty-state-postulaciones .btn-search-offers {
+        background-color: var(--primary-color); /* Botón morado */
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .empty-state-postulaciones .btn-search-offers:hover {
+        background-color: var(--primary-dark);
+        color: white;
+        transform: translateY(-2px);
+    }
+    
+    /* El ícono dentro del botón "Buscar Ofertas" es BLANCO (no azul) para contrastar con el fondo morado del botón */
+    .empty-state-postulaciones .btn-search-offers i.bi {
+        color: white; 
+    }
+
+    /* Colores de las insignias de estado, asegurando que se vean bien en un fondo de tabla blanco */
+    .badge.bg-warning { background-color: var(--warning-color) !important; color: var(--dark-color) !important; }
+    .badge.bg-primary { background-color: var(--primary-color) !important; }
+    .badge.bg-info { background-color: var(--info-color) !important; }
+    .badge.bg-success { background-color: var(--success-color) !important; }
+    .badge.bg-danger { background-color: var(--danger-color) !important; }
+    .badge.bg-secondary { background-color: #6c757d !important; } /* Usar secundario estándar si no está definido en variables */
+
+
+    @media (max-width: 768px) {
+        .hero-section-postulaciones {
+            border-radius: 0;
+            padding: 2rem 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-section-postulaciones text-center">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="display-4 fw-bold">Mis Postulaciones</h1>
+                <p class="lead">Administra las ofertas a las que has postulado</p>
+            </div>
+            <div class="postulaciones-count"> {# Clase corregida #}
+                {{ todas_las_postulaciones|length|default:"0" }} postulaciones
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container my-5">
+    {# El div principal de contenido debe usar la clase 'postulaciones-main-card' #}
+    <div class="postulaciones-main-card"> 
+        {% if todas_las_postulaciones %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th><i class="bi bi-file-earmark-fill"></i> Oferta</th>
+                        <th><i class="bi bi-calendar-date"></i> Fecha</th>
+                        <th><i class="bi bi-calendar-x"></i> Cierre</th>
+                        <th><i class="bi bi-tag"></i> Estado</th>
+                        <th><i class="bi bi-gear-fill"></i> Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Se corrigió el nombre de la variable de bucle: 'todas_las_las_postulaciones' a 'todas_las_postulaciones' #}
+                    {% for postulacion in todas_las_postulaciones %} 
+                        <tr>
+                            <td>
+                                <i class="bi bi-briefcase-fill"></i> {{ postulacion.oferta.nombre }}
+                            </td>
+                            <td>
+                                <small><i class="bi bi-clock-fill"></i> {{ postulacion.fecha_postulacion|date:"d/m/Y" }}</small>
+                            </td>
+                            <td>
+                                {% if postulacion.oferta.fecha_cierre %}
+                                    <small>
+                                    <i class="bi bi-clock-fill"></i>
+                                    {{ postulacion.oferta.fecha_cierre|date:"d/m/Y" }}
+                                    </small>
+                                {% else %}
+                                    <span>Sin fecha</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if postulacion.estado == 'pendiente' %}warning{% elif postulacion.estado == 'filtrado' %}primary{% elif postulacion.estado == 'match' %}info{% elif postulacion.estado == 'contratado' %}success{% elif postulacion.estado == 'rechazado' %}danger{% elif postulacion.estado == 'finalizado' %}secondary{% endif %}">
+                                    {{ postulacion.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'detalle_oferta' postulacion.oferta.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye me-1"></i> Ver Oferta
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="mt-4 text-center">
+                <a href="{% url 'inicio' %}" class="btn btn-back-home">
+                    <i class="bi bi-arrow-left me-1"></i> Volver a Inicio
+                </a>
+            </div>
+        </div>
+        {% else %}
+        {# La clase del estado vacío se corrigió a 'empty-state-postulaciones' #}
+        <div class="empty-state-postulaciones"> 
+            {# La clase del ícono del estado vacío se corrigió a 'empty-state-icon-postulaciones' #}
+            <div class="empty-state-icon-postulaciones"> 
+                <i class="bi bi-briefcase-fill"></i>
+            </div>
+            <h3>No has realizado postulaciones aún</h3>
+            <p>Explora nuestras ofertas laborales y postúlate a las que te interesen.</p>
+            {# La clase del botón del estado vacío se corrigió a 'btn-search-offers' #}
+            <a href="{% url 'buscar_trabajo' %}" class="btn btn-search-offers"> 
+                <i class="bi bi-search me-2"></i> Buscar Ofertas
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

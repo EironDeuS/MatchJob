@@ -140,18 +140,17 @@
         </div>
 
 
-            <div class="card shadow-sm">
+
+
+
+            <div class="card shadow-sm mt-4">
                 <div class="card-body">
                     <h3 class="card-title border-bottom pb-2 mb-3">
-                        <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}send-fill{% else %}inbox-fill{% endif %} text-warning me-2"></i>
-                        {% if usuario.tipo_usuario == 'persona' %}
-                            Mis Postulaciones
-                        {% else %}
-                            Postulaciones Recibidas
-                        {% endif %}
+                        <i class="bi bi-check-square-fill text-success me-2"></i>
+                        Postulaciones Filtradas
                     </h3>
 
-                    {% if tiene_todas_las_postulaciones %}
+                    {% if tiene_postulaciones_filtradas %}
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
@@ -166,14 +165,11 @@
                                         <th><i class="bi bi-calendar-date text-muted"></i> Fecha</th>
                                         <th><i class="bi bi-tag text-muted"></i> Estado</th>
                                         <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
-                                        {% if usuario.tipo_usuario == 'empresa' %}
-                                            <th><i class="bi bi-arrow-left-right text-muted"></i> Cambiar Estado</th>
-                                        {% endif %}
                                     </tr>
                                 </thead>
-                                <tbody id="mis-postulaciones">
-                                    {% for postulacion in todas_las_postulaciones %}
-                                        <tr class="item {% if forloop.counter > 3 %}d-none{% endif %}">
+                                <tbody id="postulaciones-filtradas">
+                                {% for postulacion in postulaciones_filtradas %}
+                                    <tr class="item {% if forloop.counter > 3 %}d-none{% endif %}">
                                             {% if usuario.tipo_usuario == 'empresa' %}
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -192,122 +188,10 @@
                                             {% endif %}
                                             <td><small class="text-muted"><i class="bi bi-clock-fill text-secondary me-1"></i> {{ postulacion.fecha_postulacion|date:"d/m/Y" }}</small></td>
                                             <td>
-                                                <span class="badge bg-{% if postulacion.estado == 'pendiente' %}warning{% elif postulacion.estado == 'filtrado' %}primary{% elif postulacion.estado == 'match' %}info{% elif postulacion.estado == 'contratado' %}success{% elif postulacion.estado == 'rechazado' %}danger{% elif postulacion.estado == 'finalizado' %}secondary{% endif %}">
+                                                <span class="badge bg-primary">
                                                     {{ postulacion.get_estado_display }}
                                                 </span>
                                             </td>
-                                            <td>
-                                                <a href="" class="btn btn-sm btn-outline-primary">
-                                                    <i class="bi bi-eye me-1"></i> {% if usuario.tipo_usuario == 'empresa' %}Revisar{% else %}Ver{% endif %}
-                                                </a>
-                                            </td>
-                                            {% if usuario.tipo_usuario == 'empresa' %}
-                                            <td>
-                                              <form method="post" action="{% url 'cambiar_estado_postulacion' postulacion.id %}">
-                                                  {% csrf_token %}
-                                                  <select name="nuevo_estado" class="form-select form-select-sm">
-                                                      <option value="pendiente" {% if postulacion.estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
-                                                      <option value="filtrado" {% if postulacion.estado == 'filtrado' %}selected{% endif %}>Filtrado</option>
-                                                      <option value="finalizado" {% if postulacion.estado == 'finalizado' %}selected{% endif %}>Finalizado</option>
-                                                  </select>
-                                                  <button type="submit" class="btn btn-sm btn-outline-secondary mt-1">
-                                                      <i class="bi bi-check-circle-fill"></i> Guardar
-                                                  </button>
-                                              </form>
-                                          </td>
-                                          {% endif %}
-                                      </tr>
-                                  {% endfor %}
-                              </tbody>
-                              {% if todas_las_postulaciones|length > 3 %}
-                                    <tfoot>
-                                        <tr>
-                                            <td colspan="100%" class="text-center">
-                                                <button id="btn-mis-postulaciones" class="btn btn-outline-secondary btn-sm" onclick="toggleMostrar('mis-postulaciones', 15, this)">
-                                                    Mostrar más
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                {% endif %}
-                          </table>
-                      </div>
-                  {% else %}
-                      <div class="alert alert-info mb-0">
-                          <div class="d-flex align-items-center">
-                              <i class="bi bi-info-circle-fill me-2"></i>
-                              <div>
-                                  <h5 class="alert-heading mb-1">
-                                      {% if usuario.tipo_usuario == 'persona' %}
-                                          No tienes postulaciones
-                                      {% else %}
-                                          No has recibido postulaciones
-                                      {% endif %}
-                                  </h5>
-                                  <p class="mb-0">
-                                      {% if usuario.tipo_usuario == 'persona' %}
-                                          Busca ofertas que se ajusten a tu perfil y postula.
-                                      {% else %}
-                                          Promociona tus ofertas para recibir más postulaciones.
-                                      {% endif %}
-                                  </p>
-                              </div>
-                          </div>
-                      </div>
-                  {% endif %}
-              </div>
-          </div>
-
-
-          <div class="card shadow-sm mt-4">
-              <div class="card-body">
-                  <h3 class="card-title border-bottom pb-2 mb-3">
-                      <i class="bi bi-check-square-fill text-success me-2"></i>
-                      Postulaciones Filtradas
-                  </h3>
-
-                  {% if tiene_postulaciones_filtradas %}
-                      <div class="table-responsive">
-                          <table class="table table-hover">
-                              <thead>
-                                  <tr>
-                                      {% if usuario.tipo_usuario == 'empresa' %}
-                                          <th><i class="bi bi-person-fill text-muted"></i> Postulante</th>
-                                      {% endif %}
-                                      <th><i class="bi bi-file-earmark-fill text-muted"></i> Oferta</th>
-                                      {% if usuario.tipo_usuario == 'empresa' %}
-                                          <th><i class="bi bi-briefcase-fill text-muted"></i> Experiencia</th>
-                                      {% endif %}
-                                      <th><i class="bi bi-calendar-date text-muted"></i> Fecha</th>
-                                      <th><i class="bi bi-tag text-muted"></i> Estado</th>
-                                      <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
-                                  </tr>
-                              </thead>
-                              <tbody id="postulaciones-filtradas">
-                                {% for postulacion in postulaciones_filtradas %}
-                                    <tr class="item {% if forloop.counter > 3 %}d-none{% endif %}">
-                                          {% if usuario.tipo_usuario == 'empresa' %}
-                                              <td>
-                                                  <div class="d-flex align-items-center">
-                                                      {% if postulacion.persona.foto_perfil %}
-                                                          <img src="{{ postulacion.persona.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
-                                                      {% else %}
-                                                          <i class="bi bi-person-circle me-2"></i>
-                                                      {% endif %}
-                                                      {{ postulacion.persona.nombres }} {{ postulacion.persona.apellidos }}
-                                                  </div>
-                                              </td>
-                                          {% endif %}
-                                          <td><a href=""><i class="bi bi-link-45deg text-info me-1"></i> {{ postulacion.oferta.titulo }}</a></td>
-                                          {% if usuario.tipo_usuario == 'empresa' %}
-                                              <td>{{ postulacion.oferta.descripcion|default:"No especificada"|truncatewords:5 }}</td>
-                                          {% endif %}
-                                          <td><small class="text-muted"><i class="bi bi-clock-fill text-secondary me-1"></i> {{ postulacion.fecha_postulacion|date:"d/m/Y" }}</small></td>
-                                          <td>
-                                              <span class="badge bg-primary">
-                                                  {{ postulacion.get_estado_display }}
-                                              </span>
-                                          </td>
                                             <td>
                                                 
                                                 <a href="#" 
@@ -321,10 +205,10 @@
                                                     <i class="bi bi-lightbulb me-1"></i> Match
                                                 </a>
                                                 </td>
-                                      </tr>
-                                  {% endfor %}
-                              </tbody>
-                              {% if postulaciones_filtradas|length > 3 %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                {% if postulaciones_filtradas|length > 3 %}
                                     <tfoot>
                                         <tr>
                                             <td colspan="100%" class="text-center">
@@ -335,60 +219,60 @@
                                         </tr>
                                     </tfoot>
                                 {% endif %}
-                          </table>
-                      </div>
-                  {% else %}
-                      <div class="alert alert-info mb-0">
-                          <div class="d-flex align-items-center">
-                              <i class="bi bi-info-circle-fill me-2"></i>
-                              <div>
-                                  <h5 class="alert-heading mb-1">
-                                      {% if usuario.tipo_usuario == 'persona' %}
-                                          No tienes postulaciones filtradas
-                                      {% else %}
-                                          No has recibido postulaciones filtradas
-                                      {% endif %}
-                                  </h5>
-                                  <p class="mb-0">
-                                      {% if usuario.tipo_usuario == 'persona' %}
-                                          Revisa el estado de tus postulaciones.
-                                      {% else %}
-                                          Revisa el estado de tus postulaciones.
-                                      {% endif %}
-                                  </p>
-                              </div>
-                          </div>
-                      </div>
-                  {% endif %}
-              </div>
-          </div>
-      
-  </div>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info mb-0">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <div>
+                                    <h5 class="alert-heading mb-1">
+                                        {% if usuario.tipo_usuario == 'persona' %}
+                                            No tienes postulaciones filtradas
+                                        {% else %}
+                                            No has recibido postulaciones filtradas
+                                        {% endif %}
+                                    </h5>
+                                    <p class="mb-0">
+                                        {% if usuario.tipo_usuario == 'persona' %}
+                                            Revisa el estado de tus postulaciones.
+                                        {% else %}
+                                            Revisa el estado de tus postulaciones.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        
+    </div>
 </div>
 
 <div class="modal fade" id="modalConfirmarMatch" tabindex="-1" aria-labelledby="modalConfirmarMatchLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg rounded-4">
-      <div class="modal-header bg-primary text-white rounded-top-4">
+    <div class="modal-header bg-primary text-white rounded-top-4">
         <h5 class="modal-title" id="modalConfirmarMatchLabel">
-          <i class="bi bi-check2-circle me-2"></i> Confirmar Match
+            <i class="bi bi-check2-circle me-2"></i> Confirmar Match
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body text-center py-4">
+        </div>
+        <div class="modal-body text-center py-4">
         <i class="bi bi-person-heart text-danger" style="font-size: 3rem;"></i>
         <p class="mt-3 fs-5">¿Deseas hacer <strong>match</strong> con <span id="matchNombre" class="text-primary fw-bold"></span> y contactarlo vía <i class="bi bi-whatsapp text-success"></i> WhatsApp?</p>
-      </div>
-      <div class="modal-footer justify-content-center border-0 pb-4">
+        </div>
+        <div class="modal-footer justify-content-center border-0 pb-4">
         <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
-          <i class="bi bi-x-circle me-1"></i> Cancelar
+            <i class="bi bi-x-circle me-1"></i> Cancelar
         </button>
         <a id="btnWhatsapp" href="#" target="_blank" class="btn btn-success px-4">
-          <i class="bi bi-whatsapp me-1"></i> Contactar
+            <i class="bi bi-whatsapp me-1"></i> Contactar
         </a>
-      </div>
+        </div>
     </div>
-  </div>
+    </div>
 </div>
 
             <!-- Sección completa: Galería + Subida -->
@@ -401,7 +285,7 @@
             </style>
             <div class="card shadow-sm mt-4">
             <div class="card-body">
-                <h3 class="card-title border-bottom pb-2 mb-3">
+                <h3 id="muestras-trabajo" class="card-title border-bottom pb-2 mb-3">
                 <i class="bi bi-folder-symlink-fill text-secondary me-2"></i> Muestras de Trabajos
                 </h3>
 
@@ -495,8 +379,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  var modal = document.getElementById('modalConfirmarMatch');
-  modal.addEventListener('show.bs.modal', function (event) {
+    var modal = document.getElementById('modalConfirmarMatch');
+    modal.addEventListener('show.bs.modal', function (event) {
     var button = event.relatedTarget;
     var nombre = button.getAttribute('data-nombre');
     var telefono = button.getAttribute('data-telefono');
@@ -515,31 +399,31 @@ document.addEventListener('DOMContentLoaded', function () {
     var mensaje = `Hola ${nombre}, hemos hecho match contigo en MatchJob respecto a tu postulación #${postulacionId} para la oferta "${tituloOferta}". Nos gustaría contactarte para conversar más sobre esta oportunidad.`;
 
     whatsappBtn.href = `https://wa.me/${telefonoConPrefijo.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`;
-  });
+    });
 });
 
 //para mostrar mas en apartados postulaciones, ofertas y filtrados
-  function toggleMostrar(id, cantidad) {
-    const items = document.querySelectorAll(`#${id} .item`);
-    const boton = document.getElementById(`btn-${id}`);
-    const mostrandoTodo = boton.dataset.expandido === 'true';
+    function toggleMostrar(id, cantidad) {
+        const items = document.querySelectorAll(`#${id} .item`);
+        const boton = document.getElementById(`btn-${id}`);
+        const mostrandoTodo = boton.dataset.expandido === 'true';
 
-    if (!mostrandoTodo) {
-      // Mostrar los siguientes "cantidad" ocultos
-      items.forEach((item, i) => {
-        if (i > 2) item.classList.remove('d-none');
-      });
-      boton.innerText = "Mostrar menos";
-      boton.dataset.expandido = 'true';
-    } else {
-      // Ocultar todos menos los 3 primeros
-      items.forEach((item, i) => {
-        if (i > 2) item.classList.add('d-none');
-      });
-      boton.innerText = "Mostrar más";
-      boton.dataset.expandido = 'false';
+        if (!mostrandoTodo) {
+        // Mostrar los siguientes "cantidad" ocultos
+        items.forEach((item, i) => {
+            if (i > 2) item.classList.remove('d-none');
+        });
+        boton.innerText = "Mostrar menos";
+        boton.dataset.expandido = 'true';
+        } else {
+        // Ocultar todos menos los 3 primeros
+        items.forEach((item, i) => {
+            if (i > 2) item.classList.add('d-none');
+        });
+        boton.innerText = "Mostrar más";
+        boton.dataset.expandido = 'false';
+        }
     }
-  }
 </script>
 
 

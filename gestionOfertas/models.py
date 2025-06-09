@@ -8,6 +8,8 @@ from django.utils import timezone
 from django.db.models import Avg
 from django.core.validators import MinValueValidator, MaxValueValidator
 import os
+from django.urls import reverse
+
 
 # -----------------------------
 # Gestor Personalizado de Usuario
@@ -22,7 +24,7 @@ class UsuarioManager(BaseUserManager):
         email = self.normalize_email(correo)
         # Quitar campos de perfil para que save() los maneje
         profile_fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad', # Persona
-                          'nombre_empresa', 'razon_social', 'giro'] # Empresa
+                            'nombre_empresa', 'razon_social', 'giro'] # Empresa
         # Dirección y teléfono ahora están en Usuario, no son de perfil específico
         user_extra_fields = {k: v for k, v in extra_fields.items() if k not in profile_fields}
         user = self.model(username=username, correo=email, **user_extra_fields)
@@ -425,6 +427,8 @@ class OfertaTrabajo(models.Model):
         if self.fecha_cierre is None:
             return True
         return self.fecha_cierre >= timezone.now().date()
+    def get_absolute_url(self):
+     return reverse('detalle_oferta', args=[str(self.id)])
 # -----------------------------
 # Postulación
 # -----------------------------
@@ -443,6 +447,7 @@ class Postulacion(models.Model):
         CV, on_delete=models.SET_NULL, verbose_name=_('CV enviado'), null=True, blank=True, related_name='+'
     )
     fecha_postulacion = models.DateTimeField(_('Fecha de postulación'), auto_now_add=True)
+    fecha_contratacion = models.DateTimeField(_('Fecha de contratación'), null=True, blank=True)
     mensaje = models.TextField(_('Mensaje del postulante'), blank=True)
     estado = models.CharField(_('Estado'), max_length=20, choices=ESTADOS, default='pendiente')
     feedback = models.TextField(_('Feedback'), blank=True)
@@ -459,6 +464,8 @@ class Postulacion(models.Model):
             models.Index(fields=['oferta']),
             models.Index(fields=['estado']),
             models.Index(fields=['filtrada']), # Añadimos un índice para el nuevo campo
+            # ¡Opcional: puedes añadir un índice para fecha_contratacion si la vas a usar mucho en filtros!
+            models.Index(fields=['fecha_contratacion']), # Añado este índice por buena práctica
         ]
 
     def __str__(self):
@@ -470,6 +477,16 @@ class Postulacion(models.Model):
         super().clean()
         if not self.cv_enviado and hasattr(self.persona, 'cv') and self.persona.cv:
             self.cv_enviado = self.persona.cv
+
+    # ¡ESTE MÉTODO ES CRÍTICO PARA ESTABLECER LA FECHA!
+    def save(self, *args, **kwargs):
+        # Captura el estado original antes de guardar para detectar cambios
+        if self.pk: # Si es una instancia existente (ya tiene un ID en la DB)
+            original = Postulacion.objects.get(pk=self.pk)
+            # Si el estado actual es 'contratado' y el estado original NO era 'contratado'
+            if self.estado == 'contratado' and original.estado != 'contratado':
+                self.fecha_contratacion = timezone.now() # Establece la fecha de contratación
+        super().save(*args, **kwargs) # Llama al método save original
 
     def puede_valorar(self, usuario_actual: Usuario) -> tuple[bool, Usuario | None]:
         if self.estado != 'finalizado':  # <-- CAMBIO CLAVE
