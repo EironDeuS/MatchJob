@@ -468,6 +468,9 @@ def editar_oferta(request, oferta_id):
                     # Los campos 'latitud', 'longitud' y 'direccion'
                     # ya deberían estar en form.cleaned_data y se guardarán
                     # directamente con form.save()
+                    if oferta.urgente:
+                     notificar_oferta_urgente(oferta)
+
                     oferta_actualizada = form.save(commit=True) # Guardamos directamente, ya que la dirección viene del form
                     
                     # form.save_m2m() es importante para relaciones many-to-many
@@ -504,6 +507,107 @@ def editar_oferta(request, oferta_id):
     }
     
     return render(request, 'gestionOfertas/editar_oferta.html', context)
+
+from django.core.serializers.json import DjangoJSONEncoder
+
+def mapa_ofertas_trabajo(request):
+    """
+    Vista para mostrar el mapa con todas las ofertas de trabajo activas
+    """
+    # Obtener todas las ofertas activas con coordenadas válidas
+    ofertas = OfertaTrabajo.objects.filter(
+        esta_activa=True,
+        latitud__isnull=False,
+        longitud__isnull=False
+    ).select_related('categoria', 'empresa', 'creador')
+    
+    # Preparar datos para el mapa
+    ofertas_data = []
+    for oferta in ofertas:
+        # Determinar el tipo de publicador
+        if oferta.empresa:
+            publicador = oferta.empresa.nombre_empresa
+            tipo_publicador = "Empresa"
+        else:
+            publicador = f"{oferta.creador} {oferta.creador}".strip()
+            if not publicador:
+                publicador = oferta.creador.username
+            tipo_publicador = "Persona Natural"
+        
+        # Determinar el tipo de oferta
+        tipo_oferta = "Servicio" if oferta.es_servicio else "Empleo"
+        
+        # Preparar descripción corta para el popup
+        descripcion_corta = oferta.descripcion[:100] + "..." if len(oferta.descripcion) > 100 else oferta.descripcion
+        
+        ofertas_data.append({
+            'id': oferta.id,
+            'nombre': oferta.nombre,
+            'descripcion': descripcion_corta,
+            'descripcion_completa': oferta.descripcion,
+            'direccion': oferta.direccion,
+            'latitud': float(oferta.latitud),
+            'longitud': float(oferta.longitud),
+            'categoria': oferta.categoria.nombre_categoria if oferta.categoria else 'Sin categoría',
+            'salario': oferta.salario,
+            'tipo_contrato': oferta.get_tipo_contrato_display() if oferta.tipo_contrato else '',
+            'publicador': publicador,
+            'tipo_publicador': tipo_publicador,
+            'tipo_oferta': tipo_oferta,
+            'urgente': oferta.urgente,
+            'fecha_publicacion': oferta.fecha_publicacion.strftime('%d/%m/%Y'),
+            'fecha_cierre': oferta.fecha_cierre.strftime('%d/%m/%Y') if oferta.fecha_cierre else 'Sin fecha límite'
+        })
+    
+    context = {
+        'ofertas_json': ofertas_data,
+        'google_maps_api_key': getattr(settings, 'GOOGLE_MAPS_API_KEY', ''),
+        'total_ofertas': len(ofertas_data)
+    }
+    
+    return render(request, 'gestionOfertas/mapa.html', context)
+
+
+def api_ofertas_mapa(request):
+    """
+    API endpoint para obtener ofertas en formato JSON (opcional)
+    """
+    ofertas = OfertaTrabajo.objects.filter(
+        esta_activa=True,
+        latitud__isnull=False,
+        longitud__isnull=False
+    ).select_related('categoria', 'empresa', 'creador')
+    
+    ofertas_data = []
+    for oferta in ofertas:
+        if oferta.empresa:
+            publicador = oferta.empresa.nombre
+            tipo_publicador = "Empresa"
+        else:
+            publicador = f"{oferta.creador.first_name} {oferta.creador.last_name}".strip()
+            if not publicador:
+                publicador = oferta.creador.username
+            tipo_publicador = "Persona Natural"
+        
+        tipo_oferta = "Servicio" if oferta.es_servicio else "Empleo"
+        
+        ofertas_data.append({
+            'id': oferta.id,
+            'nombre': oferta.nombre,
+            'descripcion': oferta.descripcion[:100] + "..." if len(oferta.descripcion) > 100 else oferta.descripcion,
+            'direccion': oferta.direccion,
+            'latitud': float(oferta.latitud),
+            'longitud': float(oferta.longitud),
+            'categoria': oferta.categoria.nombre if oferta.categoria else 'Sin categoría',
+            'salario': oferta.salario,
+            'publicador': publicador,
+            'tipo_publicador': tipo_publicador,
+            'tipo_oferta': tipo_oferta,
+            'urgente': oferta.urgente,
+        })
+    
+    return JsonResponse({'ofertas': ofertas_data})
+    
 @login_required
 def eliminar_oferta(request, oferta_id):
     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=request.user)
@@ -668,24 +772,7 @@ def actualizar_modo_urgente(request):
     return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
 
 
-def mapa(request):
-    # Obtener ofertas activas con coordenadas
-    ofertas = OfertaTrabajo.objects.filter(
-        esta_activa=True,
-        latitud__isnull=False,
-        longitud__isnull=False
-    ).select_related('empresa', 'categoria')
-    
-    # Obtener todas las categorías para el filtro
-    categorias = Categoria.objects.all()
-    
-    context = {
-        'ofertas': ofertas,
-        'categorias': categorias,
-        'OfertaTrabajo': OfertaTrabajo  # Para acceder a las opciones de TIPO_CONTRATO_CHOICES
-    }
-    
-    return render(request, 'gestionOfertas/mapa.html', context)
+
 
 
 

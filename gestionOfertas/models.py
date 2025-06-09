@@ -8,6 +8,8 @@ from django.utils import timezone
 from django.db.models import Avg
 from django.core.validators import MinValueValidator, MaxValueValidator
 import os
+from django.urls import reverse
+
 
 # -----------------------------
 # Gestor Personalizado de Usuario
@@ -425,6 +427,8 @@ class OfertaTrabajo(models.Model):
         if self.fecha_cierre is None:
             return True
         return self.fecha_cierre >= timezone.now().date()
+    def get_absolute_url(self):
+     return reverse('detalle_oferta', args=[str(self.id)])
 # -----------------------------
 # Postulación
 # -----------------------------
