@@ -1,0 +1,108 @@
+/* C:\ProyectosDjango\MatchJob\gestionOfertas\static\css\base.css */
+
+/* Estilos para el cuerpo de la página */
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f8f9fa; /* Color de fondo claro para el body */
+    padding-top: 70px; /* Espacio para el navbar fijo superior */
+}
+
+/* Estilos para el Navbar principal */
+.navbar-main {
+    background-color: #343a40; /* Fondo oscuro para el navbar */
+    box-shadow: 0 2px 4px rgba(0,0,0,.1); /* Sutil sombra para el navbar */
+}
+
+.navbar-brand {
+    color: #ffffff !important; /* Color blanco para el texto de la marca */
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.navbar-brand .brand-icon {
+    color: #007bff; /* Color azul para el ícono de la marca */
+    margin-right: 8px;
+}
+
+.navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.75) !important; /* Color claro para los enlaces del nav */
+    font-weight: 500;
+    padding: 0.5rem 1rem; /* Espaciado interno */
+    position: relative; /* Para el indicador activo */
+    transition: color 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #ffffff !important; /* Color blanco al pasar el ratón */
+}
+
+/* Indicador para el enlace activo */
+.navbar-nav .nav-link.active .nav-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 3px;
+    background-color: #007bff; /* Color del indicador activo */
+    border-radius: 2px;
+}
+
+.navbar-nav .nav-link .nav-icon {
+    margin-right: 6px;
+}
+
+/* Botones de inicio de sesión/registro */
+.btn-login {
+    border-color: #007bff;
+    color: #007bff;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.btn-login:hover {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+/* Avatar de usuario en el menú desplegable */
+.user-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 8px;
+    border: 2px solid #007bff; /* Borde azul para el avatar */
+}
+
+/* Ajustes para el menú desplegable */
+.dropdown-menu {
+    background-color: #343a40;
+    border: none;
+}
+
+.dropdown-item {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.dropdown-item:hover {
+    background-color: #495057;
+    color: #ffffff;
+}
+
+.dropdown-item.text-danger {
+    color: #dc3545 !important;
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: #dc3545;
+    color: #ffffff !important;
+}
+
+.dropdown-divider {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Mensajes de Django */
+.alert {
+    margin-top: 20px;
+}

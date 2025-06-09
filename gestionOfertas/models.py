@@ -224,67 +224,70 @@ def cv_upload_to(instance, filename):
     Formato: cvs/RUT_nombreoriginal.extension
     """
     try:
-        # Accede al RUT a través de CV -> PersonaNatural -> Usuario
         rut_usuario = instance.persona.usuario.username
     except AttributeError:
-        rut_usuario = 'sin_rut' # Fallback por si algo falla
+        rut_usuario = 'sin_rut'
 
     nombre_original, extension = os.path.splitext(filename)
     nuevo_nombre = f"{rut_usuario}_{nombre_original}{extension}"
-    # Guarda los archivos en una carpeta 'cvs'
-    ruta_final = os.path.join('cvs', nuevo_nombre)
+    # Esta parte seguirá generando 'cvs/nombre.pdf'
+    ruta_final = os.path.join('cvs', nuevo_nombre) 
     return ruta_final
+
 class CV(models.Model):
     persona = models.OneToOneField(PersonaNatural, on_delete=models.CASCADE, related_name='cv')
-    nombre = models.CharField(_('Título del CV'), max_length=100, blank=True)
-    correo = models.EmailField(_('Correo de contacto'), blank=True)
-    # --- MODIFICACIÓN AQUÍ ---
+    
+    # Campo principal para el archivo PDF del CV
     archivo_cv = models.FileField(
         _('Archivo CV'),
-        upload_to=cv_upload_to, # <-- Usa la función definida arriba
+        upload_to=cv_upload_to,
         blank=True,
         null=True
     )
-    # ---------------------------
-    experiencia_resumen = models.TextField(_('Resumen de experiencia'), blank=True)
-    habilidades = models.TextField(_('Habilidades destacadas'), blank=True)
-    fecha_subida = models.DateTimeField(_('Fecha de subida'), auto_now_add=True, null=True, blank=True)
-    fecha_actualizacion = models.DateTimeField(_('Fecha de actualización'), auto_now=True, null=True, blank=True)
+
+    # *** EL CAMPO CLAVE: JSON completo de la IA ***
+    datos_analizados_ia = models.JSONField( 
+        _('Datos analizados por IA'),
+        blank=True,
+        null=True,
+        help_text="JSON completo de la información extraída del CV por la IA."
+    )
+
+    # Campos planos para una búsqueda/display rápido y básico
+    # Estos se poblarían desde el JSON_analizados_ia
+    nombre_completo = models.CharField(_('Nombre completo del CV'), max_length=200, blank=True, null=True)
+    email_contacto = models.EmailField(_('Correo de contacto'), blank=True, null=True)
+    
+    # Puedes mantener un resumen si quieres, o derivarlo del JSON si la IA lo provee
+    resumen_profesional = models.TextField(_('Resumen profesional'), blank=True, null=True)
+
+
+    fecha_subida = models.DateTimeField(_('Fecha de subida'), auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(_('Fecha de actualización'), auto_now=True)
 
     class Meta:
         verbose_name = _('CV')
         verbose_name_plural = _('CVs')
 
     def __str__(self):
-        return f"CV de {self.persona}"
-# -----------------------------
-# Experiencia Laboral
-# -----------------------------
-class ExperienciaLaboral(models.Model):
-    cv = models.ForeignKey(CV, on_delete=models.CASCADE, related_name='experiencias')
-    nombre_empresa = models.CharField(_('Nombre de la empresa'), max_length=100)
-    puesto = models.CharField(_('Puesto ocupado'), max_length=100)
-    fecha_inicio = models.DateField(_('Fecha de inicio'))
-    fecha_termino = models.DateField(_('Fecha de término'), blank=True, null=True)
-    descripcion = models.TextField(_('Descripción de funciones'), blank=True)
-    actualmente = models.BooleanField(_('Actualmente trabajando aquí'), default=False)
+        return f"CV de {self.nombre_completo or self.persona.usuario.username}"
 
-    class Meta:
-        verbose_name = _('Experiencia Laboral')
-        verbose_name_plural = _('Experiencias Laborales')
-        ordering = ['-fecha_inicio']
+    # Propiedades para acceder fácilmente a datos del JSON (ejemplos)
+    @property
+    def experiencia_laboral_ia(self):
+        return self.datos_analizados_ia.get('experiencia_laboral', []) if self.datos_analizados_ia else []
 
-    def __str__(self):
-        return f"{self.puesto} en {self.nombre_empresa}"
+    @property
+    def educacion_ia(self):
+        return self.datos_analizados_ia.get('educacion', []) if self.datos_analizados_ia else []
 
-    def clean(self):
-        super().clean()
-        if self.fecha_termino and self.fecha_inicio > self.fecha_termino:
-            raise ValidationError(_('La fecha de inicio no puede ser posterior a la fecha de término'))
-        if self.actualmente and self.fecha_termino:
-             raise ValidationError(_('No puede marcar "actualmente" si hay fecha de término.'))
-        if self.actualmente:
-            self.fecha_termino = None
+    @property
+    def habilidades_ia_dict(self):
+        return self.datos_analizados_ia.get('habilidades', {}) if self.datos_analizados_ia else {}
+
+    @property
+    def idiomas_ia_list(self):
+        return self.datos_analizados_ia.get('idiomas', []) if self.datos_analizados_ia else []
 
 # -----------------------------
 # Categoría

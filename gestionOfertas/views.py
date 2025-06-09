@@ -775,102 +775,120 @@ def actualizar_modo_urgente(request):
 
 
 
-@login_required # Asegura que solo usuarios logueados accedan
+@login_required
 def editar_perfil(request):
-    # Asumimos que solo las personas naturales pueden editar este perfil específico
-    # Puedes añadir lógica para redirigir a empresas a otro form/view
-    if request.user.tipo_usuario != 'persona':
-        messages.error(request, "Esta sección es solo para personas naturales.")
-        return redirect('inicio') # O a donde corresponda
+    usuario = request.user
+    if not hasattr(usuario, 'personanatural'):
+        messages.error(request, "No tienes un perfil de persona natural para editar.")
+        return redirect('miperfil') # Redirige a una URL apropiada si no tiene perfil
 
-    # Obtener perfil PersonaNatural asociado al usuario logueado
-    # Usamos get_object_or_404 para manejar el caso raro de que no exista
-    perfil = get_object_or_404(PersonaNatural, usuario=request.user)
-    # Obtener o crear el objeto CV asociado (por si nunca subió uno)
-    cv_obj, created = CV.objects.get_or_create(persona=perfil)
+    persona_natural = usuario.personanatural
+    
+    # Inicialización de cv_obj y variables para el template (fuera del POST)
+    cv_obj = None 
+    cv_actual_url = None
+    cv_actual_name = None
+
+    try:
+        cv_obj = persona_natural.cv # Intenta obtener el CV existente
+        if cv_obj.archivo_cv:
+            cv_actual_url = cv_obj.archivo_cv.url
+            cv_actual_name = cv_obj.archivo_cv.name
+    except CV.DoesNotExist:
+        pass # No hay CV existente, cv_obj es None
+    except Exception as e:
+        print(f"DEBUG: Error inesperado al intentar obtener CV en GET o POST inicial: {e}")
+        messages.warning(request, "Hubo un problema al cargar la información del CV.")
+
 
     if request.method == 'POST':
-        # Pasar instance=perfil podría funcionar si usaras ModelForm,
-        # pero con forms.Form, procesamos manualmente. Pasamos request.FILES.
-        form = EditarPerfilPersonaForm(request.POST, request.FILES)
+        form = EditarPerfilPersonaForm(request.POST, request.FILES, user=request.user, instance=persona_natural)
+
         if form.is_valid():
-            # Actualizar datos del Usuario
-            request.user.correo = form.cleaned_data['correo']
-            request.user.telefono = form.cleaned_data.get('telefono')
-            request.user.direccion = form.cleaned_data.get('direccion')
-            request.user.save()
+            # Guardar los campos del modelo Usuario
+            usuario.correo = form.cleaned_data['correo']
+            usuario.telefono = form.cleaned_data['telefono']
+            usuario.direccion = form.cleaned_data['direccion']
+            usuario.save()
 
-            # Actualizar datos del Perfil PersonaNatural
-            perfil.nombres = form.cleaned_data['nombres']
-            perfil.apellidos = form.cleaned_data['apellidos']
-            perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
-            perfil.nacionalidad = form.cleaned_data.get('nacionalidad')
-            perfil.save()
+            # Guardar los campos del modelo PersonaNatural
+            form.save() 
 
-            # --- Procesar actualización de CV ---
             nuevo_cv_archivo = form.cleaned_data.get('cv_archivo')
-            if nuevo_cv_archivo:
-                # 1. Borrar el archivo antiguo de GCS (si existe)
-                if cv_obj.archivo_cv:
+
+            if nuevo_cv_archivo: # Si el usuario ha subido un nuevo archivo de CV
+                if cv_obj:
+                    # Si ya existía un objeto CV, lo actualizamos con el nuevo archivo.
+                    # Django se encarga de eliminar el archivo antiguo del almacenamiento
+                    # cuando se asigna un nuevo archivo a un FileField y se guarda.
                     try:
-                        # save=False evita guardar el modelo solo por borrar el archivo
-                        cv_obj.archivo_cv.delete(save=False)
-                        print(f"DEBUG: Archivo CV antiguo borrado de GCS: {cv_obj.archivo_cv.name}")
+                        cv_obj.archivo_cv = nuevo_cv_archivo
+                        cv_obj.save()
+                        messages.success(request, "Tu perfil y CV han sido actualizados con éxito.")
+                        print(f"DEBUG: Nuevo CV actualizado en objeto existente: {cv_obj.archivo_cv.name}")
+                        cv_actual_url = cv_obj.archivo_cv.url
+                        cv_actual_name = cv_obj.archivo_cv.name
                     except Exception as e:
-                        print(f"DEBUG: Error al intentar borrar CV antiguo: {e}")
-                        messages.warning(request, "No se pudo borrar el CV anterior del almacenamiento, pero se intentará subir el nuevo.")
+                        print(f"DEBUG: Error al guardar/subir nuevo CV (existente): {e}")
+                        messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
+                else:
+                    # Si no existía un objeto CV, creamos uno nuevo para esta persona
+                    try:
+                        cv_obj = CV.objects.create(persona=persona_natural, archivo_cv=nuevo_cv_archivo)
+                        messages.success(request, "Tu perfil y CV han sido cargados con éxito.")
+                        print(f"DEBUG: Nuevo CV creado: {cv_obj.archivo_cv.name}")
+                        cv_actual_url = cv_obj.archivo_cv.url
+                        cv_actual_name = cv_obj.archivo_cv.name
+                    except Exception as e:
+                        print(f"DEBUG: Error al crear nuevo CV: {e}")
+                        messages.error(request, f'Hubo un error al cargar el nuevo CV: {e}')
 
-
-                # 2. Asignar el nuevo archivo al campo
-                cv_obj.archivo_cv = nuevo_cv_archivo
-
-                # 3. Guardar el objeto CV (esto subirá el nuevo archivo a GCS y usará tu función de renombrar)
-                try:
-                    cv_obj.save()
-                    print(f"DEBUG: Nuevo CV guardado: {cv_obj.archivo_cv.name}")
-                    messages.success(request, 'Tu CV ha sido actualizado exitosamente.')
-                except Exception as e:
-                    print(f"DEBUG: Error al guardar/subir nuevo CV: {e}")
-                    messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
-            # ------------------------------------
             elif 'cv_archivo-clear' in request.POST:
-                    # Si el usuario marcó el checkbox "clear" del ClearableFileInput
-                    if cv_obj.archivo_cv:
-                        try:
-                            cv_obj.archivo_cv.delete(save=True) # save=True aquí para guardar el campo vacío
-                            print("DEBUG: CV existente eliminado por petición del usuario.")
-                            messages.info(request, 'Tu CV ha sido eliminado.')
-                        except Exception as e:
-                            print(f"DEBUG: Error al eliminar CV existente: {e}")
-                            messages.error(request, f'Hubo un error al eliminar el CV: {e}')
+                # Si el usuario marcó el checkbox "clear" del ClearableFileInput para eliminar el CV
+                if cv_obj and cv_obj.archivo_cv: # Solo si el objeto CV y el archivo existen
+                    try:
+                        cv_obj.archivo_cv.delete(save=True) # Elimina el archivo y setea el campo a null en la DB
+                        messages.info(request, 'Tu CV ha sido eliminado.')
+                        print("DEBUG: CV existente eliminado por petición del usuario.")
+                        cv_actual_url = None # Actualizar las variables de contexto para reflejar la eliminación
+                        cv_actual_name = None
+                    except Exception as e:
+                        print(f"DEBUG: Error al eliminar CV existente: {e}")
+                        messages.error(f'Hubo un error al eliminar el CV: {e}')
+                else:
+                    messages.info(request, 'No había CV para eliminar.') # Mensaje si intentan borrar un CV que no existe
 
+            else: 
+                # Este bloque se ejecuta si no se subió un nuevo CV ni se marcó para borrar.
+                # Se asume que el formulario del perfil general se procesó y guardó correctamente.
+                # Sólo mostrar un mensaje si no hubo acción previa del CV que ya generó un mensaje.
+                messages.success(request, 'Tu perfil ha sido actualizado exitosamente (CV sin cambios).')
 
-            if not nuevo_cv_archivo and 'cv_archivo-clear' not in request.POST :
-                    messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+            return redirect('editar_perfil') # Redirige a la misma página para ver los cambios
 
-            return redirect('editar_perfil') # Redirige a la misma página para ver cambios
-
-        else: # Formulario no válido
+        else: # Formulario no válido (en POST)
             print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
             messages.error(request, 'Por favor corrige los errores en el formulario.')
 
-    else: # Método GET <--- AQUÍ DENTRO
+    else: # Método GET
+        # Obtener la instancia del perfil del usuario actual para inicializar el formulario
         initial_data = {
-            'correo': request.user.correo,
-            'telefono': request.user.telefono,
-            'direccion': request.user.direccion,
-            'nombres': perfil.nombres,
-            'apellidos': perfil.apellidos,
-            'fecha_nacimiento': perfil.fecha_nacimiento,
-            'nacionalidad': perfil.nacionalidad,
+            'correo': usuario.correo,
+            'telefono': usuario.telefono,
+            'direccion': usuario.direccion,
         }
-        form = EditarPerfilPersonaForm(initial=initial_data)
+        form = EditarPerfilPersonaForm(instance=persona_natural, initial=initial_data, user=request.user)
 
-        context = {
-            'form': form,
-            'cv_actual': cv_obj.archivo_cv
-        }
-        return render(request, 'gestionOfertas/editar_perfil.html', context)
+        # Las variables cv_actual_url y cv_actual_name ya se inicializaron al principio de la función
+        # y se habrían actualizado en el bloque try-except inicial si el CV existía.
+
+    context = {
+        'form': form,
+        'cv_actual_url': cv_actual_url,
+        'cv_actual_name': cv_actual_name,
+    }
+    return render(request, 'gestionOfertas/editar_perfil.html', context)
+
 
 def base(request):
     return render(request, 'gestionOfertas/base.html')
@@ -1179,3 +1197,152 @@ def eliminar_muestra_trabajo(request, muestra_id):
 def agrupar_muestras(lista, tamaño=3):
     return [lista[i:i + tamaño] for i in range(0, len(lista), tamaño)]
 
+import json
+import datetime
+import logging
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+# Configurar el logger
+logger = logging.getLogger(__name__)
+
+# Función auxiliar para formatear el RUT como se guarda en la DB
+def format_rut_for_db_lookup(rut_sin_guion):
+    """
+    Formatea un RUT sin guion (ej. '187847419') a un RUT con guion (ej. '18784741-9')
+    asumiendo que el último dígito es el verificador.
+    """
+    if len(rut_sin_guion) > 1:
+        return rut_sin_guion[:-1] + '-' + rut_sin_guion[-1].upper()
+    return rut_sin_guion # O manejar un error si el RUT es demasiado corto
+
+
+@csrf_exempt
+@require_POST
+def receive_cv_data(request):
+    """
+    Vista para recibir y procesar los datos del CV de la Cloud Function.
+    """
+    logger.info("--------------------------------------------------")
+    logger.info(f"[{datetime.datetime.now()}] Solicitud POST recibida en /api/cv-data-receiver/")
+    logger.info(f"Método de solicitud: {request.method}")
+
+    try:
+        request_body_str = request.body.decode('utf-8')
+        logger.info(f"Cuerpo de la solicitud POST recibido (RAW): {request_body_str[:500]}...")
+
+        data = json.loads(request_body_str) # JSON principal que viene de la IA
+        logger.info("Cuerpo de la solicitud POST recibido (JSON Parsed).")
+
+        # Extraer los campos clave que la IA DEBE ENVIAR
+        user_rut_raw = data.get('user_rut') # Usar 'user_rut' como identificador único
+        cv_gcs_url = data.get('cv_gcs_url') # Esto es "static/cvs/..."
+        extracted_cv_data = data.get('extracted_data') # Este es el JSON grande con toda la info del CV
+
+        if not user_rut_raw or not cv_gcs_url or not extracted_cv_data:
+            logger.error(f"Datos incompletos en el JSON de la IA. user_rut={user_rut_raw}, cv_gcs_url={cv_gcs_url}, extracted_data_present={bool(extracted_cv_data)}")
+            return JsonResponse({'error': 'Missing required data (user_rut, cv_gcs_url, or extracted_data)'}, status=400)
+
+        # --- APLICAR EL FORMATO CORRECTO AL RUT PARA LA BÚSQUEDA EN LA DB ---
+        user_rut_for_db = format_rut_for_db_lookup(user_rut_raw)
+        logger.info(f"RUT recibido (sin guion): {user_rut_raw}, RUT formateado para DB: {user_rut_for_db}")
+
+        # --- CORRECCIÓN CLAVE PARA ELIMINAR 'static/static/' ---
+        # Si la URL de GCS ya viene con 'static/', la eliminamos para evitar la doble prefijación
+        # ya que el almacenamiento configurado en settings.py (STORAGES["default"]["OPTIONS"]["location"] = 'static')
+        # ya añade 'static/' a la URL base.
+        clean_cv_gcs_url = cv_gcs_url
+        if cv_gcs_url and cv_gcs_url.startswith('static/'):
+            clean_cv_gcs_url = cv_gcs_url[len('static/'):]
+            logger.info(f"URL de GCS limpiada: de '{cv_gcs_url}' a '{clean_cv_gcs_url}'")
+        # --- FIN DE LA CORRECCIÓN CLAVE ---
+
+        # Buscar la PersonaNatural por el RUT formateado para la DB (tu lógica original)
+        try:
+            persona_natural = PersonaNatural.objects.get(usuario__username=user_rut_for_db)
+            logger.info(f"PersonaNatural encontrada para el RUT: {user_rut_for_db}")
+        except PersonaNatural.DoesNotExist:
+            logger.error(f"PersonaNatural con RUT {user_rut_for_db} (formateado) no encontrada.")
+            return JsonResponse({'error': f'PersonaNatural con RUT {user_rut_raw} no encontrada.'}, status=404)
+        except Usuario.DoesNotExist: # Se mantiene tu bloque original para Usuario.DoesNotExist
+            logger.error(f"Usuario con username (RUT) {user_rut_for_db} no encontrado para la PersonaNatural.")
+            return JsonResponse({'error': f'Usuario con RUT {user_rut_raw} no encontrado.'}, status=404)
+
+        # Usamos transaction.atomic() para asegurar que la operación es atómica:
+        # o se guarda todo el CV o no se guarda nada si hay un error.
+        with transaction.atomic():
+            # Crear o actualizar la entrada principal del CV.
+            # Los campos `nombre_completo`, `email_contacto`, `resumen_profesional`
+            # se asignan al *modelo CV*, NO al modelo PersonaNatural o Usuario.
+            cv_instance, created = CV.objects.update_or_create(
+                persona=persona_natural, # Vincula el CV a la PersonaNatural
+                defaults={
+                    'archivo_cv': clean_cv_gcs_url, # <--- ¡USAR LA URL LIMPIA AQUÍ!
+                    'datos_analizados_ia': extracted_cv_data, # Aquí se guarda TODO el JSON extraído
+                    # Campos de resumen que se guardan en el modelo CV, NO en el perfil del usuario:
+                    'nombre_completo': extracted_cv_data.get('datos_personales', {}).get('nombre_completo'),
+                    'email_contacto': extracted_cv_data.get('datos_personales', {}).get('email'),
+                    'resumen_profesional': extracted_cv_data.get('resumen_ejecutivo', '')
+                }
+            )
+
+            if created:
+                logger.info(f"Nuevo CV principal creado para {user_rut_for_db} con datos de IA.")
+            else:
+                logger.info(f"CV principal actualizado para {user_rut_for_db} con datos de IA.")
+
+            # --- SE HA ELIMINADO LA LÓGICA DE ACTUALIZACIÓN DIRECTA DE DATOS EN
+            #     LOS MODELOS `PersonaNatural` Y `Usuario` AQUÍ.
+            #     Estos campos (nombres, apellidos, fecha_nacimiento, correo, telefono)
+            #     NO se sobrescriben con la información del CV.
+            #     Si necesitas detallar la experiencia, educación, etc.,
+            #     debes hacerlo creando/actualizando modelos relacionados que apunten a `cv_instance`
+            #     (o a `persona_natural` si lo modelaste así, pero que representen los datos del CV
+            #     y no los datos maestros del perfil del usuario).
+
+            # Ejemplo (comentado) de cómo podrías procesar los detalles del CV
+            # en modelos relacionados al CV, si los tienes definidos:
+            # from tu_app.models import ExperienciaLaboral, Educacion, HabilidadCV, IdiomaCV # Importa tus modelos de CV detallados si existen
+
+            # # Opcional: Borrar datos previos del CV para evitar duplicados si es una actualización
+            # # y si quieres una única versión de los detalles del CV
+            # ExperienciaLaboral.objects.filter(cv=cv_instance).delete()
+            # Educacion.objects.filter(cv=cv_instance).delete()
+            # # etc.
+
+            # # Procesar experiencia laboral (ejemplo)
+            # for exp_data in extracted_cv_data.get('experiencia_laboral', []):
+            #     # Crea una nueva instancia de ExperienciaLaboral vinculada a este CV
+            #     ExperienciaLaboral.objects.create(
+            #         cv=cv_instance, # Asegúrate de vincularlo al modelo CV
+            #         puesto=exp_data.get('puesto'),
+            #         empresa=exp_data.get('empresa'),
+            #         ciudad=exp_data.get('ciudad'),
+            #         pais=exp_data.get('pais'),
+            #         fecha_inicio=exp_data.get('fecha_inicio'), # Asegúrate de que el formato de fecha sea correcto (YYYY-MM-DD)
+            #         fecha_fin=exp_data.get('fecha_fin'),
+            #         actualmente_aqui=exp_data.get('actualmente_aqui'),
+            #         descripcion_logros_responsabilidades=exp_data.get('descripcion_logros_responsabilidades'),
+            #         # ... otros campos ...
+            #     )
+
+            # # Repite la lógica para Educacion, Habilidades, Idiomas, etc.
+            # # Siempre vinculando las instancias creadas a `cv_instance`.
+
+            logger.info("Datos del CV procesados y guardados en JSONField (y posiblemente modelos detallados asociados al CV).")
+            logger.info("--------------------------------------------------")
+            return JsonResponse({'status': 'success', 'message': 'CV data processed and saved successfully'}, status=200)
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Error: JSON inválido recibido. Detalles: {e}")
+        # Intentar loguear el cuerpo completo si es un JSON inválido y no muy grande
+        request_body_for_log = request_body_str if len(request_body_str) < 1000 else request_body_str[:1000] + "..."
+        logger.error(f"Cuerpo de la solicitud (sin JSON válido): {request_body_for_log}")
+        return JsonResponse({'error': 'Invalid JSON format', 'details': str(e)}, status=400)
+    except Exception as e:
+        # Intenta obtener el RUT para el log de errores inesperados
+        # Es necesario asegurar que 'data' esté definido antes de intentar acceder a ella
+        user_rut_for_log = data.get('user_rut', 'N/A') if 'data' in locals() else 'N/A'
+        logger.exception(f"Error inesperado al procesar y guardar datos del CV para user_rut: {user_rut_for_log}. Detalles: {e}")
+        return JsonResponse({'error': f'Internal Server Error: {str(e)}'}, status=500)

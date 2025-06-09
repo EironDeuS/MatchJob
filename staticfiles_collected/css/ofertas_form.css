@@ -1,0 +1,349 @@
+/* Estilos base para el formulario de ofertas y servicios */
+:root {
+    --primary-color: #3498db;
+    --secondary-color: #2ecc71;
+    --accent-color: #f39c12;
+    --danger-color: #e74c3c;
+    --dark-color: #34495e;
+    --light-color: #ecf0f1;
+    --shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+  }
+  
+  /* Contenedor principal */
+  .create-offer-container {
+    padding: 40px 0;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+  }
+  
+  /* Tarjeta del formulario */
+  .form-card {
+    background-color: white;
+    border-radius: 15px;
+    box-shadow: var(--shadow);
+    padding: 35px;
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  /* Título del formulario */
+  .form-title {
+    color: var(--dark-color);
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: 600;
+    position: relative;
+    padding-bottom: 15px;
+  }
+  
+  .form-title:after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 4px;
+    background: var(--primary-color);
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 2px;
+  }
+  
+  /* Barra de progreso estilizada */
+  .progress {
+    height: 10px;
+    border-radius: 5px;
+    background-color: rgba(52, 152, 219, 0.2);
+    margin-bottom: 30px;
+    overflow: hidden;
+  }
+  
+  .progress-bar {
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    transition: width 0.6s ease;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+  }
+  
+  /* Pasos */
+  .step {
+    display: none;
+    animation: fadeIn 0.5s ease forwards;
+    padding: 10px;
+  }
+  
+  .step.active {
+    display: block;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Títulos de los pasos */
+  .step h5 {
+    color: var(--primary-color);
+    font-weight: 600;
+    position: relative;
+    display: inline-block;
+    margin-bottom: 20px;
+  }
+  
+  .step h5:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: var(--primary-color);
+    bottom: -5px;
+    left: 0;
+    border-radius: 1px;
+  }
+  
+  /* Campos del formulario */
+  .form-label {
+    font-weight: 500;
+    color: var(--dark-color);
+    margin-bottom: 8px;
+  }
+  
+  .form-control, .form-select {
+    border-radius: 8px;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    transition: var(--transition);
+    box-shadow: none;
+    background-color: #f9f9f9;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+    background-color: white;
+  }
+  
+  /* Select2 personalizado */
+  .select2-container--bootstrap4 .select2-selection {
+    border-radius: 8px;
+    padding: 8px 10px;
+    height: auto;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+  }
+  
+  .select2-container--bootstrap4.select2-container--focus .select2-selection {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+    background-color: white;
+  }
+  
+  /* Textarea estilizado */
+  textarea.form-control {
+    resize: vertical;
+    min-height: 100px;
+    line-height: 1.5;
+  }
+  
+  /* Botones */
+  .btn {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: var(--transition);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border: none;
+  }
+  
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .btn-primary {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(135deg, #2980b9, #1f6dad);
+  }
+  
+  .btn-secondary {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+  }
+  
+  .btn-success {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+  }
+  
+  .btn-success:hover {
+    background: linear-gradient(135deg, #27ae60, #219653);
+  }
+  
+  /* Contador de caracteres */
+  .char-counter-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: #777;
+  }
+  
+  .char-counter {
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: #f1f1f1;
+    transition: var(--transition);
+  }
+  
+  .char-counter.warning {
+    background-color: #ffeaa7;
+    color: #d35400;
+  }
+  
+  .char-counter.danger {
+    background-color: #ffccbc;
+    color: #c0392b;
+  }
+  
+  /* Switch personalizado */
+  .form-check-input {
+    width: 50px;
+    height: 24px;
+    margin-top: 0;
+  }
+  
+  .form-switch .form-check-input {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 1%29'/%3e%3c/svg%3e");
+    background-color: #ccc;
+    border: none;
+    transition: var(--transition);
+  }
+  
+  .form-switch .form-check-input:checked {
+    background-color: var(--secondary-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 1%29'/%3e%3c/svg%3e");
+  }
+  
+  .form-check-label {
+    padding-left: 8px;
+    color: var(--dark-color);
+    font-weight: 500;
+  }
+  
+  /* Validación */
+  .invalid-feedback {
+    display: none;
+    color: var(--danger-color);
+    font-size: 0.85rem;
+    margin-top: 5px;
+  }
+  
+  .form-control.is-invalid {
+    border-color: var(--danger-color);
+    box-shadow: none;
+  }
+  
+  .form-control.is-invalid:focus {
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.25);
+  }
+  
+  /* Alerta personalizada */
+  .alert {
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+  
+  .alert-dismissible .btn-close {
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Animación para cambio de pasos */
+  @keyframes slideIn {
+    from { transform: translateX(50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  @keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(-50px); opacity: 0; }
+  }
+  
+  /* Indicadores de paso */
+  .step-indicators {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  
+  .step-label {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f1f1f1;
+    color: #777;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 20px;
+    position: relative;
+    font-weight: bold;
+    transition: var(--transition);
+  }
+  
+  .step-label:before {
+    content: '';
+    position: absolute;
+    height: 3px;
+    background-color: #f1f1f1;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+  }
+  
+  .step-label:first-child:before {
+    display: none;
+  }
+  
+  .step-label.active-step {
+    background-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 0 0 5px rgba(52, 152, 219, 0.2);
+  }
+  
+  .step-label.completed {
+    background-color: var(--secondary-color);
+    color: white;
+  }
+  
+  .step-label.active-step:before,
+  .step-label.completed:before {
+    background-color: var(--secondary-color);
+  }
+  
+  /* Efectos de hover */
+  .form-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .form-card {
+      padding: 20px;
+      margin: 0 15px;
+    }
+    
+    .step-label {
+      width: 30px;
+      height: 30px;
+      margin: 0 10px;
+      font-size: 0.8rem;
+    }
+    
+    .step-label:before {
+      width: 20px;
+    }
+  }
