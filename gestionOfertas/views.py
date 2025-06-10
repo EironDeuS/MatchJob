@@ -69,28 +69,30 @@ def registro(request):
         return redirect('inicio')
 
     if request.method == 'POST':
-        # Asegúrate de pasar request.FILES aquí
         form = RegistroForm(request.POST, request.FILES)
-        print(f"DEBUG: POST recibido. request.FILES: {request.FILES}") # <--- DEBUG: Verifica si llega el archivo
+        logger.debug(f"POST recibido. request.FILES: {request.FILES}") # Usar logger.debug
 
         if form.is_valid():
-            print("DEBUG: Formulario VÁLIDO.") # <--- DEBUG
+            logger.debug("Formulario VÁLIDO.")
             user = None
-            shareable_cv_url = None # Aunque ya no usamos esto para OneDrive directo
+            shareable_cv_url = None 
 
             archivo_cv_subido = form.cleaned_data.get('cv_archivo')
-            print(f"DEBUG: form.cleaned_data['cv_archivo']: {archivo_cv_subido}") # <--- DEBUG: Verifica si el form lo limpió
+            logger.debug(f"form.cleaned_data['cv_archivo']: {archivo_cv_subido}")
 
-            tipo_usuario = form.cleaned_data['tipo_usuario']   
-            print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}") # <--- DEBUG
-#logica de verificacion rut empresa con api sii
+            tipo_usuario = form.cleaned_data['tipo_usuario']    
+            logger.debug(f"Tipo de usuario seleccionado: {tipo_usuario}")
+
             try:
+                # Lógica de verificación RUT empresa con API SII
                 if tipo_usuario == 'empresa':
-                    rut_empresa = form.cleaned_data['username']  # El RUT viene como 'username'
+                    rut_empresa = form.cleaned_data['username']
                     resultado = validar_rut_empresa(rut_empresa)
-                if not resultado['valida']:
-                    messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
-                    return render(request, 'gestionOfertas/registro.html', {'form': form})
+                    if not resultado['valida']:
+                        messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+                        logger.warning(f"Intento de registro de empresa fallido: RUT inválido {rut_empresa}")
+                        return render(request, 'gestionOfertas/registro.html', {'form': form})
+                
                 # 1. Crear Usuario
                 user = Usuario.objects.create_user(
                     username=form.cleaned_data['username'],
@@ -100,95 +102,102 @@ def registro(request):
                     direccion=form.cleaned_data.get('direccion'),
                     tipo_usuario=tipo_usuario
                 )
-                print(f"DEBUG: Usuario creado: {user.username}") # <--- DEBUG
+                logger.info(f"Usuario creado: {user.username} (ID: {user.pk})")
 
                 # 2. Poblar Perfil y Guardar CV
                 if user.tipo_usuario == 'persona':
-                    print("DEBUG: Procesando perfil Persona...") # <--- DEBUG
+                    logger.debug("Procesando perfil Persona...")
                     perfil = user.personanatural
                     perfil.nombres = form.cleaned_data.get('nombres')
                     perfil.apellidos = form.cleaned_data.get('apellidos')
                     perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
                     perfil.nacionalidad = form.cleaned_data.get('nacionalidad', 'Chilena')
                     perfil.save()
-                    print(f"DEBUG: Perfil Persona guardado para {user.username}") # <--- DEBUG
+                    logger.info(f"Perfil Persona guardado para {user.username} (ID: {perfil.pk})")
 
                     # Crear o obtener CV
                     cv_obj, created = CV.objects.get_or_create(persona=perfil)
-                    print(f"DEBUG: CV object {'creado' if created else 'obtenido'}: {cv_obj.id}") # <--- DEBUG
+                    logger.info(f"CV object {'creado' if created else 'obtenido'}: ID {cv_obj.id}")
 
                     if archivo_cv_subido:
-                        print(f"DEBUG: INTENTANDO asignar archivo '{archivo_cv_subido.name}' a cv_obj.archivo_cv...") # <--- DEBUG
+                        logger.debug(f"Intentando asignar archivo '{archivo_cv_subido.name}' a cv_obj.archivo_cv...")
                         cv_obj.archivo_cv = archivo_cv_subido
-                        print("DEBUG: Asignación hecha. Llamando a cv_obj.save()...") # <--- DEBUG
+                        logger.debug("Asignación hecha. Llamando a cv_obj.save()...")
+                        
                         try:
-                            # Añadir logging detallado para diagnóstico de almacenamiento
+                            # logging detallado para diagnóstico de almacenamiento
                             from django.core.files.storage import default_storage
-                            import traceback
-                            print(f"DEBUG: Intentando guardar archivo con storage: {default_storage}")
-                            print(f"DEBUG: Tipo de storage: {type(default_storage)}")
-                            print(f"DEBUG: Configuración de storage: {default_storage.__dict__}")
+                            logger.debug(f"Intentando guardar archivo con storage: {default_storage}")
+                            logger.debug(f"Tipo de storage: {type(default_storage)}")
+                            # Solo intenta acceder a __dict__ si sabes que es seguro o si el objeto lo soporta.
+                            # Para default_storage (ej. un backend de GCS), puede que no necesites esto.
+                            # logger.debug(f"Configuración de storage: {default_storage.__dict__}") 
                         except Exception as storage_log_error:
-                            print(f"DEBUG: Error al loguear detalles de storage: {storage_log_error}")
+                            logger.error(f"Error al loguear detalles de storage: {storage_log_error}")
+
                         cv_obj.save() # Aquí ocurre la subida a GCS
-                        print("DEBUG: cv_obj.save() ejecutado.") # <--- DEBUG
+                        logger.info("cv_obj.save() ejecutado. Archivo CV guardado.")
+                        
                         # Verificar si el campo tiene valor DESPUÉS de guardar
                         if cv_obj.archivo_cv and hasattr(cv_obj.archivo_cv, 'name'):
-                            print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}") # <--- DEBUG
+                            logger.info(f"Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}")
                         else:
-                            print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.") # <--- DEBUG
+                            logger.warning("cv_obj.archivo_cv está vacío DESPUÉS de guardar.")
                         
                         try:
                             # Verificación adicional de almacenamiento
                             if cv_obj.archivo_cv:
                                 file_exists = default_storage.exists(cv_obj.archivo_cv.name)
                                 file_size = default_storage.size(cv_obj.archivo_cv.name) if file_exists else 0
-                                print(f"DEBUG: Archivo guardado. Existe: {file_exists}, Tamaño: {file_size} bytes")
+                                logger.info(f"Archivo guardado en storage. Existe: {file_exists}, Tamaño: {file_size} bytes")
                                 
-                                # Intentar obtener URL (si es posible)
                                 try:
                                     file_url = cv_obj.archivo_cv.url
-                                    print(f"DEBUG: URL del archivo: {file_url}")
+                                    logger.info(f"URL del archivo guardado: {file_url}")
                                 except Exception as url_error:
-                                    print(f"DEBUG: No se pudo obtener URL: {url_error}")
+                                    logger.error(f"No se pudo obtener URL del archivo guardado: {url_error}")
                         except Exception as file_check_error:
-                            print(f"DEBUG: Error al verificar archivo: {file_check_error}")
+                            logger.error(f"Error al verificar archivo en storage: {file_check_error}", exc_info=True) # exc_info=True para traceback
                     else:
-                        print("DEBUG: No se proporcionó archivo CV en el formulario.") # <--- DEBUG
+                        logger.info("No se proporcionó archivo CV en el formulario para Persona Natural.")
 
                 elif user.tipo_usuario == 'empresa':
-                    print("DEBUG: Procesando perfil Empresa...") # <--- DEBUG
+                    logger.debug("Procesando perfil Empresa...")
                     perfil = user.empresa
                     perfil.nombre_empresa = form.cleaned_data.get('nombre_empresa')
                     perfil.razon_social = form.cleaned_data.get('razon_social')
                     perfil.giro = form.cleaned_data.get('giro')
                     perfil.save()
-                    print(f"DEBUG: Perfil Empresa guardado para {user.username}") # <--- DEBUG
+                    logger.info(f"Perfil Empresa guardado para {user.username} (ID: {perfil.pk})")
 
                 messages.success(request, 'Tu cuenta ha sido creada exitosamente.')
-                # Intenta loguear al usuario si tienes el backend configurado
-                # login(request, user, backend='gestionOfertas.backends.AutenticacionPorRUTBackend')
-                print("DEBUG: Redirigiendo a inicio...") # <--- DEBUG
+                # Si estás usando Django allauth o un backend de autenticación que maneje el login,
+                # asegúrate de que esté configurado. Si no, puedes intentar login(request, user).
+                # Asegúrate de importar 'login' si lo usas aquí: from django.contrib.auth import login
+                # login(request, user) # Descomenta si quieres loguear automáticamente
+
+                logger.info("Redirigiendo a inicio después de registro exitoso.")
                 return redirect(reverse('inicio'))
 
             except Exception as e:
-                # Imprimir cualquier excepción que ocurra
-                import traceback
-                print("DEBUG: !!! EXCEPCIÓN OCURRIDA !!!") # <--- DEBUG
-                print(f"DEBUG: Tipo de Excepción: {type(e).__name__}")
-                print(f"DEBUG: Mensaje: {e}")
-                print("DEBUG: Traceback:")
-                traceback.print_exc() # Imprime el traceback completo en la consola
-                print("DEBUG: !!! FIN EXCEPCIÓN !!!")
-                messages.error(request, f'Hubo un error inesperado al guardar los datos.') # Mensaje genérico al usuario
-                if user and user.pk: user.delete() # Intenta borrar usuario si falló
+                # Usa logger.exception para loguear el error con traceback
+                logger.error(f"!!! EXCEPCIÓN OCURRIDA durante el registro de usuario {user.username if user else 'N/A'}!!! Mensaje: {e}", exc_info=True)
+                messages.error(request, 'Hubo un error inesperado al guardar los datos. Por favor, inténtalo de nuevo más tarde.')
+                
+                # Rollback: Intenta borrar el usuario si falló la creación del perfil o CV
+                if user and user.pk:
+                    try:
+                        user.delete()
+                        logger.info(f"Usuario {user.username} eliminado debido a un error en el registro.")
+                    except Exception as delete_error:
+                        logger.error(f"Error al intentar eliminar usuario {user.username} después de un fallo de registro: {delete_error}", exc_info=True)
 
         else: # Formulario no válido
-            print("DEBUG: Formulario NO VÁLIDO.") # <--- DEBUG
-            print(f"DEBUG: Errores del formulario: {form.errors.as_json()}") # <--- DEBUG: Muestra errores específicos
+            logger.warning(f"Formulario de registro NO VÁLIDO. Errores: {form.errors.as_json()}")
             messages.error(request, 'Por favor corrige los errores en el formulario.')
     else: # Método GET
         form = RegistroForm()
+    
     return render(request, 'gestionOfertas/registro.html', {'form': form})
 
 class CustomPasswordResetView(PasswordResetView):
