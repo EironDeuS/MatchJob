@@ -1,96 +1,67 @@
+{# gestionOfertas/pdfs/carta_confirmacion_contratacion.html #}
+{% load i18n %} 
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
-    <title>Confirmación de Contratación MatchJob</title>
+    <meta charset="UTF-8">
     <style>
-        /* Estilos CSS específicos para el PDF. Se usarán directamente en el HTML. */
-        @page {
-            size: A4;
-            margin: 2cm;
-            /* El frame footer es para contenido que se repite en el pie de página */
-            @frame footer {
-                -pdf-frame-content: footerContent;
-                bottom: 1cm;
-                margin-left: 2cm;
-                margin-right: 2cm;
-                height: 1cm;
-            }
-        }
-        body { 
-            font-family: 'DejaVu Sans', sans-serif; /* Fuente compatible con caracteres especiales (ñ, acentos) */
-            font-size: 11pt; 
-            line-height: 1.6; 
-            color: #333; 
-        }
-        h1 { font-size: 18pt; text-align: center; color: #0056b3; margin-top: 1cm; }
-        h2 { font-size: 14pt; color: #0056b3; margin-bottom: 0.5em; }
-        p { margin-bottom: 0.8em; text-align: justify; }
-        .header { text-align: right; margin-bottom: 1cm; }
-        .signature-section {
-            margin-top: 3cm;
-            /* Propiedades para layout en PDF, un subconjunto de CSS */
-            display: flex; 
-            justify-content: space-around;
-            width: 100%;
-        }
-        .signature {
-            width: 45%;
-            text-align: center;
-        }
-        .signature hr {
-            border: none;
-            border-top: 1px solid #333;
-            margin-top: 50px;
-        }
-        .footer-content {
-            font-size: 9pt;
-            color: #666;
-            text-align: center;
-        }
+        /* Estilos específicos para PDF, pueden ser más básicos */
+        body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; line-height: 1.5; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #007bff; }
+        .content { margin-bottom: 30px; }
+        .footer { text-align: center; font-size: 8pt; color: #666; border-top: 1px solid #eee; padding-top: 10px; margin-top: 30px; }
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .details-table th, .details-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .details-table th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
     <div class="header">
-        <p>Fecha: {{ fecha_actual }}</p>
-        <p>MatchJob</p>
-        <p>Santiago, Chile</p>
+        <h1>Carta de Confirmación de Contratación</h1>
+        <p><strong>Fecha:</strong> {{ fecha_actual }}</p>
     </div>
 
-    <h1>Confirmación de Contratación</h1>
-
-    <p>Estimado/a <strong>{{ postulante.nombres }} {{ postulante.apellidos }}</strong>,</p>
-
-    <p>Por medio de la presente, confirmamos su contratación para el puesto/servicio de:</p>
-
-    <h2>"{{ oferta.nombre }}"</h2>
-
-    <p>por parte de la empresa <strong>{% if empresa %}{{ empresa.nombre_empresa }}{% else %}{{ oferta.creador.username }}{% endif %}</strong>. Esta contratación es el resultado de tu postulación a través de la plataforma MatchJob.</p>
-
-    <p>La fecha de contratación efectiva, según nuestros registros, es el **{{ postulacion.fecha_contratacion|date:"d de F de Y" }}**.</p>
-
-    <p>Nos complace darte la bienvenida a esta nueva oportunidad. Los detalles específicos y los siguientes pasos para tu incorporación te serán comunicados directamente por la empresa.</p>
-
-    <p>Te deseamos el mayor de los éxitos en esta nueva etapa profesional.</p>
-
-    <div class="signature-section">
-        <div class="signature">
-            <hr>
-            <p>{{ postulante.nombres }} {{ postulante.apellidos }}</p>
-            <p>Postulante</p>
-        </div>
-        <div class="signature">
-            <hr>
-            <p>{% if empresa %}{{ empresa.nombre_empresa }}{% else %}{{ oferta.creador.username }}{% endif %}</p>
-            <p>Representante de la Empresa/Contratante</p>
-        </div>
+    <div class="content">
+        <p>Estimado/a <strong>{{ postulante.nombres }} {{ postulante.apellidos }}</strong>,</p>
+        <p>Por medio de la presente, <strong>{{ empresa.nombre_empresa }}</strong> (RUT: {{ empresa.usuario.username }}) se complace en confirmar tu contratación para el puesto de <strong>{{ oferta.nombre }}</strong>.</p>
+        <p>La fecha de contratación efectiva es el {{ fecha_contratacion_formateada }}.</p> {# ¡CAMBIO AQUI: Usar la variable formateada! #}
+        <p>A continuación, se detallan algunos puntos clave de la contratación:</p>
+        <table class="details-table">
+            <tr>
+                <th>Puesto:</th>
+                <td>{{ oferta.nombre }}</td>
+            </tr>
+            <tr>
+                <th>Empresa:</th>
+                <td>{{ empresa.nombre_empresa }} ({{ empresa.razon_social }})</td>
+            </tr>
+            <tr>
+                <th>Giro Comercial:</th>
+                <td>{{ empresa.giro }}</td>
+            </tr>
+            <tr>
+                <th>Tipo de Contrato:</th>
+                <td>{{ oferta.get_tipo_contrato_display }}</td>
+            </tr>
+            <tr>
+                <th>Salario Estimado:</th>
+                <td>{{ oferta.salario|default_if_none:"No especificado" }}</td>
+            </tr>
+            <tr>
+                <th>Ubicación:</th>
+                <td>{{ oferta.direccion|default_if_none:"No especificada" }}</td>
+            </tr>
+        </table>
+        <p>Para cualquier consulta adicional, por favor, no dudes en ponerte en contacto con el departamento de Recursos Humanos de <strong>{{ empresa.nombre_empresa }}</strong>.</p>
+        <p style="margin-top: 40px;">Atentamente,</p>
+        <p>___________________________</p>
+        <p><strong>{{ empresa.nombre_empresa }}</strong></p>
     </div>
 
-    <div id="footerContent">
-        <div class="footer-content">
-            <p>Este documento es una confirmación generada por la plataforma MatchJob.</p>
-            <p>Para más información, visita <a href="{{ url_sitio }}">{{ url_sitio }}</a></p>
-        </div>
+    <div class="footer">
+        <p>Este es un documento generado automáticamente por MatchJob.</p>
+        <p>&copy; {% now "Y" %} MatchJob. Todos los derechos reservados.</p>
     </div>
 </body>
 </html>

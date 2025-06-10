@@ -25,9 +25,9 @@ RUTS_A_PROBAR = [
     "76.000.000-1",  # Un RUT de ejemplo genérico muy usado (podría no estar en SimpleAPI)
 ]
 
-# Puedes cambiar el índice para probar diferentes RUTs.
-# Por ejemplo, RUT_ACTUAL_PRUEBA = RUTS_A_PROBAR[1] para Banco de Chile
-RUT_ACTUAL_PRUEBA = RUTS_A_PROBAR[0] # Empieza con Falabella, si no funciona prueba los demás
+# Cambia este índice para probar diferentes RUTs de la lista
+# Empieza con 0 (Falabella), luego 1 (Banco de Chile), etc.
+RUT_ACTUAL_PRUEBA = RUTS_A_PROBAR[0] 
 
 # Limpiar el RUT para el path de la API, quitando puntos y guiones
 rut_limpio_para_api = RUT_ACTUAL_PRUEBA.replace('.', '').replace('-', '')
@@ -48,8 +48,8 @@ print(f"Intentando conectar a: {url_completa}")
 print(f"Usando API Key (primeros 5 caracteres): {SIMPLEAPI_API_KEY[:5]}...")
 
 try:
-    # Aumentar el tiempo de espera (timeout) a 30 segundos
-    response = requests.get(url_completa, headers=HEADERS, timeout=30) # CAMBIO AQUÍ: de 20 a 30
+    # Aumentar el tiempo de espera (timeout) a 60 segundos
+    response = requests.get(url_completa, headers=HEADERS, timeout=60) # CAMBIO AQUÍ: de 30 a 60
     response.raise_for_status() # Esto levantará una excepción para 4xx/5xx errores HTTP
 
     print(f"\nRespuesta exitosa (Código {response.status_code}):")

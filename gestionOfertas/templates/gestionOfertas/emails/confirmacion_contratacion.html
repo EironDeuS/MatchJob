@@ -1,50 +1,55 @@
+{# gestionOfertas/emails/confirmacion_contratacion.html #}
+{% load i18n %} 
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
-    <title>¡Felicitaciones! Has sido contratado/a en MatchJob</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Felicitaciones! Has sido contratado/a</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { width: 80%; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-        h2 { color: #0056b3; }
+        /* Estilos básicos para el correo electrónico */
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .header { background-color: #007bff; color: #ffffff; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { padding: 20px 0; }
+        .footer { text-align: center; padding: 15px 0; font-size: 0.8em; color: #666; border-top: 1px solid #eee; margin-top: 20px; }
+        .button { display: inline-block; padding: 10px 20px; margin-top: 15px; background-color: #28a745; color: #ffffff; text-decoration: none; border-radius: 5px; }
+        h1, h2 { color: #007bff; }
         p { margin-bottom: 10px; }
-        .footer { margin-top: 20px; font-size: 0.9em; color: #666; text-align: center; }
-        .button {
-            display: inline-block;
-            background-color: #007bff;
-            color: #ffffff;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 15px;
-        }
+        strong { font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>¡Felicitaciones, {{ postulante.nombres }} {{ postulante.apellidos }}!</h2>
-
-        <p>Tenemos excelentes noticias para ti.</p>
-
-        <p>Nos complace informarte que has sido **contratado/a** para la oferta de trabajo/servicio:</p>
-
-        <h3>"{{ oferta.nombre }}"</h3>
-
-        <p>Publicada por la empresa: <strong>{% if empresa %}{{ empresa.nombre_empresa }}{% else %}{{ oferta.creador.username }}{% endif %}</strong></p>
-
-        <p>En breve, la empresa se pondrá en contacto contigo para los siguientes pasos.</p>
-
-        <p>¡Te deseamos mucho éxito en esta nueva etapa!</p>
-
-        <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
-
-        <a href="{{ url_sitio }}" class="button">Visita MatchJob</a>
-
-        <p>Saludos cordiales,</p>
-        <p>El equipo de MatchJob</p>
-    </div>
-    <div class="footer">
-        <p>&copy; {{ fecha_actual|date:"Y" }} MatchJob. Todos los derechos reservados.</p>
+        <div class="header">
+            <h2>¡Noticias de Contratación!</h2>
+        </div>
+        <div class="content">
+            <p>Estimado/a <strong>{{ postulante.nombres }} {{ postulante.apellidos }}</strong>,</p>
+            <p>Nos complace informarte que la empresa <strong>{{ empresa.nombre_empresa }}</strong> te ha seleccionado para la oferta de trabajo:</p>
+            <h3>{{ oferta.nombre }}</h3>
+            <p>La fecha de contratación efectiva, según nuestros registros, es el {{ fecha_contratacion_formateada }}.</p> {# ¡CAMBIO AQUI: Usar la variable formateada! #}
+            <p><strong>Detalles de la oferta:</strong></p>
+            <ul>
+                <li><strong>Empresa:</strong> {{ empresa.nombre_empresa }}</li>
+                <li><strong>Razón Social:</strong> {{ empresa.razon_social }}</li>
+                <li><strong>Giro:</strong> {{ empresa.giro }}</li>
+                <li><strong>Salario:</strong> {{ oferta.salario|default_if_none:"No especificado" }}</li>
+                <li><strong>Tipo de Contrato:</strong> {{ oferta.get_tipo_contrato_display }}</li>
+                <li><strong>Ubicación:</strong> {{ oferta.direccion|default_if_none:"No especificada" }}</li>
+            </ul>
+            <p>Por favor, ponte en contacto con la empresa para los siguientes pasos.</p>
+            <p>Puedes ver los detalles de tu postulación y la oferta en nuestro sitio web:</p>
+            <p style="text-align: center;">
+                <a href="{{ url_sitio }}{% url 'detalle_oferta' oferta.id %}" class="button">Ver Oferta en MatchJob</a>
+            </p>
+            <p>Atentamente,</p>
+            <p>El equipo de MatchJob</p>
+            <p>Fecha de envío: {{ fecha_actual }}</p>
+        </div>
+        <div class="footer">
+            <p>&copy; {% now "Y" %} MatchJob. Todos los derechos reservados.</p>
+        </div>
     </div>
 </body>
 </html>

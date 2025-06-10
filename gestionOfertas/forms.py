@@ -13,6 +13,7 @@ from pypdf.errors import PdfReadError
 from django.core.validators import RegexValidator
 import googlemaps
 from django.conf import settings
+from gestionOfertas.utils import validar_rut_empresa
 class LoginForm(AuthenticationForm):
     username = forms.CharField(
         label='RUT',
@@ -178,23 +179,18 @@ class CVValidationMixin(forms.Form):
 # --- Formulario de Registro Actualizado ---
 class RegistroForm(CVValidationMixin, forms.Form):
     # --- Campos del Modelo Usuario ---
-    # Este debe coincidir con la primera imagen (dropdown), si ese es el deseado.
-    # Si quieres radio buttons (imagen 1), usa forms.RadioSelect y el diccionario TIPO_USUARIO_CHOICES.
-    # Si quieres dropdown (imagen 2), usa forms.Select y una lista de tuplas directamente.
     tipo_usuario = forms.ChoiceField(
-        # Asumo que Usuario.TIPO_USUARIO_CHOICES es una tupla de tuplas.
-        # Ajusta esto si tu modelo Usuario no tiene esta propiedad directamente o si quieres un subset.
-        choices=[c for c in Usuario.TIPO_USUARIO_CHOICES if c[0] != 'admin'], # Excluir admin si aplica
+        choices=[c for c in Usuario.TIPO_USUARIO_CHOICES if c[0] != 'admin'],
         required=True,
         widget=forms.Select(attrs={'onchange': 'toggleUsuarioFields()', 'class': 'form-select'}),
         label="Tipo de Usuario"
     )
 
     username = forms.CharField( # RUT
-        label="RUT (sin puntos, con guión)", # Etiqueta de la imagen 2
-        max_length=50, # Ajusta max_length si es necesario (ej: 12 para RUT chileno con guión)
+        label="RUT (con guión, sin puntos)", # Etiqueta actualizada para reflejar formato esperado
+        max_length=12,  # Max length para RUT chileno con guión (ej: 12345678-9)
         required=True,
-        widget=forms.TextInput(attrs={'placeholder': 'RUT (sin puntos, con guión)', 'class': 'form-control'})
+        widget=forms.TextInput(attrs={'placeholder': '12345678-9', 'class': 'form-control'})
     )
     correo = forms.EmailField(
         label="Correo electrónico",
@@ -218,9 +214,6 @@ class RegistroForm(CVValidationMixin, forms.Form):
         required=True,
         widget=forms.PasswordInput(attrs={'placeholder': 'Mínimo 8 caracteres', 'class': 'form-control'})
     )
-    # Importante: el campo de confirmación de contraseña se llama 'password2' en tu primer código
-    # y 'confirm_password' en el segundo. Debes ser consistente.
-    # Usaré 'confirm_password' para seguir el segundo código, pero verifícalo en tu plantilla.
     confirm_password = forms.CharField(
         label="Confirmar contraseña",
         required=True,
@@ -231,57 +224,66 @@ class RegistroForm(CVValidationMixin, forms.Form):
     nombres = forms.CharField(
         label="Nombres",
         max_length=100,
-        required=False, # Requerido condicionalmente en clean()
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     apellidos = forms.CharField(
         label="Apellidos",
         max_length=100,
-        required=False, # Requerido condicionalmente en clean()
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     fecha_nacimiento = forms.DateField(
         label="Fecha de Nacimiento",
-        required=False, # Requerido condicionalmente en clean()
+        required=False,
         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
     )
     nacionalidad = forms.CharField(
         label="Nacionalidad",
         max_length=50,
-        initial='Chilena', # Valor inicial
-        required=False, # Requerido condicionalmente en clean()
+        initial='Chilena',
+        required=False,
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
-    # El campo `cv_archivo` es heredado de `CVValidationMixin`.
-    # No lo definas aquí de nuevo.
-
     # --- Campos del Perfil Empresa ---
+    # Estos campos se establecen como required=False a nivel de campo
+    # ya que se espera que sean populados por la API.
+    # La validación de que NO estén vacíos ocurrirá si la API falla.
     nombre_empresa = forms.CharField(
         label="Nombre de la Empresa",
         max_length=100,
-        required=False, # Requerido condicionalmente en clean()
+        required=False, # Importante: No es requerido al inicio, lo llena la API
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     razon_social = forms.CharField(
         label="Razón Social",
         max_length=100,
-        required=False,
+        required=False, # Importante
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     giro = forms.CharField(
         label="Giro Comercial",
         max_length=100,
-        required=False,
+        required=False, # Importante
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
     # --- Métodos clean (combinando lógica y consistencia) ---
     def clean_username(self):
         username = self.cleaned_data.get('username')
+        # Primero, verificar si el RUT ya está registrado en tu sistema
         if Usuario.objects.filter(username=username).exists():
             raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
-        return username
+        
+        # Estandarización y validación del RUT
+        rut_cleaner_form = LoginForm() 
+        try:
+            rut_formatted = rut_cleaner_form.validate_rut_format(username)
+            return rut_cleaner_form.clean_rut(rut_formatted)
+        except ValidationError as e:
+            raise forms.ValidationError(e.message)
+
 
     def clean_correo(self):
         correo = self.cleaned_data.get('correo')
@@ -292,12 +294,13 @@ class RegistroForm(CVValidationMixin, forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
-        confirm_password = cleaned_data.get("confirm_password") # Asegúrate de que el nombre del campo sea consistente
+        confirm_password = cleaned_data.get("confirm_password") 
 
         if password and confirm_password and password != confirm_password:
             self.add_error('confirm_password', "Las contraseñas no coinciden.")
 
         tipo_usuario = cleaned_data.get('tipo_usuario')
+        username_rut = cleaned_data.get('username') 
 
         # Validaciones para Persona Natural
         if tipo_usuario == 'persona':
@@ -311,24 +314,31 @@ class RegistroForm(CVValidationMixin, forms.Form):
                 if not cleaned_data.get(field_name):
                     self.add_error(field_name, f"{label_name} es requerido para personas.")
 
-            # Validación de CV si es obligatorio para Persona Natural
-            # Descomenta y ajusta si cv_archivo es siempre obligatorio para personas
-            # if not cleaned_data.get('cv_archivo'):
-            #     self.add_error('cv_archivo', 'Es obligatorio subir un Currículum Vitae.')
-
         # Validaciones para Empresa
         elif tipo_usuario == 'empresa':
-            required_fields_empresa = {
-                'nombre_empresa': 'Nombre de Empresa',
-                'razon_social': 'Razón Social',
-                'giro': 'Giro Comercial'
-            }
-            for field_name, label_name in required_fields_empresa.items():
-                if not cleaned_data.get(field_name):
-                    self.add_error(field_name, f"{label_name} es requerido para empresas.")
+            # Ya no validamos si nombre_empresa, razon_social, giro son requeridos aquí
+            # porque esperamos que la API los rellene.
+            # Si la API falla, la validación del RUT se encargará de mostrar el error.
 
+            if username_rut: 
+                resultado = validar_rut_empresa(username_rut)
+                if resultado['valida']:
+                    api_data = resultado['datos']
+                    
+                    api_razon_social = api_data.get('razonSocial')
+                    if api_razon_social:
+                        cleaned_data['razon_social'] = api_razon_social
+                        cleaned_data['nombre_empresa'] = api_razon_social
+                    
+                    api_actividades = api_data.get('actividadesEconomicas')
+                    if api_actividades and len(api_actividades) > 0:
+                        first_giro_desc = api_actividades[0].get('descripcion')
+                        if first_giro_desc:
+                            cleaned_data['giro'] = first_giro_desc
+                else:
+                    # Si la API no valida el RUT, lanzamos un error que se mostrará al usuario
+                    raise forms.ValidationError(f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
         return cleaned_data
-
 
 
 class UsuarioCreationForm(forms.ModelForm):

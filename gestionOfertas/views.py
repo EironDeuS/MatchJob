@@ -43,6 +43,7 @@ from xhtml2pdf import pisa # La librería para generar PDFs
 def iniciar_sesion(request):
     if request.user.is_authenticated: # Redirigir si ya está logueado
         return redirect('inicio')
+
     if request.method == 'POST':
         form = LoginForm(request, data=request.POST)
         if form.is_valid():
@@ -63,66 +64,54 @@ def iniciar_sesion(request):
         form = LoginForm()
     return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form})
 
-# --- Vista de Registro Actualizada ---
+# --- Vista de Registro (Versión Final Simplificada) ---
 def registro(request):
     if request.user.is_authenticated:
         return redirect('inicio')
 
     if request.method == 'POST':
-        # Asegúrate de pasar request.FILES aquí
         form = RegistroForm(request.POST, request.FILES)
-        print(f"DEBUG: POST recibido. request.FILES: {request.FILES}") # <--- DEBUG: Verifica si llega el archivo
+        print(f"DEBUG: POST recibido. request.FILES: {request.FILES}") 
 
         if form.is_valid():
-            print("DEBUG: Formulario VÁLIDO.") # <--- DEBUG
-            user = None
-            shareable_cv_url = None # Aunque ya no usamos esto para OneDrive directo
-
-            archivo_cv_subido = form.cleaned_data.get('cv_archivo')
-            print(f"DEBUG: form.cleaned_data['cv_archivo']: {archivo_cv_subido}") # <--- DEBUG: Verifica si el form lo limpió
+            print("DEBUG: Formulario VÁLIDO. Iniciando creación de usuario y perfil.") 
+            user = None 
 
             tipo_usuario = form.cleaned_data['tipo_usuario']   
-            print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}") # <--- DEBUG
-#logica de verificacion rut empresa con api sii
+            print(f"DEBUG: Tipo de usuario seleccionado: {tipo_usuario}") 
+
             try:
-                if tipo_usuario == 'empresa':
-                    rut_empresa = form.cleaned_data['username']  # El RUT viene como 'username'
-                    resultado = validar_rut_empresa(rut_empresa)
-                if not resultado['valida']:
-                    messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
-                    return render(request, 'gestionOfertas/registro.html', {'form': form})
                 # 1. Crear Usuario
                 user = Usuario.objects.create_user(
-                    username=form.cleaned_data['username'],
+                    username=form.cleaned_data['username'], 
                     correo=form.cleaned_data['correo'],
                     password=form.cleaned_data['password'],
                     telefono=form.cleaned_data.get('telefono'),
                     direccion=form.cleaned_data.get('direccion'),
                     tipo_usuario=tipo_usuario
                 )
-                print(f"DEBUG: Usuario creado: {user.username}") # <--- DEBUG
+                print(f"DEBUG: Usuario creado: {user.username}") 
 
                 # 2. Poblar Perfil y Guardar CV
                 if user.tipo_usuario == 'persona':
-                    print("DEBUG: Procesando perfil Persona...") # <--- DEBUG
+                    print("DEBUG: Procesando perfil Persona...") 
                     perfil = user.personanatural
                     perfil.nombres = form.cleaned_data.get('nombres')
                     perfil.apellidos = form.cleaned_data.get('apellidos')
                     perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
                     perfil.nacionalidad = form.cleaned_data.get('nacionalidad', 'Chilena')
                     perfil.save()
-                    print(f"DEBUG: Perfil Persona guardado para {user.username}") # <--- DEBUG
+                    print(f"DEBUG: Perfil Persona guardado para {user.username}") 
 
-                    # Crear o obtener CV
                     cv_obj, created = CV.objects.get_or_create(persona=perfil)
-                    print(f"DEBUG: CV object {'creado' if created else 'obtenido'}: {cv_obj.id}") # <--- DEBUG
+                    print(f"DEBUG: CV object {'creado' if created else 'obtenido'}: {cv_obj.id}") 
 
+                    archivo_cv_subido = form.cleaned_data.get('cv_archivo')
                     if archivo_cv_subido:
-                        print(f"DEBUG: INTENTANDO asignar archivo '{archivo_cv_subido.name}' a cv_obj.archivo_cv...") # <--- DEBUG
+                        print(f"DEBUG: INTENTANDO asignar archivo '{archivo_cv_subido.name}' a cv_obj.archivo_cv...") 
                         cv_obj.archivo_cv = archivo_cv_subido
-                        print("DEBUG: Asignación hecha. Llamando a cv_obj.save()...") # <--- DEBUG
+                        print("DEBUG: Asignación hecha. Llamando a cv_obj.save()...") 
                         try:
-                            # Añadir logging detallado para diagnóstico de almacenamiento
                             from django.core.files.storage import default_storage
                             import traceback
                             print(f"DEBUG: Intentando guardar archivo con storage: {default_storage}")
@@ -130,22 +119,19 @@ def registro(request):
                             print(f"DEBUG: Configuración de storage: {default_storage.__dict__}")
                         except Exception as storage_log_error:
                             print(f"DEBUG: Error al loguear detalles de storage: {storage_log_error}")
-                        cv_obj.save() # Aquí ocurre la subida a GCS
-                        print("DEBUG: cv_obj.save() ejecutado.") # <--- DEBUG
-                        # Verificar si el campo tiene valor DESPUÉS de guardar
+                        cv_obj.save() 
+                        print("DEBUG: cv_obj.save() ejecutado.") 
                         if cv_obj.archivo_cv and hasattr(cv_obj.archivo_cv, 'name'):
-                            print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}") # <--- DEBUG
+                            print(f"DEBUG: Valor de cv_obj.archivo_cv.name DESPUÉS de guardar: {cv_obj.archivo_cv.name}") 
                         else:
-                            print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.") # <--- DEBUG
+                            print("DEBUG: cv_obj.archivo_cv está vacío DESPUÉS de guardar.") 
                         
                         try:
-                            # Verificación adicional de almacenamiento
                             if cv_obj.archivo_cv:
                                 file_exists = default_storage.exists(cv_obj.archivo_cv.name)
                                 file_size = default_storage.size(cv_obj.archivo_cv.name) if file_exists else 0
                                 print(f"DEBUG: Archivo guardado. Existe: {file_exists}, Tamaño: {file_size} bytes")
                                 
-                                # Intentar obtener URL (si es posible)
                                 try:
                                     file_url = cv_obj.archivo_cv.url
                                     print(f"DEBUG: URL del archivo: {file_url}")
@@ -154,42 +140,45 @@ def registro(request):
                         except Exception as file_check_error:
                             print(f"DEBUG: Error al verificar archivo: {file_check_error}")
                     else:
-                        print("DEBUG: No se proporcionó archivo CV en el formulario.") # <--- DEBUG
+                        print("DEBUG: No se proporcionó archivo CV en el formulario.") 
 
                 elif user.tipo_usuario == 'empresa':
-                    print("DEBUG: Procesando perfil Empresa...") # <--- DEBUG
+                    print("DEBUG: Procesando perfil Empresa...") 
                     perfil = user.empresa
+                    
+                    ### CAMBIO AQUI: Asignar nombre_empresa, razon_social y giro desde cleaned_data ###
+                    # Estos campos ya fueron populados por el form.clean() si la API respondió exitosamente
                     perfil.nombre_empresa = form.cleaned_data.get('nombre_empresa')
                     perfil.razon_social = form.cleaned_data.get('razon_social')
                     perfil.giro = form.cleaned_data.get('giro')
+                    ### FIN CAMBIO AQUI ###
+
                     perfil.save()
-                    print(f"DEBUG: Perfil Empresa guardado para {user.username}") # <--- DEBUG
+                    print(f"DEBUG: Perfil Empresa guardado para {user.username}") 
 
                 messages.success(request, 'Tu cuenta ha sido creada exitosamente.')
-                # Intenta loguear al usuario si tienes el backend configurado
-                # login(request, user, backend='gestionOfertas.backends.AutenticacionPorRUTBackend')
-                print("DEBUG: Redirigiendo a inicio...") # <--- DEBUG
+                print("DEBUG: Redirigiendo a inicio...") 
                 return redirect(reverse('inicio'))
 
             except Exception as e:
-                # Imprimir cualquier excepción que ocurra
                 import traceback
-                print("DEBUG: !!! EXCEPCIÓN OCURRIDA !!!") # <--- DEBUG
+                print("DEBUG: !!! EXCEPCIÓN OCURRIDA DURANTE CREACIÓN DE USUARIO O PERFIL !!!") 
                 print(f"DEBUG: Tipo de Excepción: {type(e).__name__}")
                 print(f"DEBUG: Mensaje: {e}")
                 print("DEBUG: Traceback:")
-                traceback.print_exc() # Imprime el traceback completo en la consola
+                traceback.print_exc() 
                 print("DEBUG: !!! FIN EXCEPCIÓN !!!")
-                messages.error(request, f'Hubo un error inesperado al guardar los datos.') # Mensaje genérico al usuario
-                if user and user.pk: user.delete() # Intenta borrar usuario si falló
+                messages.error(request, f'Hubo un error inesperado al guardar los datos.') 
+                if user and user.pk: user.delete() 
 
         else: # Formulario no válido
-            print("DEBUG: Formulario NO VÁLIDO.") # <--- DEBUG
-            print(f"DEBUG: Errores del formulario: {form.errors.as_json()}") # <--- DEBUG: Muestra errores específicos
+            print("DEBUG: Formulario NO VÁLIDO.") 
+            print(f"DEBUG: Errores del formulario: {form.errors.as_json()}") 
             messages.error(request, 'Por favor corrige los errores en el formulario.')
     else: # Método GET
         form = RegistroForm()
     return render(request, 'gestionOfertas/registro.html', {'form': form})
+
 
 class CustomPasswordResetView(PasswordResetView):
     form_class = CustomPasswordResetForm
@@ -474,7 +463,7 @@ def editar_oferta(request, oferta_id):
                     # ya deberían estar en form.cleaned_data y se guardarán
                     # directamente con form.save()
                     if oferta.urgente:
-                     notificar_oferta_urgente(oferta)
+                        notificar_oferta_urgente(oferta)
 
                     oferta_actualizada = form.save(commit=True) # Guardamos directamente, ya que la dirección viene del form
                     
@@ -673,11 +662,24 @@ def mi_perfil(request):
     return render(request, 'gestionOfertas/miperfil.html', context)
 
 
-@login_required
-@require_POST
-def cambiar_estado_postulacion(request, postulacion_id):
-    # ... (la primera parte de tu función es la misma) ...
+import locale # Nueva importación
+import datetime # Nueva importación, aunque timezone.now() ya devuelve datetime
 
+# Bloque try-except para configurar el locale de forma segura
+# Esto es necesario para que strftime pueda obtener los nombres de los meses en español.
+try:
+    # Intenta configurar el locale para español en sistemas Unix/Linux
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+except locale.Error:
+    try:
+        # Intenta configurar el locale para español en sistemas Windows
+        locale.setlocale(locale.LC_TIME, 'Spanish_Spain.1252')
+    except locale.Error:
+        # Si ninguno funciona, se utilizará el locale por defecto del sistema
+        print("Advertencia: No se pudo configurar el locale para español. Los nombres de los meses podrían no ser correctos.")
+
+
+def cambiar_estado_postulacion(request, postulacion_id):
     with transaction.atomic():
         try:
             postulacion = get_object_or_404(
@@ -695,22 +697,29 @@ def cambiar_estado_postulacion(request, postulacion_id):
                 return redirect('miperfil')
 
             postulacion.estado = nuevo_estado
-            postulacion.save()
+            postulacion.save() # Esto debería actualizar fecha_contratacion si el estado cambia a 'contratado'
 
             messages.success(request, f"Estado de la postulación actualizado a '{nuevo_estado}'.")
 
             # --- Lógica de Contratación (Envío de Correo y PDF adjunto) ---
             if nuevo_estado == 'contratado' and estado_original != 'contratado':
-                # Esto significa que la postulación acaba de ser marcada como 'contratado' por primera vez
                 try:
+                    # Formatear la fecha de contratación directamente en Python
+                    # %d: día del mes como número decimal
+                    # %B: Nombre completo del mes (localizado)
+                    # %Y: Año con siglo como número decimal
+                    fecha_contratacion_formateada = postulacion.fecha_contratacion.strftime("%d de %B de %Y")
+                    print(f"DEBUG: Fecha de contratación formateada en Python: {fecha_contratacion_formateada}") # Debug para verificar
+
                     # 1. Preparar datos para el template del correo Y el PDF
                     contexto = {
                         'postulacion': postulacion,
-                        'postulante': postulacion.persona, # Instancia de PersonaNatural
+                        'postulante': postulacion.persona, 
                         'oferta': postulacion.oferta,
-                        'empresa': postulacion.oferta.empresa, # La empresa que ofrece el trabajo
-                        'fecha_actual': timezone.now().strftime("%d-%m-%Y"),
-                        'url_sitio': request.build_absolute_uri('/') # Para links absolutos
+                        'empresa': postulacion.oferta.empresa, 
+                        'fecha_actual': timezone.now().strftime("%d-%m-%Y"), 
+                        'url_sitio': request.build_absolute_uri('/'),
+                        'fecha_contratacion_formateada': fecha_contratacion_formateada, # ¡Nuevo campo para el template!
                     }
 
                     # 2. Renderizar el template HTML del correo (el cuerpo del email)
@@ -718,48 +727,42 @@ def cambiar_estado_postulacion(request, postulacion_id):
                     text_content = strip_tags(html_content)
 
                     # 3. Generar el PDF
-                    # Carga el template HTML específico para el PDF
                     template_pdf = get_template('gestionOfertas/pdfs/carta_confirmacion_contratacion.html')
                     html_pdf = template_pdf.render(contexto)
 
-                    # Crea un objeto BytesIO para guardar el PDF en memoria temporalmente
                     result_file = io.BytesIO()
 
-                    # Genera el PDF a partir del HTML
                     pisa_status = pisa.CreatePDF(
                         html_pdf,
                         dest=result_file,
-                        encoding='utf-8' # Asegura la correcta codificación de caracteres
+                        encoding='utf-8' 
                     )
 
-                    # Verifica si hubo errores en la generación del PDF
                     if pisa_status.err:
-                        # Si hay un error al generar el PDF, lo capturamos y lo mostramos
                         raise Exception(f"Error al generar el documento PDF: {pisa_status.err}")
 
                     # 4. Configurar y enviar el correo electrónico con el PDF adjunto
                     email = EmailMultiAlternatives(
                         subject=f"¡Felicitaciones! Has sido contratado/a para {postulacion.oferta.nombre}",
-                        body=text_content, # Contenido de texto plano del email
+                        body=text_content, 
                         from_email=settings.DEFAULT_FROM_EMAIL,
-                        to=[postulacion.persona.usuario.correo] # Correo del postulante
+                        to=[postulacion.persona.usuario.correo] 
                     )
-                    email.attach_alternative(html_content, "text/html") # Adjunta la versión HTML del email
+                    email.attach_alternative(html_content, "text/html")
 
-                    # ¡Adjuntar el PDF generado!
                     email.attach(
                         f"Confirmacion_Contratacion_{postulacion.persona.usuario.username}_{postulacion.oferta.id}.pdf",
-                        result_file.getvalue(), # Obtiene el contenido binario del PDF del BytesIO
-                        'application/pdf' # Tipo MIME del archivo adjunto
+                        result_file.getvalue(), 
+                        'application/pdf' 
                     )
 
-                    email.send() # Envía el correo completo con el adjunto
+                    email.send() 
 
                     messages.info(request, "Correo de confirmación de contratación con documento adjunto enviado.")
 
                 except Exception as e:
                     messages.error(request, f"Error al procesar la confirmación de contratación: {e}")
-                    # Opcional: logging.getLogger(__name__).exception("Error en la lógica de contratación:")
+                    logging.getLogger(__name__).exception("Error en la lógica de contratación:")
 
         except Postulacion.DoesNotExist:
             messages.error(request, "La postulación no existe o no tienes permiso para modificarla.")
@@ -767,8 +770,6 @@ def cambiar_estado_postulacion(request, postulacion_id):
             messages.error(request, f"Ocurrió un error inesperado: {e}")
 
     return redirect('miperfil')
-
-
 
 @login_required
 def actualizar_modo_urgente(request):

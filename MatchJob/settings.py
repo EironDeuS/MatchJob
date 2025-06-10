@@ -12,6 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Cargar variables de entorno del archivo .env (para desarrollo local)
 load_dotenv()
 
+SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
+
 # --- MESSAGE TAGS (Django Messages Framework) ---
 MESSAGE_TAGS = {
     messages.DEBUG: 'secondary',
@@ -139,9 +141,9 @@ GS_MEDIA_BUCKET_NAME = os.getenv('GS_MEDIA_BUCKET_NAME', 'matchjob')
 
 # Subcarpeta dentro del bucket para archivos estáticos (ej. bucket-name/static/css/...)
 GS_LOCATION = 'static' # <--- Tus archivos están en 'gestionOfertas/static/css/base.css'
-                         # cuando se recolectan, irán a bucket/static/gestionOfertas/css/base.css
-                         # o a bucket/static/css/base.css si usas staticfiles_finders.
-                         # Vamos a asumir que quieres que estén en bucket/static/
+                        # cuando se recolectan, irán a bucket/static/gestionOfertas/css/base.css
+                        # o a bucket/static/css/base.css si usas staticfiles_finders.
+                        # Vamos a asumir que quieres que estén en bucket/static/
 
 # Configuración de la cuenta de servicio para impersonación (firma de URLs para GCS)
 GS_AUTH_IMPERSONATION_SERVICE_ACCOUNT = '159154155877-compute@developer.gserviceaccount.com'
@@ -286,7 +288,7 @@ LOGGING = {
 }
 
 GOOGLE_MAPS_API_KEY ='AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0'
-SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
+
 
 
 LOGIN_URL = '/iniciar_sesion/'

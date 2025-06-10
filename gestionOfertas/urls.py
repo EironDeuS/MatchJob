@@ -51,7 +51,9 @@ urlpatterns = [
 
 # **¡IMPORTANTE!** Esto solo sirve archivos estáticos en desarrollo (cuando DEBUG=True).
 # En producción, Cloud Run/GCS se encargarán de ellos.
-if settings.DEBUG: # <--- ¡Asegúrate de que todo este bloque esté aquí!
+if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # <-- Añade esta línea
+
     # Si también sirves archivos de medios (uploaded files) en desarrollo:
     # urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

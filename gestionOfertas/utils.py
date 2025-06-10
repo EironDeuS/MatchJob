@@ -92,16 +92,18 @@ def validar_rut_empresa(rut):
         logger.debug(f"Intentando conectar a: {url_completa}")
         logger.debug(f"Usando API Key (primeros 5 caracteres): {api_key[:5]}...")
 
-        # Aumentar el tiempo de espera (timeout) a 30 segundos
-        response = requests.get(url_completa, headers=headers, timeout=30) # CAMBIO AQUÍ: de 20 a 30
+        # Aumentar el tiempo de espera (timeout) a 60 segundos
+        response = requests.get(url_completa, headers=headers, timeout=15) 
         response.raise_for_status()  # Levanta HTTPError para códigos de error 4xx/5xx
 
         data = response.json()
 
         # Lógica de validación de la respuesta para 200 OK (según docs v2)
+        # Si la API v2 devuelve 200 OK y contiene el rut y la razonSocial, asumimos validez.
         if data and data.get('rut') and data.get('razonSocial'):
-             return {'valida': True, 'datos': data}
+            return {'valida': True, 'datos': data}
         else:
+            # Esto se ejecutaría si hay un 200 OK pero el JSON es vacío o no tiene los campos esperados
             return {'valida': False, 'mensaje': f"RUT encontrado, pero respuesta de SimpleAPI incompleta o inesperada.", 'datos': data}
 
 
@@ -126,6 +128,7 @@ def validar_rut_empresa(rut):
         return {'valida': False, 'mensaje': 'Error de conexión con SimpleAPI. Verifique su conexión a internet o proxy.'}
     except requests.exceptions.Timeout as timeout_err:
         logger.error(f"Timeout al conectar con SimpleAPI para RUT {rut}: La API no respondió a tiempo ({timeout_err}).")
+        # Ya no hay simulación, este es un error real si se produce.
         return {'valida': False, 'mensaje': 'La validación del RUT con SimpleAPI excedió el tiempo de espera. La API tarda en responder.'}
     except requests.exceptions.RequestException as req_err:
         logger.error(f"Error general de request con SimpleAPI para RUT {rut}: {req_err}")

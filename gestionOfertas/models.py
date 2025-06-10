@@ -1,6 +1,7 @@
 # En tu_app/models.py
 
 from django.db import models
+from datetime import datetime
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
