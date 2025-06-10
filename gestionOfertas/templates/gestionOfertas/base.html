@@ -54,7 +54,7 @@
                     {% if user.is_authenticated %}
                         {% if user.tipo_usuario == 'persona' %}
                             <li class="nav-item">
-                                <a class="nav-link {% if request.resolver_match.url_name == 'inicio' %}active{% endif %}" href="{% url 'inicio' %}">
+                                <a class="nav-link {% if request.resolver_match.url_name == 'mapa' %}active{% endif %}" href="{% url 'mapa' %}">
                                     <i class="bi bi-search nav-icon"></i> Buscar Trabajo
                                     <span class="nav-indicator"></span>
                                 </a>
@@ -68,6 +68,12 @@
                             <li class="nav-item">
                                 <a class="nav-link {% if request.resolver_match.url_name == 'mis_ofertas' %}active{% endif %}" href="{% url 'mis_ofertas' %}">
                                     <i class="bi bi-card-list nav-icon"></i> Mis Ofertas
+                                    <span class="nav-indicator"></span>
+                                </a>
+                            </li>
+                             <li class="nav-item">
+                                <a class="nav-link {% if request.resolver_match.url_name == 'crear_oferta' %}active{% endif %}" href="{% url 'crear_oferta' %}">
+                                    <i class="bi bi-plus-circle-fill nav-icon"></i> Crear Oferta
                                     <span class="nav-indicator"></span>
                                 </a>
                             </li>

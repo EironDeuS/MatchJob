@@ -199,69 +199,75 @@ class CustomPasswordResetView(PasswordResetView):
     success_url = reverse_lazy('password_reset_done')
 
 
-class OfertasUrgentesView(ListView):
-    model = OfertaTrabajo
-    template_name = 'gestionOfertas/ofertas_urgentes.html'
-    context_object_name = 'ofertas'
-    paginate_by = 10
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.shortcuts import render
+from .models import OfertaTrabajo, Categoria
 
-    def get_queryset(self):
-        # Filtrar por ofertas urgentes y activas según el modelo real
-        queryset = OfertaTrabajo.objects.filter(
-            urgente=True,  # Campo correcto del modelo
-            esta_activa=True  # Campo correcto del modelo
-        ).select_related('creador', 'empresa', 'categoria')
+def ofertas_urgentes_view(request):
+    hoy = timezone.now().date()
 
-        # Filtros GET
-        q = self.request.GET.get('q', '')
-        categoria_id = self.request.GET.get('categoria')
-        tipo_contrato = self.request.GET.get('tipo_contrato')
-        tipo_oferta = self.request.GET.get('tipo_oferta')
+    # Base queryset: solo ofertas urgentes, activas y dentro del plazo
+    queryset = OfertaTrabajo.objects.filter(
+        urgente=True,
+        esta_activa=True
+    ).filter(
+        Q(fecha_cierre__gte=hoy) | Q(fecha_cierre__isnull=True)
+    ).select_related('creador', 'empresa', 'categoria')
 
-        if q:
-            queryset = queryset.filter(
-                Q(nombre__icontains=q) |
-                Q(descripcion__icontains=q) |
-                Q(empresa__nombre__icontains=q) |
-                Q(creador__first_name__icontains=q) |
-                Q(creador__last_name__icontains=q)
-            )
+    # Filtros GET
+    q = request.GET.get('q', '')
+    categoria_id = request.GET.get('categoria')
+    tipo_contrato = request.GET.get('tipo_contrato')
+    tipo_oferta = request.GET.get('tipo_oferta')
 
-        if categoria_id:
-            try:
-                queryset = queryset.filter(categoria_id=int(categoria_id))
-            except (ValueError, TypeError):
-                pass
+    if q:
+        queryset = queryset.filter(
+            Q(nombre__icontains=q) |
+            Q(descripcion__icontains=q) |
+            Q(empresa__nombre__icontains=q) |
+            Q(creador__first_name__icontains=q) |
+            Q(creador__last_name__icontains=q)
+        )
 
-        if tipo_contrato and tipo_contrato in dict(OfertaTrabajo.TIPO_CONTRATO_CHOICES):
-            queryset = queryset.filter(tipo_contrato=tipo_contrato)
+    if categoria_id:
+        try:
+            queryset = queryset.filter(categoria_id=int(categoria_id))
+        except (ValueError, TypeError):
+            pass
 
-        if tipo_oferta:
-            if tipo_oferta == 'empleo':
-                queryset = queryset.filter(es_servicio=False)
-            elif tipo_oferta == 'servicio':
-                queryset = queryset.filter(es_servicio=True)
+    if tipo_contrato and tipo_contrato in dict(OfertaTrabajo.TIPO_CONTRATO_CHOICES):
+        queryset = queryset.filter(tipo_contrato=tipo_contrato)
 
-        return queryset.order_by('-fecha_publicacion')
+    if tipo_oferta:
+        if tipo_oferta == 'empleo':
+            queryset = queryset.filter(es_servicio=False)
+        elif tipo_oferta == 'servicio':
+            queryset = queryset.filter(es_servicio=True)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Agregar datos para los filtros
-        context['categorias'] = Categoria.objects.all()
-        context['tipos_contrato'] = OfertaTrabajo.TIPO_CONTRATO_CHOICES
-        context['total_ofertas_urgentes'] = OfertaTrabajo.objects.filter(
-            urgente=True, 
-            esta_activa=True
-        ).count()
-        
-        # Preservar parámetros de búsqueda en el contexto
-        context['current_search'] = self.request.GET.get('q', '')
-        context['current_categoria'] = self.request.GET.get('categoria', '')
-        context['current_tipo_contrato'] = self.request.GET.get('tipo_contrato', '')
-        context['current_tipo_oferta'] = self.request.GET.get('tipo_oferta', '')
-        
-        return context
+    queryset = queryset.order_by('-fecha_publicacion')
+
+    # Paginación
+    paginator = Paginator(queryset, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'ofertas': page_obj,
+        'categorias': Categoria.objects.all(),
+        'tipos_contrato': OfertaTrabajo.TIPO_CONTRATO_CHOICES,
+        'total_ofertas_urgentes': OfertaTrabajo.objects.filter(
+            urgente=True,
+            esta_activa=True,
+            fecha_cierre__gte=hoy
+        ).count(),
+        'current_search': q,
+        'current_categoria': categoria_id or '',
+        'current_tipo_contrato': tipo_contrato or '',
+        'current_tipo_oferta': tipo_oferta or '',
+    }
+
+    return render(request, 'gestionOfertas/ofertas_urgentes.html', context)
 
 
 
@@ -388,7 +394,7 @@ def crear_oferta(request):
                     else _('¡Servicio publicado correctamente!')
                 messages.success(request, msg)
                 
-                return redirect('miperfil')
+                return redirect('mis_ofertas')
                 
             except Exception as e:
                 messages.error(
@@ -512,14 +518,19 @@ from django.core.serializers.json import DjangoJSONEncoder
 def mapa_ofertas_trabajo(request):
     """
     Vista para mostrar el mapa con todas las ofertas de trabajo activas
+    y que no hayan vencido.
     """
-    # Obtener todas las ofertas activas con coordenadas válidas
+    hoy = timezone.now().date()
+    
+    # Filtrar ofertas activas, con coordenadas válidas y fecha de cierre válida
     ofertas = OfertaTrabajo.objects.filter(
         esta_activa=True,
         latitud__isnull=False,
         longitud__isnull=False
-    ).select_related('categoria', 'empresa', 'creador')
-    
+    ).filter(
+        Q(fecha_cierre__gte=hoy) | Q(fecha_cierre__isnull=True)
+    ).select_related('categoria', 'empresa', 'creador').order_by('-fecha_publicacion')
+
     # Preparar datos para el mapa
     ofertas_data = []
     for oferta in ofertas:
@@ -532,13 +543,13 @@ def mapa_ofertas_trabajo(request):
             if not publicador:
                 publicador = oferta.creador.username
             tipo_publicador = "Persona Natural"
-        
+
         # Determinar el tipo de oferta
         tipo_oferta = "Servicio" if oferta.es_servicio else "Empleo"
-        
+
         # Preparar descripción corta para el popup
         descripcion_corta = oferta.descripcion[:100] + "..." if len(oferta.descripcion) > 100 else oferta.descripcion
-        
+
         ofertas_data.append({
             'id': oferta.id,
             'nombre': oferta.nombre,
@@ -557,15 +568,14 @@ def mapa_ofertas_trabajo(request):
             'fecha_publicacion': oferta.fecha_publicacion.strftime('%d/%m/%Y'),
             'fecha_cierre': oferta.fecha_cierre.strftime('%d/%m/%Y') if oferta.fecha_cierre else 'Sin fecha límite'
         })
-    
+
     context = {
         'ofertas_json': ofertas_data,
         'google_maps_api_key': getattr(settings, 'GOOGLE_MAPS_API_KEY', ''),
         'total_ofertas': len(ofertas_data)
     }
-    
-    return render(request, 'gestionOfertas/mapa.html', context)
 
+    return render(request, 'gestionOfertas/mapa.html', context)
 
 def api_ofertas_mapa(request):
     """
@@ -1006,7 +1016,7 @@ def realizar_postulacion(request, oferta_id):
         msg.send()
         
         messages.success(request, "¡Tu postulación ha sido enviada con éxito! Hemos enviado un correo de confirmación.")
-        return redirect('detalle_oferta', oferta_id=oferta_id)
+        return redirect('mis_postulaciones_persona', oferta_id=oferta_id)
     
     except Exception as e:
         messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")

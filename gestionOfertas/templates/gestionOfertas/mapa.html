@@ -36,9 +36,47 @@
             opacity: 0.9;
         }
         
+        .controls {
+            background: white;
+            padding: 15px 20px;
+            margin: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .filter-group label {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
         .map-container {
             position: relative;
-            height: 80vh;
+            height: 75vh;
             margin: 20px;
             border-radius: 10px;
             overflow: hidden;
@@ -87,24 +125,32 @@
         .urgente { background-color: #ea4335; }
         
         .info-window {
-            max-width: 300px;
+            max-width: 350px;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.4;
         }
         
         .info-window h3 {
             margin: 0 0 10px 0;
             color: #333;
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .info-window .badges {
+            margin-bottom: 15px;
         }
         
         .info-window .badge {
             display: inline-block;
-            padding: 2px 8px;
+            padding: 4px 8px;
             border-radius: 12px;
             font-size: 10px;
             font-weight: bold;
-            margin: 2px;
+            margin: 2px 4px 2px 0;
             color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .badge-empleo { background-color: #4285f4; }
@@ -114,14 +160,61 @@
         .badge-persona { background-color: #ff9800; }
         
         .info-window p {
-            margin: 5px 0;
-            font-size: 12px;
-            color: #666;
+            margin: 8px 0;
+            font-size: 13px;
+            color: #555;
         }
         
         .info-window .direccion {
-            font-weight: bold;
+            font-weight: 600;
             color: #333;
+            font-size: 14px;
+        }
+        
+        .info-window .descripcion {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-style: italic;
+            border-left: 3px solid #667eea;
+        }
+        
+        .info-window .salary-highlight {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-weight: 600;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        
+        .postular-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+            width: 100%;
+            box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .postular-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .postular-btn:active {
+            transform: translateY(0);
         }
         
         .loading {
@@ -148,10 +241,46 @@
             100% { transform: rotate(360deg); }
         }
         
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        
         @media (max-width: 768px) {
             .map-container {
                 margin: 10px;
-                height: 70vh;
+                height: 65vh;
+            }
+            
+            .controls {
+                margin: 10px;
+                padding: 10px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-group {
+                justify-content: space-between;
             }
             
             .legend {
@@ -167,10 +296,41 @@
     </style>
 </head>
 <body>
+    <br><br><br>
+    <br><br><br>
     <div class="header">
         <h1>🗺️ Mapa de Ofertas de Trabajo</h1>
         <div class="stats">
-            Mostrando {{ total_ofertas }} ofertas activas en Chile
+            Mostrando <span id="ofertas-count">{{ total_ofertas }}</span> ofertas activas en Chile
+        </div>
+    </div>
+    
+    <div class="controls">
+        <div class="filter-group">
+            <label for="tipo-filter">Tipo:</label>
+            <select id="tipo-filter" class="filter-select">
+                <option value="">Todos</option>
+                <option value="Empleo">Empleo</option>
+                <option value="Servicio">Servicio</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="urgente-filter">Urgencia:</label>
+            <select id="urgente-filter" class="filter-select">
+                <option value="">Todos</option>
+                <option value="true">Urgentes</option>
+                <option value="false">No urgentes</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="publicador-filter">Publicador:</label>
+            <select id="publicador-filter" class="filter-select">
+                <option value="">Todos</option>
+                <option value="Empresa">Empresa</option>
+                <option value="Persona">Persona</option>
+            </select>
         </div>
     </div>
     
@@ -207,6 +367,8 @@
     let map;
     let markers = [];
     let infoWindow;
+    let allOfertas = [];
+    let filteredOfertas = [];
 
     function initMap() {
         document.getElementById('loading').style.display = 'none';
@@ -218,6 +380,11 @@
             styles: [
                 {
                     featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                },
+                {
+                    featureType: 'transit',
                     elementType: 'labels',
                     stylers: [{ visibility: 'off' }]
                 }
@@ -234,7 +401,11 @@
             return;
         }
 
-        createMarkers(ofertasData);
+        allOfertas = ofertasData;
+        filteredOfertas = [...allOfertas];
+        
+        createMarkers(filteredOfertas);
+        setupFilters();
 
         if (markers.length > 0) {
             const bounds = new google.maps.LatLngBounds();
@@ -250,6 +421,7 @@
     }
 
     function createMarkers(ofertas) {
+        // Limpiar marcadores existentes
         markers.forEach(marker => marker.setMap(null));
         markers = [];
 
@@ -268,12 +440,13 @@
                     title: oferta.nombre,
                     icon: {
                         path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8,
+                        scale: 10,
                         fillColor: iconColor,
-                        fillOpacity: 0.8,
+                        fillOpacity: 0.9,
                         strokeWeight: 2,
                         strokeColor: '#ffffff'
-                    }
+                    },
+                    animation: google.maps.Animation.DROP
                 });
 
                 const infoContent = createInfoWindowContent(oferta);
@@ -285,6 +458,9 @@
                 markers.push(marker);
             }
         });
+        
+        // Actualizar contador
+        document.getElementById('ofertas-count').textContent = ofertas.length;
     }
 
     function createInfoWindowContent(oferta) {
@@ -306,28 +482,74 @@
             badges.push('<span class="badge badge-persona">Persona</span>');
         }
 
+        const salarioHtml = oferta.salario ? 
+            `<div class="salary-highlight">💰 ${oferta.salario}</div>` : '';
+
+
+        // Construir la URL usando la URL base de Django
+        const postularUrl = `{% url 'realizar_postulacion' 0 %}`.replace('0', oferta.id);
+
         return `
             <div class="info-window">
                 <h3>${oferta.nombre}</h3>
-                <div style="margin-bottom: 10px;">
+                <div class="badges">
                     ${badges.join('')}
                 </div>
                 <p class="direccion">📍 ${oferta.direccion || 'Dirección no especificada'}</p>
-                <p><strong>Publicado por:</strong> ${oferta.publicador || 'No especificado'}</p>
-                <p><strong>Categoría:</strong> ${oferta.categoria || 'No especificada'}</p>
-                ${oferta.salario ? `<p><strong>Salario:</strong> ${oferta.salario}</p>` : ''}
-                ${oferta.tipo_contrato ? `<p><strong>Tipo:</strong> ${oferta.tipo_contrato}</p>` : ''}
-                <p><strong>Descripción:</strong> ${oferta.descripcion || 'No hay descripción disponible'}</p>
-                <p><strong>Publicado:</strong> ${oferta.fecha_publicacion}</p>
-                <p><strong>Cierre:</strong> ${oferta.fecha_cierre}</p>
+                <p><strong>👤 Publicado por:</strong> ${oferta.publicador || 'No especificado'}</p>
+                <p><strong>🏷️ Categoría:</strong> ${oferta.categoria || 'No especificada'}</p>
+                ${salarioHtml}
+                ${oferta.tipo_contrato ? `<p><strong>📋 Tipo:</strong> ${oferta.tipo_contrato}</p>` : ''}
+                <div class="descripcion">
+                    <strong>📄 Descripción:</strong><br>
+                    ${oferta.descripcion || 'No hay descripción disponible'}
+                </div>
+                <p><strong>📅 Publicado:</strong> ${oferta.fecha_publicacion}</p>
+                <p><strong>⏰ Cierre:</strong> ${oferta.fecha_cierre}</p>
+                <a href="${postularUrl}" class="postular-btn">
+                    🚀 Postular Ahora
+                </a>
             </div>
         `;
     }
 
+    function setupFilters() {
+        const tipoFilter = document.getElementById('tipo-filter');
+        const urgenteFilter = document.getElementById('urgente-filter');
+        const publicadorFilter = document.getElementById('publicador-filter');
+
+        [tipoFilter, urgenteFilter, publicadorFilter].forEach(filter => {
+            filter.addEventListener('change', applyFilters);
+        });
+    }
+
+    function applyFilters() {
+        const tipoValue = document.getElementById('tipo-filter').value;
+        const urgenteValue = document.getElementById('urgente-filter').value;
+        const publicadorValue = document.getElementById('publicador-filter').value;
+
+        filteredOfertas = allOfertas.filter(oferta => {
+            const tipoMatch = !tipoValue || oferta.tipo_oferta === tipoValue;
+            const urgenteMatch = !urgenteValue || oferta.urgente.toString() === urgenteValue;
+            const publicadorMatch = !publicadorValue || oferta.tipo_publicador === publicadorValue;
+
+            return tipoMatch && urgenteMatch && publicadorMatch;
+        });
+
+        createMarkers(filteredOfertas);
+        
+        // Ajustar vista del mapa
+        if (markers.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            markers.forEach(marker => bounds.extend(marker.getPosition()));
+            map.fitBounds(bounds);
+        }
+    }
+
     function handleMapError() {
         document.getElementById('loading').innerHTML = `
-            <div style="color: red;">
-                <h3>Error al cargar el mapa</h3>
+            <div style="color: red; text-align: center;">
+                <h3>⚠️ Error al cargar el mapa</h3>
                 <p>Por favor, verifica que la clave de API de Google Maps esté configurada correctamente.</p>
             </div>
         `;

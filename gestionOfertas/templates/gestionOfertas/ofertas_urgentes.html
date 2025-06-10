@@ -552,8 +552,8 @@
                                             Ver Detalles
                                         </a>
                                         
-                                        {% if user.is_authenticated and oferta.puede_postular %}
-                                            <a href="{% url 'postular_oferta' oferta.id %}" class="urgent-btn-secondary urgent-btn">
+                                        {% if user.is_authenticated %}
+                                            <a href="{% url 'realizar_postulacion' oferta.id %}" class="urgent-btn-secondary urgent-btn">
                                                 <i class="bi bi-send-fill"></i>
                                                 ¡Postular Ya!
                                             </a>
