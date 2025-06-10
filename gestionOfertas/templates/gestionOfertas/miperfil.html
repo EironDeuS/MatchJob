@@ -14,55 +14,63 @@
         <div class="col-lg-4 col-md-5 mb-4">
         <div class="card shadow-sm border-0">
             <div class="card-body text-center">
-            {% if perfil.foto_perfil %}
-                <img src="{{ perfil.foto_perfil.url }}" class="rounded-circle mb-3 shadow-sm border" width="140" height="140" alt="Foto de perfil" style="object-fit: cover;">
-            {% else %}
-                <div class="d-flex justify-content-center mb-3">
-                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm border" style="width: 140px; height: 140px;">
-                    <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-fill{% else %}building{% endif %} text-muted" style="font-size: 3rem;"></i>
-                </div>
-                </div>
-            {% endif %}
-
-            <h4 class="fw-bold mb-1">
-                <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-circle{% else %}building-fill{% endif %} me-2"></i>
-                {% if usuario.tipo_usuario == 'persona' %}
-                {{ perfil.nombres }} {{ perfil.apellidos }}
+                {% if perfil.foto_perfil %}
+                    <img src="{{ perfil.foto_perfil.url }}" class="rounded-circle mb-3 shadow-sm border" width="140" height="140" alt="Foto de perfil" style="object-fit: cover;">
                 {% else %}
-                {{ perfil.nombre_empresa }}
+                    <div class="d-flex justify-content-center mb-3">
+                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm border" style="width: 140px; height: 140px;">
+                        <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-fill{% else %}building{% endif %} text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    </div>
                 {% endif %}
-            </h4>
 
-            <a href="{% url 'historial_valoraciones' usuario.id %}" class="text-decoration-none">
-                <div class="mb-2">
-                {% for i in "12345" %}
-                    {% if forloop.counter <= valoracion_promedio %}
-                    <i class="bi bi-star-fill text-warning"></i>
+                <h4 class="fw-bold mb-1">
+                    <i class="bi bi-{% if usuario.tipo_usuario == 'persona' %}person-circle{% else %}building-fill{% endif %} me-2"></i>
+                    {% if usuario.tipo_usuario == 'persona' %}
+                    {{ perfil.nombres }} {{ perfil.apellidos }}
                     {% else %}
-                    <i class="bi bi-star text-warning"></i>
+                    {{ perfil.nombre_empresa }}
                     {% endif %}
-                {% endfor %}
-                <small class="text-muted d-block">
-                    ({{ valoracion_promedio }}/5 - {{ cantidad_valoraciones }} valoración{{ cantidad_valoraciones|pluralize:"es" }})
-                </small>
+                </h4>
+                <p class="text-muted mb-3 small">
+                    <i class="bi bi-geo-alt-fill me-1"></i> {{ usuario.direccion|default:"Sin dirección registrada" }}
+                </p>
+
+                <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">
+                    <a href="{% url 'editar_perfil' %}" class="btn btn-outline-primary btn-sm px-3">
+                    <i class="bi bi-pencil me-1"></i> Editar Perfil
+                    </a>
+                    <a href="{% url 'crear_oferta' %}" class="btn btn-success btn-sm px-3">
+                    <i class="bi bi-plus-circle me-1"></i> Crear Oferta
+                    </a>
                 </div>
-            </a>
-
-            <p class="text-muted mb-3 small">
-                <i class="bi bi-geo-alt-fill me-1"></i> {{ usuario.direccion|default:"Sin dirección registrada" }}
-            </p>
-
-            <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">
-                <a href="{% url 'editar_perfil' %}" class="btn btn-outline-primary btn-sm px-3">
-                <i class="bi bi-pencil me-1"></i> Editar Perfil
-                </a>
-                <a href="{% url 'crear_oferta' %}" class="btn btn-success btn-sm px-3">
-                <i class="bi bi-plus-circle me-1"></i> Crear Oferta
-                </a>
-            </div>
             </div>
         </div>
+                        {% if valoracion_promedio is not None %}
+                            <a href="{% url 'historial_valoraciones' usuario.id %}">
+                                <div class="card shadow-sm mt-4">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i> Calificación Promedio</h5>
+                                        <div class="d-flex justify-content-center align-items-center mb-2">
+                                            <span class="fs-2 fw-bold text-primary me-2">{{ valoracion_promedio|floatformat:1 }}</span>
+                                                <div class="d-flex">
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= valoracion_promedio %}
+                                                            <i class="bi bi-star-fill text-warning"></i>
+                                                        {% else %}
+                                                            <i class="bi bi-star text-warning"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                        </div>
+                                            <p class="text-muted">({{ cantidad_valoraciones }} valoraciones)</p>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endif %}
         </div>
+
+        
 
         <div class="col-lg-8 col-md-7">
             <div class="card shadow-sm mb-4">

@@ -51,26 +51,28 @@
                     {% endif %}
                 </div>
             </div>
-            {% if valoracion_promedio is not None %}
-            <div class="card shadow-sm mt-4">
-                <div class="card-body text-center">
-                    <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i> Calificación Promedio</h5>
-                    <div class="d-flex justify-content-center align-items-center mb-2">
-                        <span class="fs-2 fw-bold text-primary me-2">{{ valoracion_promedio|floatformat:1 }}</span>
-                        <div class="d-flex">
-                            {% for _ in "12345"|make_list %}
-                                {% if forloop.counter <= valoracion_promedio|floatformat:0 %}
-                                    <i class="bi bi-star-fill text-warning fs-5"></i>
-                                {% else %}
-                                    <i class="bi bi-star text-secondary fs-5"></i>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <p class="text-muted">({{ cantidad_valoraciones }} valoraciones)</p>
-                </div>
-            </div>
-            {% endif %}
+                        {% if valoracion_promedio is not None %}
+                            <a href="{% url 'historial_valoraciones' usuario.id %}">
+                                <div class="card shadow-sm mt-4">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i> Calificación Promedio</h5>
+                                        <div class="d-flex justify-content-center align-items-center mb-2">
+                                            <span class="fs-2 fw-bold text-primary me-2">{{ valoracion_promedio|floatformat:1 }}</span>
+                                                <div class="d-flex">
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= valoracion_promedio %}
+                                                            <i class="bi bi-star-fill text-warning"></i>
+                                                        {% else %}
+                                                            <i class="bi bi-star text-warning"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                        </div>
+                                            <p class="text-muted">({{ cantidad_valoraciones }} valoraciones)</p>
+                                    </div>
+                                </div>
+                            </a>
+                        {% endif %}
         </div>
 
         <div class="col-lg-8 col-md-7">
