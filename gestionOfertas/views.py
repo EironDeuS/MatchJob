@@ -921,7 +921,7 @@ def detalle_oferta(request, oferta_id):
     return render(request, 'gestionOfertas/detalle_oferta.html', context)
 
 
-
+from django.utils import timezone
 
 @login_required
 def realizar_postulacion(request, oferta_id):
@@ -990,7 +990,7 @@ def realizar_postulacion(request, oferta_id):
             'oferta': oferta,
             'nombre_creador': nombre_creador,
             'url_perfil': request.build_absolute_uri('/perfil/'),  # Ajusta según tu URL
-            'year': datetime.now().year,
+            'year': timezone.now().year,
             'company_name': getattr(settings, 'SITE_NAME', 'Portal de Empleos'),
             'logo_url': request.build_absolute_uri(settings.STATIC_URL + 'img/logo.png') if hasattr(settings, 'STATIC_URL') else None,
         }
@@ -1010,11 +1010,12 @@ def realizar_postulacion(request, oferta_id):
         msg.send()
         
         messages.success(request, "¡Tu postulación ha sido enviada con éxito! Hemos enviado un correo de confirmación.")
-        return redirect('mis_postulaciones_persona', oferta_id=oferta_id)
+        return redirect('mis_postulaciones_persona')
     
     except Exception as e:
         messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
         return redirect('detalle_oferta', oferta_id=oferta_id)
+
 
 
 @login_required
