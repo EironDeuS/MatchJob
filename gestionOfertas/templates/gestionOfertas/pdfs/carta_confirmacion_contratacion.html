@@ -1,11 +1,9 @@
-{# gestionOfertas/pdfs/carta_confirmacion_contratacion.html #}
 {% load i18n %} 
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <style>
-        /* Estilos específicos para PDF, pueden ser más básicos */
         body { font-family: "DejaVu Sans", sans-serif; font-size: 10pt; line-height: 1.5; color: #333; }
         .header { text-align: center; margin-bottom: 30px; }
         .header h1 { color: #007bff; }
@@ -24,8 +22,9 @@
 
     <div class="content">
         <p>Estimado/a <strong>{{ postulante.nombres }} {{ postulante.apellidos }}</strong>,</p>
-        <p>Por medio de la presente, <strong>{{ empresa.nombre_empresa }}</strong> (RUT: {{ empresa.usuario.username }}) se complace en confirmar tu contratación para el puesto de <strong>{{ oferta.nombre }}</strong>.</p>
-        <p>La fecha de contratación efectiva es el {{ fecha_contratacion_formateada }}.</p> {# ¡CAMBIO AQUI: Usar la variable formateada! #}
+        <p>Por medio de la presente, <strong>{{ contratante_nombre }}</strong> se complace en confirmar tu contratación para el puesto de <strong>{{ oferta.nombre }}</strong>.</p>
+        <p>La fecha de contratación efectiva es el {{ fecha_contratacion_formateada }}.</p>
+
         <p>A continuación, se detallan algunos puntos clave de la contratación:</p>
         <table class="details-table">
             <tr>
@@ -33,16 +32,29 @@
                 <td>{{ oferta.nombre }}</td>
             </tr>
             <tr>
-                <th>Empresa:</th>
-                <td>{{ empresa.nombre_empresa }} ({{ empresa.razon_social }})</td>
+                <th>Contratante:</th>
+                <td>{{ contratante_nombre }}</td>
             </tr>
-            <tr>
-                <th>Giro Comercial:</th>
-                <td>{{ empresa.giro }}</td>
-            </tr>
+
+            {% if razon_social and razon_social != "Persona Natural" %}
+                <tr>
+                    <th>Razón Social:</th>
+                    <td>{{ razon_social }}</td>
+                </tr>
+                <tr>
+                    <th>Giro Comercial:</th>
+                    <td>{{ giro|default:"No especificado" }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <th>Tipo de Contratante:</th>
+                    <td>Persona Natural</td>
+                </tr>
+            {% endif %}
+
             <tr>
                 <th>Tipo de Contrato:</th>
-                <td>{{ oferta.get_tipo_contrato_display }}</td>
+                <td>{{ oferta.get_tipo_contrato_display|default:"No especificado" }}</td>
             </tr>
             <tr>
                 <th>Salario Estimado:</th>
@@ -53,10 +65,11 @@
                 <td>{{ oferta.direccion|default_if_none:"No especificada" }}</td>
             </tr>
         </table>
-        <p>Para cualquier consulta adicional, por favor, no dudes en ponerte en contacto con el departamento de Recursos Humanos de <strong>{{ empresa.nombre_empresa }}</strong>.</p>
+
+
         <p style="margin-top: 40px;">Atentamente,</p>
         <p>___________________________</p>
-        <p><strong>{{ empresa.nombre_empresa }}</strong></p>
+        <p><strong>{{ contratante_nombre }}</strong></p>
     </div>
 
     <div class="footer">

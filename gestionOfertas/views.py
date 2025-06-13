@@ -672,6 +672,8 @@ except locale.Error:
         print("Advertencia: No se pudo configurar el locale para español. Los nombres de los meses podrían no ser correctos.")
 
 
+@login_required
+@require_POST
 def cambiar_estado_postulacion(request, postulacion_id):
     with transaction.atomic():
         try:
@@ -690,72 +692,96 @@ def cambiar_estado_postulacion(request, postulacion_id):
                 return redirect('miperfil')
 
             postulacion.estado = nuevo_estado
-            postulacion.save() # Esto debería actualizar fecha_contratacion si el estado cambia a 'contratado'
+            postulacion.save()
 
             messages.success(request, f"Estado de la postulación actualizado a '{nuevo_estado}'.")
 
-            # --- Lógica de Contratación (Envío de Correo y PDF adjunto) ---
+            # Datos del contratante
+            es_empresa = bool(postulacion.oferta.empresa)
+
+            if es_empresa:
+                contratante_nombre = postulacion.oferta.empresa.nombre_empresa
+                razon_social = postulacion.oferta.empresa.razon_social
+                giro = postulacion.oferta.empresa.giro
+                contratante_correo = postulacion.oferta.empresa.usuario.correo
+            else:
+                persona = postulacion.oferta.creador.personanatural
+                contratante_nombre = f"{persona.nombres} {persona.apellidos}"
+                razon_social = "Persona Natural"
+                giro = "Independiente"
+                contratante_correo = postulacion.oferta.creador.correo
+
+            # Si fue contratado por primera vez
             if nuevo_estado == 'contratado' and estado_original != 'contratado':
                 try:
-                    # Formatear la fecha de contratación directamente en Python
-                    # %d: día del mes como número decimal
-                    # %B: Nombre completo del mes (localizado)
-                    # %Y: Año con siglo como número decimal
                     fecha_contratacion_formateada = postulacion.fecha_contratacion.strftime("%d de %B de %Y")
-                    print(f"DEBUG: Fecha de contratación formateada en Python: {fecha_contratacion_formateada}") # Debug para verificar
-
-                    # 1. Preparar datos para el template del correo Y el PDF
                     contexto = {
                         'postulacion': postulacion,
-                        'postulante': postulacion.persona, 
+                        'postulante': postulacion.persona,
                         'oferta': postulacion.oferta,
-                        'empresa': postulacion.oferta.empresa, 
-                        'fecha_actual': timezone.now().strftime("%d-%m-%Y"), 
+                        'contratante_nombre': contratante_nombre,
+                        'razon_social': razon_social,
+                        'giro': giro,
+                        'fecha_actual': timezone.now().strftime("%d-%m-%Y"),
                         'url_sitio': request.build_absolute_uri('/'),
-                        'fecha_contratacion_formateada': fecha_contratacion_formateada, # ¡Nuevo campo para el template!
+                        'fecha_contratacion_formateada': fecha_contratacion_formateada,
+                        'es_empresa': es_empresa,
                     }
 
-                    # 2. Renderizar el template HTML del correo (el cuerpo del email)
-                    html_content = render_to_string('gestionOfertas/emails/confirmacion_contratacion.html', contexto)
-                    text_content = strip_tags(html_content)
-
-                    # 3. Generar el PDF
+                    # PDF
                     template_pdf = get_template('gestionOfertas/pdfs/carta_confirmacion_contratacion.html')
                     html_pdf = template_pdf.render(contexto)
-
                     result_file = io.BytesIO()
-
-                    pisa_status = pisa.CreatePDF(
-                        html_pdf,
-                        dest=result_file,
-                        encoding='utf-8' 
-                    )
-
+                    pisa_status = pisa.CreatePDF(html_pdf, dest=result_file, encoding='utf-8')
                     if pisa_status.err:
-                        raise Exception(f"Error al generar el documento PDF: {pisa_status.err}")
+                        raise Exception("Error al generar el PDF.")
 
-                    # 4. Configurar y enviar el correo electrónico con el PDF adjunto
-                    email = EmailMultiAlternatives(
+                    # --------- Correo al Postulante ----------
+                    html_postulante = render_to_string('gestionOfertas/emails/confirmacion_contratacion.html', contexto)
+                    text_postulante = strip_tags(html_postulante)
+
+                    email_postulante = EmailMultiAlternatives(
                         subject=f"¡Felicitaciones! Has sido contratado/a para {postulacion.oferta.nombre}",
-                        body=text_content, 
+                        body=text_postulante,
                         from_email=settings.DEFAULT_FROM_EMAIL,
-                        to=[postulacion.persona.usuario.correo] 
+                        to=[postulacion.persona.usuario.correo]
                     )
-                    email.attach_alternative(html_content, "text/html")
-
-                    email.attach(
+                    email_postulante.attach_alternative(html_postulante, "text/html")
+                    email_postulante.attach(
                         f"Confirmacion_Contratacion_{postulacion.persona.usuario.username}_{postulacion.oferta.id}.pdf",
-                        result_file.getvalue(), 
-                        'application/pdf' 
+                        result_file.getvalue(),
+                        'application/pdf'
                     )
+                    email_postulante.send()
 
-                    email.send() 
+                    # --------- Correo al Contratante ----------
+                    try:
+                        html_contratante = render_to_string('gestionOfertas/emails/confirmacion_contratacion_para_contratante.html', contexto)
+                        text_contratante = strip_tags(html_contratante)
 
-                    messages.info(request, "Correo de confirmación de contratación con documento adjunto enviado.")
+                        email_contratante = EmailMultiAlternatives(
+                            subject=f"Has contratado a {postulacion.persona.nombres} {postulacion.persona.apellidos} para '{postulacion.oferta.nombre}'",
+                            body=text_contratante,
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            to=[contratante_correo]
+                        )
+                        email_contratante.attach_alternative(html_contratante, "text/html")
+                        email_contratante.attach(
+                            f"Contrato_{postulacion.persona.usuario.username}_{postulacion.oferta.id}.pdf",
+                            result_file.getvalue(),
+                            'application/pdf'
+                        )
+                        email_contratante.send()
+
+                        messages.info(request, "Correos de confirmación enviados con éxito.")
+
+                    except Exception as e:
+                        logging.getLogger(__name__).error(f"Error al enviar el correo al contratante: {e}", exc_info=True)
+                        messages.warning(request, "Se contrató correctamente, pero hubo un error al notificar al contratante.")
 
                 except Exception as e:
-                    messages.error(request, f"Error al procesar la confirmación de contratación: {e}")
-                    logging.getLogger(__name__).exception("Error en la lógica de contratación:")
+                    messages.error(request, f"Error al enviar los correos: {e}")
+                    logging.getLogger(__name__).exception("Error al enviar correos de contratación")
 
         except Postulacion.DoesNotExist:
             messages.error(request, "La postulación no existe o no tienes permiso para modificarla.")
