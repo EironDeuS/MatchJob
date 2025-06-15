@@ -1,3 +1,5 @@
+{# editar_perfil.html #}
+
 {% extends 'gestionOfertas/base.html' %}
 {% load static %}
 
@@ -21,106 +23,178 @@
             {% endfor %}
           {% endif %}
 
+          {# Formulario de edición de perfil principal #}
           <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
 
-            {# ERRORES NO ESPECÍFICOS DE CAMPO #}
-            {% if form.non_field_errors %}
-                <div class="alert alert-danger" role="alert">
-                    {% for error in form.non_field_errors %}
-                        {{ error }}
+            {# SECCIÓN DE INFORMACIÓN PERSONAL #}
+            <div class="mb-4">
+              <h5 class="mb-3">Información Personal</h5>
+              
+              {# Nombres #}
+              <div class="mb-3">
+                <label for="id_nombres" class="form-label">Nombres</label>
+                {{ form.nombres }}
+                {% if form.nombres.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.nombres.errors %}
+                      {{ error }}
                     {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              {# Apellidos #}
+              <div class="mb-3">
+                <label for="id_apellidos" class="form-label">Apellidos</label>
+                {{ form.apellidos }}
+                {% if form.apellidos.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.apellidos.errors %}
+                      {{ error }}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              {# Fecha de Nacimiento #}
+              <div class="mb-3">
+                <label for="id_fecha_nacimiento" class="form-label">Fecha de Nacimiento</label>
+                {{ form.fecha_nacimiento }}
+                {% if form.fecha_nacimiento.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.fecha_nacimiento.errors %}
+                      {{ error }}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              {# Nacionalidad #}
+              <div class="mb-3">
+                <label for="id_nacionalidad" class="form-label">Nacionalidad</label>
+                {{ form.nacionalidad }}
+                {% if form.nacionalidad.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.nacionalidad.errors %}
+                      {{ error }}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            {# SECCIÓN DE INFORMACIÓN DE CONTACTO #}
+            <div class="mb-4">
+              <h5 class="mb-3">Información de Contacto</h5>
+              
+              {# Correo #}
+              <div class="mb-3">
+                <label for="id_correo" class="form-label">Correo Electrónico</label>
+                {{ form.correo }}
+                {% if form.correo.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.correo.errors %}
+                      {{ error }}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              {# Teléfono #}
+              <div class="mb-3">
+                <label for="id_telefono" class="form-label">Teléfono</label>
+                {{ form.telefono }}
+                {% if form.telefono.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.telefono.errors %}
+                      {{ error }}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              {# Dirección #}
+              <div class="mb-3">
+                <label for="id_direccion" class="form-label">Dirección</label>
+                {{ form.direccion }}
+                {% if form.direccion.errors %}
+                  <div class="text-danger small mt-1">
+                    {% for error in form.direccion.errors %}
+                      {{ error }}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            {# SECCIÓN DE CV #}
+            <div class="mb-4">
+              <h5 class="mb-3">Currículum Vitae</h5>
+              <p class="text-muted small">Tu CV es fundamental para tus postulaciones.</p>
+              
+              {# Usamos la variable 'cv' del contexto, que es cv_existente #}
+              {% if cv and cv.archivo_cv %}
+                <p class="mb-2">
+                  <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>
+                  {# Accede al URL a través del FileField #}
+                  <a href="{{ cv.archivo_cv.url }}" target="_blank" class="link-primary">Ver mi CV actual</a>
+                  <small class="text-muted ms-2">(Última actualización: {{ cv.fecha_actualizacion|date:"d M Y" }})</small>
+                </p>
+                <label for="id_cv_archivo" class="form-label mt-2">¿Quieres cambiar tu CV? Sube uno nuevo:</label>
+              {% else %}
+                <p class="mt-2 mb-2"><small>No has subido un CV aún.</small></p>
+                <label for="id_cv_archivo" class="form-label mt-2">Sube tu Currículum Vitae (PDF):</label>
+              {% endif %}
+              
+              {{ form.cv_archivo }}
+              {% if form.cv_archivo.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.cv_archivo.errors %}
+                    {{ error }}
+                  {% endfor %}
                 </div>
-            {% endif %}
-
-            <h5 class="text-primary mb-3">Información de Contacto</h5>
-            <div class="mb-3">
-              <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
-              {{ form.correo }}
-              {% if form.correo.errors %}
-                <div class="invalid-feedback d-block">{{ form.correo.errors }}</div>
-              {% endif %}
-            </div>
-             <div class="mb-3">
-              <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
-              {{ form.telefono }}
-              {% if form.telefono.errors %}
-                <div class="invalid-feedback d-block">{{ form.telefono.errors }}</div>
-              {% endif %}
-            </div>
-             <div class="mb-3">
-              <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
-              {{ form.direccion }}
-              {% if form.direccion.errors %}
-                <div class="invalid-feedback d-block">{{ form.direccion.errors }}</div>
               {% endif %}
             </div>
 
-            <hr class="my-4">
+            {# SECCIÓN DE CERTIFICADO DE ANTECEDENTES #}
+            <div class="mb-4">
+              <h5 class="mb-3">Certificado de Antecedentes</h5>
+              <p class="text-muted small">Mantén tu certificado actualizado para facilitar verificaciones.</p>
+              
+              {# Usamos la variable 'certificado' del contexto, que es certificado_existente #}
+              {% if certificado and certificado.certificado_archivo %} {# CAMBIADO DE certificado.certificado_url A certificado.certificado_archivo #}
+                <p class="mb-2">
+                  <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>
+                  {# Accede al URL a través del FileField #}
+                  <a href="{{ certificado.certificado_archivo.url }}" target="_blank" class="link-primary">Ver Certificado actual</a> {# CAMBIADO A .certificado_archivo.url #}
+                  <small class="text-muted ms-2">(Última actualización: {{ certificado.fecha_actualizacion|date:"d M Y" }})</small>
+                  {% if certificado.esta_verificado %}
+                    <span class="badge bg-success ms-2"><i class="bi bi-patch-check-fill me-1"></i>Verificado</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark ms-2"><i class="bi bi-hourglass-split me-1"></i>Pendiente de Verificación</span>
+                  {% endif %}
+                </p>
+                {% if certificado.datos_extraidos %}
+                  <p class="text-muted small mb-2">
+                    Datos extraídos: RUT: {{ certificado.run_extraido }} | Nombre: {{ certificado.nombre_completo_extraido }}
+                  </p>
+                {% endif %}
+                <label for="id_certificado_pdf" class="form-label mt-2">¿Quieres cambiar tu certificado? Sube uno nuevo:</label>
+              {% else %}
+                <p class="mt-2 mb-2"><small>No has subido un certificado de antecedentes aún.</small></p>
+                <label for="id_certificado_pdf" class="form-label mt-2">Sube tu Certificado de Antecedentes (PDF):</label>
+              {% endif %}
 
-            <h5 class="text-primary mb-3">Información Personal</h5>
-             <div class="mb-3">
-              <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
-              {{ form.nombres }}
-              {% if form.nombres.errors %}
-                <div class="invalid-feedback d-block">{{ form.nombres.errors }}</div>
+              {{ form.certificado_pdf }}
+              {% if form.certificado_pdf.errors %}
+                <div class="text-danger small mt-1">
+                  {% for error in form.certificado_pdf.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
               {% endif %}
             </div>
-             <div class="mb-3">
-              <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
-              {{ form.apellidos }}
-              {% if form.apellidos.errors %}
-                <div class="invalid-feedback d-block">{{ form.apellidos.errors }}</div>
-              {% endif %}
-            </div>
-             <div class="mb-3">
-              <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
-              {{ form.fecha_nacimiento }}
-              {% if form.fecha_nacimiento.errors %}
-                <div class="invalid-feedback d-block">{{ form.fecha_nacimiento.errors }}</div>
-              {% endif %}
-            </div>
-             <div class="mb-3">
-              <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
-              {{ form.nacionalidad }}
-              {% if form.nacionalidad.errors %}
-                <div class="invalid-feedback d-block">{{ form.nacionalidad.errors }}</div>
-              {% endif %}
-            </div>
-
-             <hr class="my-4">
-
-             <h5 class="text-primary mb-3">Currículum Vitae</h5>
-             <div class="mb-3">
-               {# Mostrar el CV actual si existe #}
-               {% if cv_actual_url %}
-                 <p class="mt-2 mb-2">
-                   <small>CV Actual:
-                     <a href="{{ cv_actual_url }}" target="_blank" title="Ver CV actual">
-                       <i class="bi bi-file-earmark-pdf"></i>
-                       {# Mostrar solo el nombre del archivo sin la ruta de la carpeta si es necesario #}
-                       {{ cv_actual_name|cut:"cvs/" }}
-                     </a>
-                   </small>
-                 </p>
-                 <label for="{{ form.cv_archivo.id_for_label }}" class="form-label mt-2">¿Quieres cambiar tu CV? Sube uno nuevo:</label>
-               {% else %}
-                 <p class="mt-2 mb-2"><small>No has subido un CV aún.</small></p>
-                 <label for="{{ form.cv_archivo.id_for_label }}" class="form-label mt-2">Sube tu Currículum Vitae:</label>
-               {% endif %}
-
-               {# Campo de carga/cambio de CV #}
-               {{ form.cv_archivo }}
-               {% if form.cv_archivo.errors %}
-                 <div class="invalid-feedback d-block">{{ form.cv_archivo.errors }}</div>
-               {% endif %}
-               {% if form.cv_archivo.help_text %}
-                 <div class="form-text text-muted">{{ form.cv_archivo.help_text }}</div>
-               {% endif %}
-
-               {# ¡ELIMINADO: Checkbox para borrar el CV existente #}
-               {# Quitado: {{ form.borrar_cv_existente }} y su label #}
-             </div>
 
             <div class="d-grid mt-4">
               <button type="submit" class="btn btn-success btn-lg py-2">
@@ -129,13 +203,10 @@
             </div>
 
           </form>
+
         </div>
       </div>
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block js %}
-{# Puedes añadir JS aquí si necesitas lógica extra en el frontend #}
 {% endblock %}

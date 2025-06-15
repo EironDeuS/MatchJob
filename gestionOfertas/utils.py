@@ -3,7 +3,9 @@ from django.conf import settings
 from .models import PersonaNatural
 import logging, requests, os
 from django.utils.html import strip_tags
+from django.core.exceptions import ValidationError
 from django.template.loader import render_to_string
+import re  # Import the re module for regular expressions
 
 logger = logging.getLogger(__name__)  # para registrar errores si quieres
 
@@ -139,3 +141,76 @@ def validar_rut_empresa(rut):
     except Exception as e:
         logger.exception(f"Error inesperado en validar_rut_empresa para RUT {rut}: {e}") 
         return {'valida': False, 'mensaje': 'Ocurrió un error inesperado durante la validación.'}
+
+def calculate_dv(rut_body):
+    """
+    Calcula el dígito verificador de un RUT (algoritmo Módulo 11).
+    rut_body: el número del RUT sin el dígito verificador (ej. 12345678).
+    """
+    rut_str = str(rut_body)
+    reversed_digits = [int(d) for d in rut_str[::-1]]
+    factors = [2, 3, 4, 5, 6, 7] # Secuencia de factores
+    
+    total = 0
+    for i, digit in enumerate(reversed_digits):
+        total += digit * factors[i % len(factors)]
+    
+    remainder = total % 11
+    
+    if remainder == 0:
+        return '0'
+    elif remainder == 1:
+        return 'K'
+    else:
+        return str(11 - remainder)
+
+def validate_rut_format(rut_input):
+    """
+    Valida el formato del RUT (ej. 12345678-9 o 1.234.567-K).
+    Retorna el RUT formateado sin puntos y con guión.
+    Lanza ValidationError si el formato es incorrecto.
+    """
+    if not rut_input:
+        raise ValidationError("El RUT no puede estar vacío.")
+
+    # Limpiar puntos y espacios, convertir a mayúsculas
+    rut_clean = rut_input.replace('.', '').replace(' ', '').upper()
+
+    # Regex para validar el formato "XXXXXXXX-Y" o "XXXXXXX-Y"
+    # X son dígitos, Y es dígito o 'K'
+    if not re.match(r'^\d{1,8}-[\dkK]$', rut_clean):
+        raise ValidationError("Formato de RUT inválido. Use el formato 12345678-9 o 1.234.567-K.")
+
+    # No se valida el dígito verificador aquí, solo el formato.
+    return rut_clean
+
+def clean_rut(rut_formatted):
+    """
+    Recibe un RUT ya en formato 'XXXXXXX-Y' y valida su dígito verificador.
+    Lanza ValidationError si el DV es incorrecto.
+    Retorna el RUT limpio y formateado con guión (si ya no lo estaba).
+    """
+    if not rut_formatted:
+        raise ValidationError("El RUT no puede estar vacío para la validación.")
+
+    parts = rut_formatted.split('-')
+    if len(parts) != 2:
+        raise ValidationError("Formato de RUT interno inválido. Se esperaba RUT con guión.")
+    
+    cuerpo = parts[0]
+    dv_input = parts[1]
+
+    if not cuerpo.isdigit():
+        raise ValidationError("El cuerpo del RUT debe contener solo números.")
+    if not (dv_input.isdigit() or dv_input == 'K'):
+        raise ValidationError("El dígito verificador debe ser un número o 'K'.")
+
+    try:
+        calculated_dv = calculate_dv(int(cuerpo))
+    except ValueError:
+        raise ValidationError("El cuerpo del RUT no es un número válido.")
+    
+    if calculated_dv != dv_input:
+        raise ValidationError(f"RUT inválido. Dígito verificador incorrecto. Esperado: {calculated_dv}")
+
+    return rut_formatted # Retorna el RUT limpio y formateado con guión

@@ -31,24 +31,41 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'your-very-strong-and-random-secret-key-for
 
 # DEBUG: Lee el valor de la variable de entorno DJANGO_DEBUG.
 # Por defecto es False para producción, pero puedes setear DJANGO_DEBUG=True en tu entorno local.
-# DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
-DEBUG = True # <-- ¡CAMBIA ESTO A False EN
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
+# DEBUG = True # <--- Ahora, el valor de DEBUG se gestiona con la variable de entorno DJANGO_DEBUG
 
-# ALLOWED_HOSTS: Restringe los hosts permitidos en producción.
-# Esto es CRUCIAL para la seguridad. En desarrollo, '*' es aceptable.
-# Añade tu dominio de Cloud Run.
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
-# ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'tu-dominio-de-cloud-run.run.app'] # Asegúrate de que tu dominio de Cloud Run también esté aquí
-# ...
+# --- ALLOWED_HOSTS ---
+# Obtenemos los hosts de la variable de entorno ALLOWED_HOSTS.
+# Si la variable de entorno está vacía o no existe, split(',') devolverá [''].
+_allowed_hosts_from_env = os.getenv('ALLOWED_HOSTS', '').split(',')
 
-# Si el valor de ALLOWED_HOSTS desde la variable de entorno está vacío o solo tiene un espacio,
-# y DEBUG es True, entonces permite todos los hosts para desarrollo.
-if not ALLOWED_HOSTS[0] and DEBUG:
-    ALLOWED_HOSTS = ['*']
-elif not DEBUG:
-    # Asegúrate de que tu dominio de Cloud Run esté explícitamente listado cuando DEBUG es False
-    # ¡IMPORTANTE! Reemplaza con la URL REAL de tu servicio de Cloud Run.
-    # Si usas un dominio personalizado, añádelo aquí también.
+# Inicializamos ALLOWED_HOSTS como una lista vacía si la variable de entorno estaba vacía.
+if _allowed_hosts_from_env == ['']:
+    ALLOWED_HOSTS = []
+else:
+    ALLOWED_HOSTS = _allowed_hosts_from_env
+
+# Lógica condicional para añadir hosts dependiendo del modo DEBUG
+if DEBUG:
+    # Si DEBUG es True, permitimos todos los hosts en desarrollo
+    # (o podemos ser más específicos si queremos, pero '*' es común para desarrollo)
+    if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
+        ALLOWED_HOSTS = ['*']
+    # En DEBUG=True, podrías añadir explícitamente 'localhost' y '127.0.0.1'
+    # si no quieres usar '*' y quieres asegurar que estén presentes.
+    # if 'localhost' not in ALLOWED_HOSTS: ALLOWED_HOSTS.append('localhost')
+    # if '127.0.0.1' not in ALLOWED_HOSTS: ALLOWED_HOSTS.append('127.0.0.1')
+else:
+    # Si DEBUG es False (producción o pruebas locales de producción)
+    # Aseguramos que los hosts locales estén presentes para pruebas si no están ya.
+    # Esto es crucial para probar la subida a GCS en local con DEBUG=False.
+    if 'localhost' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('localhost')
+    if '127.0.0.1' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('127.0.0.1')
+    
+    # Asegúrate de que el dominio de Cloud Run esté siempre en la lista de producción.
+    # Se añade solo si no está ya presente en la lista obtenida de la variable de entorno.
     cloud_run_domain = 'matchjob-service-159154155877.southamerica-west1.run.app'
     if cloud_run_domain not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(cloud_run_domain)

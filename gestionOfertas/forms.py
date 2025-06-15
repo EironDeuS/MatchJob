@@ -1,10 +1,11 @@
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth import get_user_model
 from django import forms # Primera aparición de 'django.forms'
-from .models import Usuario, PersonaNatural, Empresa, Valoracion # Importa tus modelos
+from .models import Usuario, PersonaNatural, Empresa, Valoracion, CV, CertificadoAntecedentes # Importa tus modelos
 from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError # Para validación personalizada
 from django.utils.translation import gettext_lazy as _
+from django.utils.safestring import mark_safe
 from .models import OfertaTrabajo, Categoria
 from django.utils import timezone
 import re
@@ -14,6 +15,9 @@ from django.core.validators import RegexValidator
 import googlemaps
 from django.conf import settings
 from gestionOfertas.utils import validar_rut_empresa
+from .utils import validate_rut_format, clean_rut, validar_rut_empresa 
+
+
 class LoginForm(AuthenticationForm):
     username = forms.CharField(
         label='RUT',
@@ -93,91 +97,95 @@ class LoginForm(AuthenticationForm):
         except ValidationError as e:
             raise forms.ValidationError(e.message)
 
-class CVValidationMixin(forms.Form):
+class CVValidationMixin:
     """
-    MixIn para añadir la validación de CV a cualquier formulario que necesite.
-    Contiene el campo 'cv_archivo' y el método 'clean_cv_archivo'.
+    Mixin para validar archivos CV.
+    Incluye validación de formato PDF y validación de contenido básico por palabras clave.
     """
-    cv_archivo = forms.FileField(
-        label="Currículum Vitae (PDF)", # Usando la etiqueta original del formulario "bueno"
-        required=False, # Puede ser requerido o no según la lógica de tu clean() en el form principal
-        help_text="Sube tu CV actualizado en formato PDF.", # Usando el help_text original
-        widget=forms.ClearableFileInput(attrs={'class':'form-control', 'accept': '.pdf'})
-    )
-
     def clean_cv_archivo(self):
-        """
-        Valida que el archivo subido sea un PDF y tenga un tamaño razonable.
-        Además, intenta validar el contenido como CV.
-        """
         archivo = self.cleaned_data.get('cv_archivo')
+        if archivo:
+            if not archivo.name.lower().endswith('.pdf'):
+                raise ValidationError("El archivo CV debe ser un PDF.")
+            try:
+                reader = PdfReader(archivo)
+                if len(reader.pages) == 0:
+                    raise ValidationError("El PDF del CV parece estar vacío o corrupto.")
 
-        if archivo is False: # El usuario marcó para borrar un archivo existente (en caso de edición)
-            return False
-        elif not archivo: # No se subió un archivo nuevo
-            return None
-
-        # 1. Validación de tipo de archivo por extensión
-        if not archivo.name.lower().endswith('.pdf'):
-            raise ValidationError("Solo se permiten archivos PDF.")
-
-        # 2. Validación de tamaño del archivo
-        MAX_SIZE_MB = 5
-        if archivo.size > MAX_SIZE_MB * 1024 * 1024:
-            raise ValidationError(f"El archivo no puede superar los {MAX_SIZE_MB}MB.")
-
-        # --- VALIDACIÓN DE CONTENIDO (Búsqueda de palabras clave en el PDF) ---
-        try:
-            archivo.seek(0) # Restablecer el puntero para pypdf
-            reader = PdfReader(archivo)
-
-            if not reader.pages:
-                raise ValidationError("El archivo PDF está vacío o corrupto.")
-
-            text_content = ""
-            pages_to_read = min(len(reader.pages), 5)
-
-            for i in range(pages_to_read):
-                page = reader.pages[i]
-                extracted_page_text = page.extract_text()
-                if extracted_page_text:
-                    text_content += extracted_page_text + " "
-
-            text_content = text_content.lower()
-
-            cv_keywords = [
-                "experiencia laboral", "formación académica", "habilidades",
-                "educación", "resumen profesional", "objetivo profesional",
-                "aptitudes", "idiomas", "proyectos", "certificaciones",
-                "perfil profesional", "datos personales", "contacto",
-                "currículum vitae", "empleo", "puesto", "logros", "licencias",
-                "reconocimientos", "publicaciones", "idioma", "nacionalidad",
-                "fecha de nacimiento", "disponibilidad", "intereses", "conocimientos"
-            ]
-
-            found_keywords_count = sum(1 for keyword in cv_keywords if keyword in text_content)
-            min_text_length = 150
-
-            if found_keywords_count < 3 or len(text_content) < min_text_length:
-                raise ValidationError(
-                    "El contenido del archivo PDF no parece ser un currículum vitae. "
-                    "Asegúrese de subir un CV con texto y estructura de CV."
-                )
-
-        except PdfReadError:
-            raise ValidationError("El archivo PDF está corrupto o no es un PDF válido.")
-        except Exception as e:
-            print(f"DEBUG: Error inesperado al procesar PDF en CVValidationMixin: {e}")
-            raise ValidationError(
-                "Ocurrió un error al procesar el archivo PDF. Por favor, intente con otro archivo."
-            )
-
-        archivo.seek(0) # Restablecer el puntero para que Django lo guarde
+                text_content = ""
+                for page in reader.pages:
+                    extracted_page_text = page.extract_text()
+                    if extracted_page_text:
+                        text_content += extracted_page_text
+                
+                if not self._contiene_palabras_clave_cv(text_content):
+                    raise ValidationError(
+                        "El contenido del CV no parece ser un currículum válido. "
+                        "Asegúrate de incluir secciones como experiencia, educación, habilidades, etc."
+                    )
+                
+                archivo.seek(0) # ¡Importante! Rebobinar el archivo después de la lectura
+            except PdfReadError:
+                raise ValidationError("El archivo subido no es un PDF válido o está corrupto.")
+            except Exception as e:
+                raise ValidationError(f"Error inesperado al procesar el archivo PDF del CV: {e}")
         return archivo
 
+    def _contiene_palabras_clave_cv(self, text_content):
+        keywords = ['experiencia laboral', 'educación', 'habilidades', 'currículum', 
+                    'resumen profesional', 'empleo', 'formación académica', 
+                    'referencias', 'logros']
+        text_content_lower = text_content.lower()
+        return any(keyword in text_content_lower for keyword in keywords)
 
-# --- Formulario de Registro Actualizado ---
-class RegistroForm(CVValidationMixin, forms.Form):
+class CertificadoValidationMixin:
+    """
+    Mixin para validar archivos de Certificado de Antecedentes (PDF).
+    Incluye validación de formato PDF y validación de contenido básico por palabras clave.
+    """
+    def clean_certificado_pdf(self):
+        archivo = self.cleaned_data.get('certificado_pdf')
+        if archivo:
+            if not archivo.name.lower().endswith('.pdf'):
+                raise ValidationError("El archivo del certificado debe ser un PDF.")
+            try:
+                reader = PdfReader(archivo)
+                if len(reader.pages) == 0:
+                    raise ValidationError("El PDF del certificado parece estar vacío o corrupto.")
+                
+                text_content = ""
+                for page in reader.pages:
+                    extracted_page_text = page.extract_text()
+                    if extracted_page_text:
+                        text_content += extracted_page_text
+
+                if not self._contiene_palabras_clave_certificado(text_content):
+                    raise ValidationError(
+                        "El contenido del certificado no parece ser válido. "
+                        "Asegúrate de que sea un certificado de antecedentes."
+                    )
+                
+                archivo.seek(0) # ¡Importante! Rebobinar el archivo después de la lectura
+            except PdfReadError:
+                raise ValidationError("El archivo subido no es un PDF válido o está corrupto.")
+            except Exception as e:
+                raise ValidationError(f"Error inesperado al procesar el archivo PDF del certificado: {e}")
+        return archivo
+
+    def _contiene_palabras_clave_certificado(self, text_content):
+        keywords_general = ['certificado de antecedentes', 'registro civil', 'servicio de registro civil e identificación']
+        keywords_content = ['sin antecedentes', 'sin anotaciones', 'condenas', 'prisión'] # Al menos una de estas para el contenido
+        
+        text_content_lower = text_content.lower()
+        
+        # Debe contener al menos una palabra clave general Y al menos una palabra clave de contenido
+        present_general = any(k in text_content_lower for k in keywords_general)
+        present_content = any(k in text_content_lower for k in keywords_content)
+        
+        return present_general and present_content
+    
+# --- RegistroForm: Cambios para añadir el campo de certificado ---
+class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
     # --- Campos del Modelo Usuario ---
     tipo_usuario = forms.ChoiceField(
         choices=[c for c in Usuario.TIPO_USUARIO_CHOICES if c[0] != 'admin'],
@@ -187,8 +195,8 @@ class RegistroForm(CVValidationMixin, forms.Form):
     )
 
     username = forms.CharField( # RUT
-        label="RUT (con guión, sin puntos)", # Etiqueta actualizada para reflejar formato esperado
-        max_length=12,  # Max length para RUT chileno con guión (ej: 12345678-9)
+        label="RUT (con guión, sin puntos)",
+        max_length=12,
         required=True,
         widget=forms.TextInput(attrs={'placeholder': '12345678-9', 'class': 'form-control'})
     )
@@ -247,43 +255,54 @@ class RegistroForm(CVValidationMixin, forms.Form):
     )
 
     # --- Campos del Perfil Empresa ---
-    # Estos campos se establecen como required=False a nivel de campo
-    # ya que se espera que sean populados por la API.
-    # La validación de que NO estén vacíos ocurrirá si la API falla.
     nombre_empresa = forms.CharField(
         label="Nombre de la Empresa",
         max_length=100,
-        required=False, # Importante: No es requerido al inicio, lo llena la API
+        required=False, 
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     razon_social = forms.CharField(
         label="Razón Social",
         max_length=100,
-        required=False, # Importante
+        required=False, 
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
     giro = forms.CharField(
         label="Giro Comercial",
         max_length=100,
-        required=False, # Importante
+        required=False, 
         widget=forms.TextInput(attrs={'class': 'form-control'})
     )
 
-    # --- Métodos clean (combinando lógica y consistencia) ---
+    # --- CAMPOS DE SUBIDA DE ARCHIVOS ---
+    certificado_pdf = forms.FileField(
+        label="Subir Certificado de Antecedentes (PDF)",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'application/pdf'}),
+        help_text="Opcional. El certificado se verificará y se procesará automáticamente."
+    )
+    
+    cv_archivo = forms.FileField(
+        label="Subir Currículum Vitae (PDF)",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'application/pdf'}),
+        help_text="Opcional. El CV se procesará automáticamente para extraer tus datos."
+    )
+
+    # --- Métodos clean (validación de campos individuales) ---
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        # Primero, verificar si el RUT ya está registrado en tu sistema
+        # Verificar si el RUT ya está registrado
         if Usuario.objects.filter(username=username).exists():
             raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
         
-        # Estandarización y validación del RUT
-        rut_cleaner_form = LoginForm() 
+        # Estandarización y validación del RUT usando las funciones importadas
         try:
-            rut_formatted = rut_cleaner_form.validate_rut_format(username)
-            return rut_cleaner_form.clean_rut(rut_formatted)
+            # ¡CORRECCIÓN AQUÍ: Llamadas directas a las funciones importadas!
+            rut_formatted = validate_rut_format(username)
+            return clean_rut(rut_formatted)
         except ValidationError as e:
-            raise forms.ValidationError(e.message)
-
+            raise forms.ValidationError(e.message) # Relanza la ValidationError de Django
 
     def clean_correo(self):
         correo = self.cleaned_data.get('correo')
@@ -291,6 +310,7 @@ class RegistroForm(CVValidationMixin, forms.Form):
             raise ValidationError("Este correo electrónico ya está registrado.")
         return correo
 
+    # --- Método clean general (validación de múltiples campos y lógica de API) ---
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get("password")
@@ -300,10 +320,10 @@ class RegistroForm(CVValidationMixin, forms.Form):
             self.add_error('confirm_password', "Las contraseñas no coinciden.")
 
         tipo_usuario = cleaned_data.get('tipo_usuario')
-        username_rut = cleaned_data.get('username') 
+        username_rut = cleaned_data.get('username') # Ya validado y formateado por clean_username
 
         # Validaciones para Persona Natural
-        if tipo_usuario == 'persona':
+        if tipo_usuario == 'persona': 
             required_fields_persona = {
                 'nombres': 'Nombres',
                 'apellidos': 'Apellidos',
@@ -314,21 +334,18 @@ class RegistroForm(CVValidationMixin, forms.Form):
                 if not cleaned_data.get(field_name):
                     self.add_error(field_name, f"{label_name} es requerido para personas.")
 
-        # Validaciones para Empresa
+        # Validaciones para Empresa (lógica del SII sin cambios)
         elif tipo_usuario == 'empresa':
-            # Ya no validamos si nombre_empresa, razon_social, giro son requeridos aquí
-            # porque esperamos que la API los rellene.
-            # Si la API falla, la validación del RUT se encargará de mostrar el error.
-
             if username_rut: 
-                resultado = validar_rut_empresa(username_rut)
+                # ¡CORRECCIÓN AQUÍ: Llamada directa a la función importada!
+                resultado = validar_rut_empresa(username_rut) 
                 if resultado['valida']:
                     api_data = resultado['datos']
                     
                     api_razon_social = api_data.get('razonSocial')
                     if api_razon_social:
                         cleaned_data['razon_social'] = api_razon_social
-                        cleaned_data['nombre_empresa'] = api_razon_social
+                        cleaned_data['nombre_empresa'] = api_razon_social # Asignar también a nombre_empresa
                     
                     api_actividades = api_data.get('actividadesEconomicas')
                     if api_actividades and len(api_actividades) > 0:
@@ -336,11 +353,130 @@ class RegistroForm(CVValidationMixin, forms.Form):
                         if first_giro_desc:
                             cleaned_data['giro'] = first_giro_desc
                 else:
-                    # Si la API no valida el RUT, lanzamos un error que se mostrará al usuario
-                    raise forms.ValidationError(f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+                    self.add_error('username', f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+        
         return cleaned_data
 
+    # --- MÉTODO ESENCIAL: save para crear la instancia de Usuario ---
+    def save(self, commit=True):
+        """
+        Crea y guarda una instancia de Usuario basada en los datos validados del formulario.
+        Esta función solo se encarga del objeto Usuario.
+        Los perfiles (PersonaNatural/Empresa) y los archivos adjuntos se gestionan en la vista.
+        """
+        user = Usuario(
+            username=self.cleaned_data['username'],
+            correo=self.cleaned_data['correo'],
+            telefono=self.cleaned_data.get('telefono'),
+            direccion=self.cleaned_data.get('direccion'),
+            tipo_usuario=self.cleaned_data['tipo_usuario'],
+            is_active=True # Se activa al registrarse
+        )
+        user.set_password(self.cleaned_data['password'])
+        
+        if commit:
+            user.save()
+        
+        return user 
+# --- EditarPerfilPersonaForm: Cambios para añadir el campo de certificado ---
+class EditarPerfilPersonaForm(CVValidationMixin, CertificadoValidationMixin, forms.ModelForm):
+    # Campos de Usuario (del modelo Usuario directamente)
+    correo = forms.EmailField(
+        label="Correo electrónico",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tu@ejemplo.com'})
+    )
+    telefono = forms.CharField(
+        label="Teléfono",
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: +56912345678'})
+    )
+    direccion = forms.CharField(
+        label="Dirección",
+        max_length=255,
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Calle Falsa 123'})
+    )
 
+    # Campos de archivo (serán validados por las mixins)
+    cv_archivo = forms.FileField( # Asegúrate que el nombre del campo sea este en tu template
+        label="Subir nuevo Currículum Vitae (PDF)",
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'})
+    )
+    certificado_pdf = forms.FileField(
+        label="Subir nuevo Certificado de Antecedentes (PDF)",
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'})
+    )
+
+    class Meta:
+        model = PersonaNatural
+        fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad']
+        widgets = {
+            'nombres': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Nombres'}),
+            'apellidos': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Apellidos'}),
+            'fecha_nacimiento': forms.DateInput(
+                attrs={'type': 'date', 'class': 'form-control'},
+                format='%Y-%m-%d'
+            ),
+            'nacionalidad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Chilena'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.usuario_actual = kwargs.pop('usuario_actual', None) # Se guarda el objeto usuario aquí
+        super().__init__(*args, **kwargs)
+
+        # Inicializar campos de Usuario a partir de la instancia de Usuario
+        # self.instance es el objeto PersonaNatural
+        if self.instance and hasattr(self.instance, 'usuario') and self.instance.usuario and not self.is_bound:
+            self.fields['correo'].initial = self.instance.usuario.correo
+            self.fields['telefono'].initial = self.instance.usuario.telefono
+            self.fields['direccion'].initial = self.instance.usuario.direccion
+
+        # Lógica para mostrar CV y Certificado existentes
+        if self.instance: # self.instance es la instancia de PersonaNatural
+            try:
+                # CV se relaciona con PersonaNatural via 'cv' (related_name)
+                cv_instance = self.instance.cv
+                if cv_instance.archivo_cv: # Asumiendo que 'archivo_cv' es el FileField en tu modelo CV
+                    self.fields['cv_archivo'].help_text = mark_safe(
+                        f'CV actual: <a href="{cv_instance.archivo_cv.url}" target="_blank">Ver CV</a>. Sube uno nuevo para reemplazar.'
+                    )
+            except CV.DoesNotExist:
+                self.fields['cv_archivo'].help_text = "No has subido un CV aún. Sube uno aquí."
+            except AttributeError:
+                 self.fields['cv_archivo'].help_text = "No has subido un CV aún. Sube uno aquí."
+
+            try:
+                # CertificadoAntecedentes se relaciona con PersonaNatural via 'certificado_antecedentes' (related_name)
+                cert_instance = self.instance.certificado_antecedentes
+                if cert_instance.certificado_url:
+                    self.fields['certificado_pdf'].help_text = mark_safe(
+                        f'Certificado actual: <a href="{cert_instance.certificado_url}" target="_blank">Ver Certificado</a>. Sube uno nuevo para reemplazar.'
+                    )
+            except CertificadoAntecedentes.DoesNotExist:
+                self.fields['certificado_pdf'].help_text = "No has subido un certificado de antecedentes aún. Sube uno aquí."
+            except AttributeError:
+                self.fields['certificado_pdf'].help_text = "No has subido un certificado de antecedentes aún. Sube uno aquí."
+
+
+    def clean_correo(self):
+        correo = self.cleaned_data.get('correo')
+        if correo:
+            # Asegúrate que 'Usuario' sea el modelo de tu tabla de usuarios
+            usuario_qs = Usuario.objects.filter(correo=correo)
+            if self.usuario_actual:
+                usuario_qs = usuario_qs.exclude(pk=self.usuario_actual.pk)
+            if usuario_qs.exists():
+                raise forms.ValidationError("Este correo ya está registrado.")
+        return correo
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Puedes añadir validaciones adicionales aquí
+        return cleaned_data
+    
 class UsuarioCreationForm(forms.ModelForm):
     """Formulario para crear usuarios DESDE EL ADMIN (o similar)."""
     password = forms.CharField(label='Contraseña', widget=forms.PasswordInput)
@@ -626,75 +762,6 @@ class EditarOfertaTrabajoForm(forms.ModelForm):
 
 
 
-# --- Tu formulario de edición de perfil para Persona Natural ---
-# Hereda de CVValidationMixin para obtener el campo cv_archivo y su método clean_cv_archivo.
-class EditarPerfilPersonaForm(CVValidationMixin, forms.ModelForm):
-    # Campos de Usuario:
-    correo = forms.EmailField(
-        label="Correo electrónico",
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tu@ejemplo.com'})
-    )
-    telefono = forms.CharField(
-        label="Teléfono",
-        max_length=20,
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: +56912345678'})
-    )
-    direccion = forms.CharField(
-        label="Dirección",
-        max_length=255,
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Calle Falsa 123'})
-    )
-
-    # Campo para CV: solo para subir nuevo o reemplazar
-    cv_archivo = forms.FileField(
-        label="Subir nuevo Currículum Vitae (PDF)", # Cambiado el label
-        required=False, # Si no sube uno nuevo, se mantiene el anterior
-        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'})
-    )
-    # ¡ELIMINADO: borrar_cv_existente = forms.BooleanField(...)
-
-    class Meta:
-        model = PersonaNatural
-        fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad']
-        widgets = {
-            'nombres': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Nombres'}),
-            'apellidos': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Apellidos'}),
-            'fecha_nacimiento': forms.DateInput(
-                attrs={'type': 'date', 'class': 'form-control'},
-                # >>> AÑADE ESTO: FORMATO EXPLÍCITO para el input type="date"
-                format='%Y-%m-%d' 
-            ),
-            'nacionalidad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Chilena'}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-
-        if self.instance and hasattr(self.instance, 'usuario') and self.instance.usuario and not self.is_bound:
-            self.fields['correo'].initial = self.instance.usuario.correo
-            self.fields['telefono'].initial = self.instance.usuario.telefono
-            self.fields['direccion'].initial = self.instance.usuario.direccion
-
-        # También puedes ajustar el formato de la fecha si es necesario para el initial,
-        # aunque el widget con 'format' debería manejarlo.
-        # if self.instance and self.instance.fecha_nacimiento and not self.is_bound:
-        #     self.fields['fecha_nacimiento'].initial = self.instance.fecha_nacimiento.strftime('%Y-%m-%d')
-
-    def clean(self):
-        cleaned_data = super().clean()
-        return cleaned_data
-
-    # Asegúrate de que tu CVValidationMixin tenga el clean_cv_archivo para la validación del tipo PDF.
-    # Si no lo tienes, deberías añadirlo aquí:
-    # def clean_cv_archivo(self):
-    #     archivo = self.cleaned_data.get('cv_archivo')
-    #     if archivo:
-    #         if not archivo.name.endswith('.pdf'):
-    #             raise ValidationError("El archivo CV debe ser un PDF.")
-    #     return archivo
 
 
 class ValoracionForm(forms.ModelForm):

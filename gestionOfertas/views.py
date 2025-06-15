@@ -2,6 +2,7 @@
 
 from gestionOfertas.utils import notificar_oferta_urgente, validar_rut_empresa
 from django.contrib.auth.views import PasswordResetView
+from django.contrib.auth import get_user_model
 from django.urls import reverse_lazy
 from gestionOfertas.forms import CustomPasswordResetForm
 from django.views.generic import ListView
@@ -27,7 +28,9 @@ from .forms import LoginForm, OfertaTrabajoForm, RegistroForm, ValoracionForm, E
 from .models import Usuario, PersonaNatural, Empresa, OfertaTrabajo, Categoria,Postulacion, Valoracion, CV, MuestraTrabajo  
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
+import os
 from django.utils import timezone
+import uuid  # Import the uuid module for generating unique identifiers
 from django.db.models import Avg, Count, F, Window
 from django.db.models.functions import Rank
 from django.db.models import Q
@@ -38,7 +41,10 @@ from django.core.files.storage import FileSystemStorage
 import io # Necesario para manejar el PDF en memoria
 from django.template.loader import get_template # Para cargar templates para el PDF
 from xhtml2pdf import pisa # La librería para generar PDFs
-
+from django.core.files.storage import default_storage
+from django.conf import settings
+from .models import CertificadoAntecedentes, Usuario # Asegúrate de importar CertificadoAntecedentes y Usuario
+from django.db import transaction, IntegrityError # Importar para asegurar atomicidad y manejar errores de integridad
 
 def iniciar_sesion(request):
     if request.user.is_authenticated: # Redirigir si ya está logueado
@@ -65,9 +71,13 @@ def iniciar_sesion(request):
     return render(request, 'gestionOfertas/iniciar_sesion.html', {'form': form})
 
 # --- Vista de Registro (Versión Final Simplificada) ---
+Usuario = get_user_model() # Obtén tu modelo de Usuario personalizado
+
 def registro(request):
+    # Redirigir si el usuario ya está autenticado
     if request.user.is_authenticated:
-        return redirect('inicio')
+        messages.info(request, "Ya has iniciado sesión. No puedes registrarte de nuevo.")
+        return redirect('miperfil') 
 
     if request.method == 'POST':
         form = RegistroForm(request.POST, request.FILES)
@@ -75,102 +85,147 @@ def registro(request):
 
         if form.is_valid():
             logger.debug("Formulario VÁLIDO.")
-            user = None
-            archivo_cv_subido = form.cleaned_data.get('cv_archivo')
-            tipo_usuario = form.cleaned_data['tipo_usuario']
-            logger.debug(f"Tipo de usuario seleccionado: {tipo_usuario}")
+            rut = form.cleaned_data['username'] # El RUT es el username
 
             try:
-                if tipo_usuario == 'empresa':
-                    rut_empresa = form.cleaned_data['username']
-                    resultado = validar_rut_empresa(rut_empresa)
-                    if not resultado['valida']:
-                        messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
-                        logger.warning(f"Intento de registro de empresa fallido: RUT inválido {rut_empresa}")
-                        return render(request, 'gestionOfertas/registro.html', {'form': form})
+                # --- Usar una transacción atómica para asegurar que todo se guarda o nada ---
+                with transaction.atomic():
+                    # 1. Crear y guardar el usuario
+                    # form.save() usa el método `save` que definiste en tu RegistroForm
+                    # Este método crea la instancia de Usuario y la guarda en la BD.
+                    usuario = form.save(commit=True) 
+                    logger.info(f"Usuario creado: {usuario.username} (ID: {usuario.pk})")
 
-                user = Usuario.objects.create_user(
-                    username=form.cleaned_data['username'],
-                    correo=form.cleaned_data['correo'],
-                    password=form.cleaned_data['password'],
-                    telefono=form.cleaned_data.get('telefono'),
-                    direccion=form.cleaned_data.get('direccion'),
-                    tipo_usuario=tipo_usuario
-                )
-                logger.info(f"Usuario creado: {user.username} (ID: {user.pk})")
+                    # 2. Crear el perfil (PersonaNatural o Empresa)
+                    tipo_usuario = form.cleaned_data['tipo_usuario']
+                    
+                    if tipo_usuario == 'persona':
+                        # Crea la PersonaNatural, enlazándola al usuario recién creado
+                        persona_natural = PersonaNatural.objects.create(
+                            usuario=usuario, # Pasa la instancia de usuario recién creada
+                            nombres=form.cleaned_data.get('nombres'),
+                            apellidos=form.cleaned_data.get('apellidos'),
+                            fecha_nacimiento=form.cleaned_data.get('fecha_nacimiento'),
+                            nacionalidad=form.cleaned_data.get('nacionalidad', 'Chilena')
+                        )
+                        logger.info(f"Perfil Persona Natural creado para {usuario.username} (ID: {persona_natural.pk})")
 
-                if user.tipo_usuario == 'persona':
-                    perfil = user.personanatural
-                    perfil.nombres = form.cleaned_data.get('nombres')
-                    perfil.apellidos = form.cleaned_data.get('apellidos')
-                    perfil.fecha_nacimiento = form.cleaned_data.get('fecha_nacimiento')
-                    perfil.nacionalidad = form.cleaned_data.get('nacionalidad', 'Chilena')
-                    perfil.save()
-                    logger.info(f"Perfil Persona guardado para {user.username} (ID: {perfil.pk})")
-
-                    cv_obj, created = CV.objects.get_or_create(persona=perfil)
-                    logger.info(f"CV object {'creado' if created else 'obtenido'}: ID {cv_obj.id}")
-
-                    if archivo_cv_subido:
-                        try:
-                            from django.core.files.storage import default_storage
-                            logger.debug(f"Tipo de storage: {type(default_storage)}")
-                        except Exception as storage_log_error:
-                            logger.error(f"Error al loguear detalles de storage: {storage_log_error}")
-
-                        cv_obj.archivo_cv = archivo_cv_subido
-                        cv_obj.save()
-                        logger.info("cv_obj.save() ejecutado. Archivo CV guardado.")
-
-                        if cv_obj.archivo_cv and hasattr(cv_obj.archivo_cv, 'name'):
-                            logger.info(f"Valor de cv_obj.archivo_cv.name: {cv_obj.archivo_cv.name}")
+                        # --- Lógica para CV, asociada a persona_natural ---
+                        cv_file = request.FILES.get('cv_archivo') # Obtén el objeto UploadedFile del formulario
+                        if cv_file:
+                            try:
+                                file_extension = os.path.splitext(cv_file.name)[1]
+                                # Usar un UUID para el nombre del archivo para evitar colisiones
+                                cv_filename_in_gcs = f'cvs/{usuario.username}_CV_{uuid.uuid4().hex}{file_extension}'
+                                
+                                # Guarda el archivo en GCS usando default_storage. Esto devuelve la ruta relativa.
+                                cv_gcs_relative_path = default_storage.save(cv_filename_in_gcs, cv_file)
+                                
+                                # Crea la instancia de CV asociada a la persona_natural
+                                CV.objects.create(
+                                    persona=persona_natural, # Asociado a la instancia de PersonaNatural
+                                    archivo_cv=cv_gcs_relative_path # ASIGNAR LA RUTA RELATIVA AL FileField
+                                )
+                                messages.info(request, 'CV subido exitosamente y en proceso de análisis.')
+                                logger.info(f"CV subido en registro para {usuario.username}: {cv_gcs_relative_path}")
+                            except Exception as e:
+                                logger.error(f"Error al subir CV durante el registro para {usuario.username}: {e}", exc_info=True)
+                                messages.warning(request, 'Hubo un problema al subir tu CV. Puedes subirlo después en tu perfil.')
                         else:
-                            logger.warning("cv_obj.archivo_cv está vacío después de guardar.")
+                            logger.info(f"No se proporcionó CV para {usuario.username}.")
 
-                        try:
-                            if cv_obj.archivo_cv:
-                                file_exists = default_storage.exists(cv_obj.archivo_cv.name)
-                                file_size = default_storage.size(cv_obj.archivo_cv.name) if file_exists else 0
-                                logger.info(f"Archivo guardado. Existe: {file_exists}, Tamaño: {file_size} bytes")
-                                try:
-                                    file_url = cv_obj.archivo_cv.url
-                                    logger.info(f"URL del archivo guardado: {file_url}")
-                                except Exception as url_error:
-                                    logger.error(f"No se pudo obtener URL del archivo guardado: {url_error}")
-                        except Exception as file_check_error:
-                            logger.error(f"Error al verificar archivo en storage: {file_check_error}", exc_info=True)
-                    else:
-                        logger.info("No se proporcionó archivo CV en el formulario para Persona Natural.")
+                        # --- Lógica para Certificado de Antecedentes, asociada a persona_natural ---
+                        certificado_file = request.FILES.get('certificado_pdf') # Obtén el objeto UploadedFile del formulario
+                        if certificado_file:
+                            try:
+                                file_extension = os.path.splitext(certificado_file.name)[1]
+                                # Usar un UUID para el nombre del archivo para evitar colisiones
+                                certificado_filename_in_gcs = f'certificados/{usuario.username}_CERT_{uuid.uuid4().hex}{file_extension}'
 
-                elif user.tipo_usuario == 'empresa':
-                    perfil = user.empresa
-                    perfil.nombre_empresa = form.cleaned_data.get('nombre_empresa')
-                    perfil.razon_social = form.cleaned_data.get('razon_social')
-                    perfil.giro = form.cleaned_data.get('giro')
-                    perfil.save()
-                    logger.info(f"Perfil Empresa guardado para {user.username} (ID: {perfil.pk})")
+                                # Guarda el archivo en GCS usando default_storage. Esto devuelve la ruta relativa.
+                                certificado_gcs_relative_path = default_storage.save(certificado_filename_in_gcs, certificado_file)
+                                
+                                # Crea la instancia de CertificadoAntecedentes asociada a la persona_natural
+                                CertificadoAntecedentes.objects.create(
+                                    persona=persona_natural, # Asociado a la instancia de PersonaNatural
+                                    certificado_archivo=certificado_gcs_relative_path, # ASIGNAR LA RUTA RELATIVA AL FileField
+                                    esta_verificado=False # Por defecto, no verificado
+                                )
+                                messages.info(request, 'Certificado de antecedentes subido y pendiente de verificación.')
+                                logger.info(f"Certificado subido en registro para {usuario.username}: {certificado_gcs_relative_path}")
+                            except Exception as e:
+                                logger.error(f"Error al subir Certificado durante el registro para {usuario.username}: {e}", exc_info=True)
+                                messages.warning(request, 'Hubo un problema al subir tu Certificado de Antecedentes. Puedes subirlo después en tu perfil.')
+                        else:
+                            logger.info(f"No se proporcionó certificado para {usuario.username}.")
+                        
+                    elif tipo_usuario == 'empresa':
+                        # Validar RUT de empresa antes de crear la instancia
+                        # Esto es una redundancia si ya lo tienes en clean(), pero no está de más
+                        # si quieres una validación explícita aquí también (aunque clean() es mejor).
+                        # Asegúrate de que `validar_rut_empresa` esté importada o definida.
+                        # Asumiendo que `validar_rut_empresa` está en el ámbito o importado.
+                        
+                        # Descomenta y ajusta si necesitas re-validar aquí, sino, confía en form.clean()
+                        # resultado_rut_empresa = validar_rut_empresa(rut)
+                        # if not resultado_rut_empresa['valida']:
+                        #     messages.error(request, f"❌ El RUT ingresado no es válido como empresa: {resultado_rut_empresa.get('mensaje')}")
+                        #     raise ValidationError("RUT de empresa inválido.") # Forzamos la transacción a fallar
 
-                messages.success(request, 'Tu cuenta ha sido creada exitosamente.')
-                logger.info("Redirigiendo a inicio después de registro exitoso.")
-                return redirect(reverse('inicio'))
+                        # Crea la Empresa, enlazándola al usuario recién creado
+                        empresa = Empresa.objects.create(
+                            usuario=usuario, # Pasa la instancia de usuario recién creada
+                            nombre_empresa=form.cleaned_data.get('nombre_empresa'),
+                            razon_social=form.cleaned_data.get('razon_social'),
+                            giro=form.cleaned_data.get('giro')
+                        )
+                        logger.info(f"Perfil Empresa creado para {usuario.username} (ID: {empresa.pk})")
+                        # Si las empresas también suben archivos, la lógica iría aquí,
+                        # asociada a la instancia 'empresa'.
 
+                # Si todo dentro de la transacción atómica fue exitoso
+                login(request, usuario) # Loguear al usuario automáticamente
+                messages.success(request, "¡Registro exitoso! Tu cuenta ha sido creada y has iniciado sesión.")
+                return redirect(reverse('miperfil')) # Redirige al perfil del usuario
+
+            except IntegrityError as e:
+                # Este error se captura si hay una violación de restricción de DB (ej. OneToOneField duplicado)
+                # que no fue capturada por la validación del formulario.
+                logger.error(f"IntegrityError durante el registro para {rut}: {e}", exc_info=True)
+                messages.error(request, "Error de registro: Este RUT o correo electrónico ya está en uso. Si el problema persiste, contacta a soporte.")
+                # No necesitamos borrar el usuario aquí, ya que transaction.atomic() lo revierte
+                # si el error ocurre dentro del bloque 'with'. Si el error ocurre antes de `usuario = form.save()`,
+                # el usuario nunca fue creado.
+                return render(request, 'gestionOfertas/registro.html', {'form': form})
+            except ValidationError as e:
+                # Captura las ValidationError lanzadas por tus validaciones o las del form
+                logger.warning(f"ValidationError durante el registro para {rut}: {e.message}", exc_info=True)
+                messages.error(request, f"Error de validación: {e.message}")
+                # Asegúrate de que los errores se muestren en el formulario si es necesario
+                # for message in e.messages: messages.error(request, message) # Si ValidationError tiene múltiples mensajes
+                return render(request, 'gestionOfertas/registro.html', {'form': form})
             except Exception as e:
-                import traceback
-                logger.error(f"Excepción durante el registro de usuario {user.username if user else 'N/A'}: {e}", exc_info=True)
-                messages.error(request, 'Hubo un error inesperado al guardar los datos.')
-                if user and user.pk:
-                    try:
-                        user.delete()
-                        logger.info(f"Usuario {user.username} eliminado debido a un error en el registro.")
-                    except Exception as delete_error:
-                        logger.error(f"Error al intentar eliminar usuario {user.username} después de fallo: {delete_error}", exc_info=True)
-
+                # Captura cualquier otro error inesperado
+                logger.exception(f"Error inesperado durante el registro de usuario {rut}: {e}")
+                messages.error(request, "Ocurrió un error inesperado durante el registro. Por favor, inténtalo de nuevo.")
+                # Aquí, si el error ocurrió después de `usuario = form.save()` pero fuera de la transacción,
+                # o si la transacción falló por una razón inesperada, el usuario no debería persistir.
+                # transaction.atomic() debería manejar esto.
+                return render(request, 'gestionOfertas/registro.html', {'form': form})
         else:
+            # Si el formulario no es válido, los errores se mostrarán automáticamente en la plantilla
+            # o puedes iterar sobre ellos para mostrarlos con messages.error
             logger.warning(f"Formulario de registro NO VÁLIDO. Errores: {form.errors.as_json()}")
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
+            # Iterar y mostrar errores específicos del formulario
+            for field, errors in form.errors.items():
+                for error in errors:
+                    # Usar .label para un mensaje más amigable
+                    field_label = form.fields[field].label if field in form.fields else field
+                    messages.error(request, f"Error en '{field_label}': {error}")
     else:
         form = RegistroForm()
-
+    
     return render(request, 'gestionOfertas/registro.html', {'form': form})
 
 class CustomPasswordResetView(PasswordResetView):
@@ -774,122 +829,125 @@ def actualizar_modo_urgente(request):
         messages.success(request, "Tus preferencias de urgencia han sido actualizadas.")
     return redirect('miperfil')  # Redirige al perfil (ajusta si es necesario)
 
-
-
-
-
-
 @login_required
 def editar_perfil(request):
     usuario = request.user
-    if not hasattr(usuario, 'personanatural'):
-        messages.error(request, "No tienes un perfil de persona natural para editar.")
-        return redirect('miperfil') # Redirige a una URL apropiada si no tiene perfil
-
-    persona_natural = usuario.personanatural
-    
-    # Inicialización de cv_obj y variables para el template (fuera del POST)
-    cv_obj = None 
-    cv_actual_url = None
-    cv_actual_name = None
-
-    try:
-        cv_obj = persona_natural.cv # Intenta obtener el CV existente
-        if cv_obj.archivo_cv:
-            cv_actual_url = cv_obj.archivo_cv.url
-            cv_actual_name = cv_obj.archivo_cv.name
-    except CV.DoesNotExist:
-        pass # No hay CV existente, cv_obj es None
-    except Exception as e:
-        print(f"DEBUG: Error inesperado al intentar obtener CV en GET o POST inicial: {e}")
-        messages.warning(request, "Hubo un problema al cargar la información del CV.")
-
+    persona_natural = get_object_or_404(PersonaNatural, usuario=usuario)
 
     if request.method == 'POST':
-        form = EditarPerfilPersonaForm(request.POST, request.FILES, user=request.user, instance=persona_natural)
-
+        form = EditarPerfilPersonaForm(
+            request.POST,
+            request.FILES,
+            instance=persona_natural,
+            usuario_actual=usuario
+        )
         if form.is_valid():
-            # Guardar los campos del modelo Usuario
-            usuario.correo = form.cleaned_data['correo']
-            usuario.telefono = form.cleaned_data['telefono']
-            usuario.direccion = form.cleaned_data['direccion']
+            form.save() # Guarda los campos de PersonaNatural
+
+            usuario.correo = form.cleaned_data.get('correo')
+            usuario.telefono = form.cleaned_data.get('telefono')
+            usuario.direccion = form.cleaned_data.get('direccion')
             usuario.save()
 
-            # Guardar los campos del modelo PersonaNatural
-            form.save() 
+            # --- Lógica para CV ---
+            cv_file = request.FILES.get('cv_archivo')
+            if cv_file:
+                cv_instance, created = CV.objects.get_or_create(persona=persona_natural)
+                
+                # PASO 1: BORRAR EL CV ANTERIOR SI EXISTE EN GCS
+                if cv_instance.archivo_cv and cv_instance.archivo_cv.name:
+                    old_cv_path = cv_instance.archivo_cv.name
+                    if default_storage.exists(old_cv_path): # Verificar si el archivo existe en GCS
+                        try:
+                            default_storage.delete(old_cv_path)
+                            logger.info(f"DEBUG_UPLOAD: CV anterior '{old_cv_path}' borrado exitosamente de GCS.")
+                        except Exception as e:
+                            logger.error(f"Error al borrar CV anterior '{old_cv_path}': {e}", exc_info=True)
+                    else:
+                        logger.warning(f"DEBUG_UPLOAD: CV anterior '{old_cv_path}' no encontrado en GCS para borrar. Posiblemente ya borrado o ruta incorrecta.")
 
-            nuevo_cv_archivo = form.cleaned_data.get('cv_archivo')
+                # PASO 2: GENERAR UN NUEVO NOMBRE DE ARCHIVO ÚNICO CON UUID
+                file_extension = os.path.splitext(cv_file.name)[1]
+                cv_filename_in_gcs = f'cvs/{usuario.username}_CV_{uuid.uuid4().hex}{file_extension}' # <-- VOLVEMOS A USAR UUID
+                
+                logger.info(f"DEBUG_UPLOAD: Intentando guardar nuevo CV: '{cv_filename_in_gcs}'")
+                logger.info(f"DEBUG_UPLOAD: Tamaño del archivo CV: {cv_file.size} bytes")
+                
+                try:
+                    # PASO 3: Sube el nuevo archivo a GCS
+                    cv_gcs_relative_path = default_storage.save(cv_filename_in_gcs, cv_file)
+                    logger.info(f"DEBUG_UPLOAD: default_storage.save para CV devolvió la ruta: '{cv_gcs_relative_path}'")
+                    
+                    # PASO 4: Actualiza la instancia del modelo CV con la NUEVA RUTA ÚNICA
+                    cv_instance.archivo_cv.name = cv_gcs_relative_path
+                    cv_instance.save() # Guarda la instancia del modelo, que ahora tiene la ruta correcta.
+                    
+                    messages.success(request, 'CV subido correctamente y en proceso de análisis por IA.')
+                    logger.info(f"CV para usuario {usuario.username} subido correctamente.")
+                except Exception as e:
+                    messages.error(request, f'Error al subir el CV: {e}')
+                    logger.error(f"Error al subir CV para {usuario.username}: {e}", exc_info=True)
 
-            if nuevo_cv_archivo: # Si el usuario ha subido un nuevo archivo de CV
-                if cv_obj:
-                    # Si ya existía un objeto CV, lo actualizamos con el nuevo archivo.
-                    # Django se encarga de eliminar el archivo antiguo del almacenamiento
-                    # cuando se asigna un nuevo archivo a un FileField y se guarda.
-                    try:
-                        cv_obj.archivo_cv = nuevo_cv_archivo
-                        cv_obj.save()
-                        messages.success(request, "Tu perfil y CV han sido actualizados con éxito.")
-                        print(f"DEBUG: Nuevo CV actualizado en objeto existente: {cv_obj.archivo_cv.name}")
-                        cv_actual_url = cv_obj.archivo_cv.url
-                        cv_actual_name = cv_obj.archivo_cv.name
-                    except Exception as e:
-                        print(f"DEBUG: Error al guardar/subir nuevo CV (existente): {e}")
-                        messages.error(request, f'Hubo un error al guardar el nuevo CV: {e}')
-                else:
-                    # Si no existía un objeto CV, creamos uno nuevo para esta persona
-                    try:
-                        cv_obj = CV.objects.create(persona=persona_natural, archivo_cv=nuevo_cv_archivo)
-                        messages.success(request, "Tu perfil y CV han sido cargados con éxito.")
-                        print(f"DEBUG: Nuevo CV creado: {cv_obj.archivo_cv.name}")
-                        cv_actual_url = cv_obj.archivo_cv.url
-                        cv_actual_name = cv_obj.archivo_cv.name
-                    except Exception as e:
-                        print(f"DEBUG: Error al crear nuevo CV: {e}")
-                        messages.error(request, f'Hubo un error al cargar el nuevo CV: {e}')
+            # --- Lógica para Certificado de Antecedentes ---
+            certificado_file = request.FILES.get('certificado_pdf')
+            if certificado_file:
+                certificado_instance, created = CertificadoAntecedentes.objects.get_or_create(persona=persona_natural)
+                
+                # PASO 1: BORRAR EL CERTIFICADO ANTERIOR SI EXISTE EN GCS
+                if certificado_instance.certificado_archivo and certificado_instance.certificado_archivo.name:
+                    old_certificado_path = certificado_instance.certificado_archivo.name
+                    if default_storage.exists(old_certificado_path): 
+                        try:
+                            default_storage.delete(old_certificado_path)
+                            logger.info(f"DEBUG_UPLOAD: Certificado anterior '{old_certificado_path}' borrado exitosamente de GCS.")
+                        except Exception as e:
+                            logger.error(f"Error al borrar Certificado anterior '{old_certificado_path}': {e}", exc_info=True)
+                    else:
+                        logger.warning(f"DEBUG_UPLOAD: Certificado anterior '{old_certificado_path}' no encontrado en GCS para borrar. Posiblemente ya borrado o ruta incorrecta.")
 
-            elif 'cv_archivo-clear' in request.POST:
-                # Si el usuario marcó el checkbox "clear" del ClearableFileInput para eliminar el CV
-                if cv_obj and cv_obj.archivo_cv: # Solo si el objeto CV y el archivo existen
-                    try:
-                        cv_obj.archivo_cv.delete(save=True) # Elimina el archivo y setea el campo a null en la DB
-                        messages.info(request, 'Tu CV ha sido eliminado.')
-                        print("DEBUG: CV existente eliminado por petición del usuario.")
-                        cv_actual_url = None # Actualizar las variables de contexto para reflejar la eliminación
-                        cv_actual_name = None
-                    except Exception as e:
-                        print(f"DEBUG: Error al eliminar CV existente: {e}")
-                        messages.error(f'Hubo un error al eliminar el CV: {e}')
-                else:
-                    messages.info(request, 'No había CV para eliminar.') # Mensaje si intentan borrar un CV que no existe
+                # PASO 2: GENERAR UN NUEVO NOMBRE DE ARCHIVO ÚNICO CON UUID
+                file_extension = os.path.splitext(certificado_file.name)[1]
+                certificado_filename_in_gcs = f'certificados/{usuario.username}_CERT_{uuid.uuid4().hex}{file_extension}' # <-- VOLVEMOS A USAR UUID
 
-            else: 
-                # Este bloque se ejecuta si no se subió un nuevo CV ni se marcó para borrar.
-                # Se asume que el formulario del perfil general se procesó y guardó correctamente.
-                # Sólo mostrar un mensaje si no hubo acción previa del CV que ya generó un mensaje.
-                messages.success(request, 'Tu perfil ha sido actualizado exitosamente (CV sin cambios).')
+                logger.info(f"DEBUG_UPLOAD: Intentando guardar nuevo Certificado: '{certificado_filename_in_gcs}'")
+                logger.info(f"DEBUG_UPLOAD: Tamaño del archivo Certificado: {certificado_file.size} bytes")
 
-            return redirect('editar_perfil') # Redirige a la misma página para ver los cambios
+                try:
+                    # PASO 3: Sube el nuevo archivo a GCS
+                    certificado_gcs_relative_path = default_storage.save(certificado_filename_in_gcs, certificado_file)
+                    logger.info(f"DEBUG_UPLOAD: default_storage.save para Certificado devolvió la ruta: '{certificado_gcs_relative_path}'")
+                    
+                    # PASO 4: Actualiza la instancia del modelo Certificado con la NUEVA RUTA ÚNICA
+                    certificado_instance.certificado_archivo.name = certificado_gcs_relative_path
+                    certificado_instance.esta_verificado = False
+                    certificado_instance.save()
 
-        else: # Formulario no válido (en POST)
-            print(f"DEBUG: Errores del formulario Editar Perfil: {form.errors.as_json()}")
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+                    messages.success(request, 'Certificado de antecedentes subido correctamente y en proceso de análisis por IA.')
+                    logger.info(f"Nuevo Certificado para usuario {usuario.username} subido a GCS: {certificado_gcs_relative_path}")
+                except Exception as e:
+                    messages.error(request, f'Error al subir el certificado: {e}')
+                    logger.error(f"Error al subir certificado para {usuario.username}: {e}", exc_info=True)
 
-    else: # Método GET
-        # Obtener la instancia del perfil del usuario actual para inicializar el formulario
-        initial_data = {
-            'correo': usuario.correo,
-            'telefono': usuario.telefono,
-            'direccion': usuario.direccion,
-        }
-        form = EditarPerfilPersonaForm(instance=persona_natural, initial=initial_data, user=request.user)
+            messages.success(request, 'Perfil actualizado correctamente.')
+            return redirect('miperfil')
+        else:
+            messages.error(request, 'Error al actualizar el perfil. Por favor, revisa los campos.')
+            logger.warning(f"Errores en EditarPerfilPersonaForm para {usuario.username}: {form.errors.as_json()}")
+    else:
+        form = EditarPerfilPersonaForm(
+            instance=persona_natural,
+            usuario_actual=usuario
+        )
 
-        # Las variables cv_actual_url y cv_actual_name ya se inicializaron al principio de la función
-        # y se habrían actualizado en el bloque try-except inicial si el CV existía.
+    cv_existente = getattr(persona_natural, 'cv', None)
+    certificado_existente = getattr(persona_natural, 'certificado_antecedentes', None)
 
     context = {
         'form': form,
-        'cv_actual_url': cv_actual_url,
-        'cv_actual_name': cv_actual_name,
+        'persona_natural': persona_natural,
+        'cv': cv_existente,
+        'certificado': certificado_existente,
+        'MEDIA_URL': settings.MEDIA_URL
     }
     return render(request, 'gestionOfertas/editar_perfil.html', context)
 
@@ -1350,4 +1408,138 @@ def receive_cv_data(request):
         # Es necesario asegurar que 'data' esté definido antes de intentar acceder a ella
         user_rut_for_log = data.get('user_rut', 'N/A') if 'data' in locals() else 'N/A'
         logger.exception(f"Error inesperado al procesar y guardar datos del CV para user_rut: {user_rut_for_log}. Detalles: {e}")
+        return JsonResponse({'error': f'Internal Server Error: {str(e)}'}, status=500)
+    
+@login_required
+@require_POST
+def subir_certificado_antecedentes(request):
+    """
+    Vista para que un usuario suba su certificado de antecedentes.
+    Si ya existe uno, lo reemplaza.
+    Guarda el archivo en GCS y crea/actualiza una entrada en CertificadoAntecedentes.
+    """
+    if not request.user.is_authenticated:
+        messages.error(request, "Debes iniciar sesión para subir un certificado.")
+        return redirect('iniciar_sesion')
+
+    archivo_certificado = request.FILES.get('certificado_pdf')
+
+    if not archivo_certificado:
+        messages.error(request, "No se ha seleccionado ningún archivo PDF.")
+        return redirect('miperfil')
+
+    if not archivo_certificado.name.lower().endswith('.pdf'):
+        messages.error(request, "El archivo debe ser un PDF.")
+        return redirect('miperfil')
+
+    try:
+        with transaction.atomic(): # Esto asegura que si algo falla, no se queden datos a medio camino
+            # 1. Intentar obtener el certificado existente
+            existing_certificado = None
+            try:
+                existing_certificado = CertificadoAntecedentes.objects.get(usuario=request.user)
+            except CertificadoAntecedentes.DoesNotExist:
+                pass # No hay certificado existente, se creará uno nuevo
+            except CertificadoAntecedentes.MultipleObjectsReturned:
+                # Esto no debería ocurrir con OneToOneField, pero es una buena práctica de log
+                logger.error(f"Múltiples CertificadoAntecedentes encontrados para el usuario {request.user.username}. Esto indica un problema con la DB.")
+                # Aquí podrías decidir si eliminar todos y crear uno nuevo, o solo el más reciente.
+                # Para simplificar, vamos a eliminar el que se encuentre primero si esto ocurriera.
+                CertificadoAntecedentes.objects.filter(usuario=request.user).delete()
+                existing_certificado = None
+
+
+            # 2. Si existe un certificado anterior, borrarlo (esto también borrará el archivo de GCS)
+            if existing_certificado:
+                # El método delete de CertificadoAntecedentes se encargará de borrar el archivo de GCS
+                existing_certificado.delete() 
+                logger.info(f"Certificado anterior de {request.user.username} eliminado de DB y GCS.")
+
+            # 3. Generar un nombre de archivo único para GCS
+            # Usamos el RUT del usuario en el nombre del archivo.
+            user_rut = request.user.username.replace('.', '').replace('-', '') # Limpia el RUT
+            timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
+            # Usa una carpeta dedicada para certificados
+            gcs_file_name = f"certificados/{user_rut}_{timestamp}_{archivo_certificado.name.replace(' ', '_')}"
+
+            # 4. Guardar el nuevo archivo en GCS
+            path_in_gcs = default_storage.save(gcs_file_name, archivo_certificado)
+            gcs_url = default_storage.url(path_in_gcs) 
+            logger.info(f"Nuevo certificado PDF {gcs_url} subido a GCS por {request.user.username}.")
+
+            # 5. Crear (o recrear, si se borró el anterior) una nueva instancia de CertificadoAntecedentes
+            certificado = CertificadoAntecedentes.objects.create(
+                usuario=request.user,
+                certificado_url=gcs_url,
+                # datos_extraidos y esta_verificado se actualizarán por la Cloud Function
+            )
+            messages.success(request, "Certificado subido correctamente. El anterior ha sido reemplazado y el nuevo será procesado en breve.")
+            logger.info(f"Nueva instancia de CertificadoAntecedentes creada para {request.user.username}. ID: {certificado.id}")
+
+    except Exception as e:
+        logger.error(f"Error al subir/reemplazar certificado para {request.user.username}: {e}", exc_info=True)
+        messages.error(request, f"Hubo un error al subir el certificado: {e}")
+
+    return redirect('miperfil')
+
+# ... (receive_certificado_data - esta vista permanece igual) ...
+
+@require_POST
+def receive_certificado_data(request):
+    """
+    Endpoint que recibe datos de la Cloud Function después de procesar un certificado.
+    Busca el certificado por su URL en GCS y actualiza los campos.
+    """
+    # En producción, añadir una clave API o token para seguridad
+    if not settings.DEBUG: 
+        # Implementar alguna forma de autenticación/validación aquí
+        # (ej. token en el header, API key, IP whitelist)
+        pass
+
+    try:
+        data = json.loads(request.body)
+        certificado_gcs_url = data.get('certificado_gcs_url')
+        extracted_data = data.get('extracted_data')
+        user_rut = data.get('user_rut') # El RUT del usuario que subió el certificado
+
+        if not certificado_gcs_url or not user_rut:
+            logger.error(f"Datos incompletos recibidos para certificado: URL: {certificado_gcs_url}, RUT: {user_rut}")
+            return JsonResponse({'error': 'Missing certificate_gcs_url or user_rut'}, status=400)
+
+        try:
+            usuario_instance = Usuario.objects.get(username=user_rut)
+        except Usuario.DoesNotExist:
+            logger.error(f"Usuario con RUT {user_rut} no encontrado para el certificado {certificado_gcs_url}.")
+            return JsonResponse({'error': 'User not found for provided RUT'}, status=404)
+
+        try:
+            # Buscar el certificado usando OneToOneField:
+            # Dado que es OneToOne, el usuario *tiene* un certificado, o no lo tiene.
+            # No necesitamos buscar por URL si ya tenemos el usuario, pero es más seguro.
+            certificado_instance = CertificadoAntecedentes.objects.get(
+                usuario=usuario_instance,
+                certificado_url=certificado_gcs_url # Esto valida que es el certificado correcto
+            )
+        except CertificadoAntecedentes.DoesNotExist:
+            logger.error(f"CertificadoAntecedentes con URL {certificado_gcs_url} para usuario {user_rut} no encontrado en la DB para actualizar.")
+            return JsonResponse({'error': 'CertificadoAntecedentes instance not found for update'}, status=404)
+        except CertificadoAntecedentes.MultipleObjectsReturned:
+            # Esto solo ocurriría si el OneToOneField se rompe, lo cual no debería pasar.
+            logger.error(f"Múltiples CertificadoAntecedentes encontrados para usuario {user_rut}. Corregir OneToOneField.")
+            return JsonResponse({'error': 'Multiple CertificadoAntecedentes instances found'}, status=500)
+
+
+        certificado_instance.datos_extraidos = extracted_data
+        certificado_instance.esta_verificado = True
+        certificado_instance.save()
+
+        logger.info(f"Certificado de {user_rut} (ID: {certificado_instance.id}) actualizado con datos de IA.")
+        return JsonResponse({'status': 'success', 'message': 'Certificado data processed and saved successfully'}, status=200)
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Error: JSON inválido recibido en receive_certificado_data. Detalles: {e}")
+        return JsonResponse({'error': 'Invalid JSON format', 'details': str(e)}, status=400)
+    except Exception as e:
+        user_rut_for_log = data.get('user_rut', 'N/A') if 'data' in locals() else 'N/A'
+        logger.exception(f"Error inesperado al procesar y guardar datos del certificado para user_rut: {user_rut_for_log}. Detalles: {e}")
         return JsonResponse({'error': f'Internal Server Error: {str(e)}'}, status=500)

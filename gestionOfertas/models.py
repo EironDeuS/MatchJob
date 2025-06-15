@@ -1,6 +1,7 @@
 # En tu_app/models.py
 
 from django.db import models
+from django.db.models import JSONField
 from datetime import datetime
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
@@ -10,6 +11,10 @@ from django.db.models import Avg
 from django.core.validators import MinValueValidator, MaxValueValidator
 import os
 from django.urls import reverse
+import re
+from datetime import datetime
+from django.core.files.storage import default_storage
+from django.conf import settings
 
 
 # -----------------------------
@@ -90,14 +95,14 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return f"{self.username} ({self.get_tipo_usuario_display()})"
 
     def save(self, *args, **kwargs):
-        """ Crea automáticamente el perfil si es un usuario nuevo (no admin). """
-        is_new = not self.pk
+        """ 
+        Guarda el usuario SIN crear perfiles automáticamente.
+        Los perfiles (PersonaNatural/Empresa) se crean explícitamente en las vistas
+        donde se tienen todos los datos necesarios.
+        """
         super().save(*args, **kwargs)
-        if is_new and self.tipo_usuario != 'admin':
-            if self.tipo_usuario == 'persona':
-                PersonaNatural.objects.update_or_create(usuario=self, defaults={})
-            elif self.tipo_usuario == 'empresa':
-                Empresa.objects.update_or_create(usuario=self, defaults={})
+        # ELIMINADO: La creación automática de perfiles que causaba duplicados
+        # Los perfiles se crean en las vistas de registro/edición donde se manejan todos los datos
 
     # --- Métodos de Valoración y Perfil ---
     @property
@@ -121,6 +126,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     @property
     def email(self):
         return self.correo
+
 
 # -----------------------------
 # Persona Natural (Sin RUT ni Direccion)
@@ -178,7 +184,6 @@ class PersonaNatural(models.Model):
         return self.modo_urgente
 
 
-
 # -----------------------------
 # Empresa (Sin RUT ni Direccion)
 # -----------------------------
@@ -213,7 +218,6 @@ class Empresa(models.Model):
 
     def get_ofertas_creadas_activas(self):
         return self.usuario.ofertas_creadas.filter(esta_activa=True) # Usa related_name de OfertaTrabajo.creador
-
 
 # -----------------------------
 # CV
@@ -556,3 +560,78 @@ class MuestraTrabajo(models.Model):
 
     def es_imagen(self):
         return self.archivo.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
+
+# ------------------------------------
+# Certificado de Antecedentes
+# # ------------------------------------
+class CertificadoAntecedentes(models.Model):
+    # ¡ESTO ES CORRECTO Y ES LA BASE DE LA SOLUCIÓN!
+    persona = models.OneToOneField(PersonaNatural, on_delete=models.CASCADE, related_name='certificado_antecedentes')
+    
+    certificado_archivo = models.FileField(upload_to='certificados/', blank=True, null=True)
+    datos_extraidos = JSONField(default=dict, blank=True, null=True, verbose_name="Datos del Certificado extraídos por IA")
+    
+    esta_verificado = models.BooleanField(default=False, verbose_name="Certificado Verificado (por el sistema o manualmente)")
+    fecha_subida = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Certificado de Antecedentes')
+        verbose_name_plural = _('Certificados de Antecedentes')
+        ordering = ['-fecha_subida']
+
+
+    def __str__(self):
+        # ¡CORREGIDO! Ahora accedes a través de self.persona para llegar al usuario.
+        return f"Certificado de Antecedentes de {self.persona.usuario.username}"
+
+    @property
+    def run_extraido(self):
+        return self.datos_extraidos.get('rut') if self.datos_extraidos else 'N/A' 
+
+    @property
+    def nombre_completo_extraido(self):
+        return self.datos_extraidos.get('nombre_completo') if self.datos_analizados_ia else 'N/A'
+
+    @property
+    def tiene_antecedentes_extraido(self):
+        if self.datos_extraidos and 'antecedentes_penales' in self.datos_extraidos:
+            return self.datos_extraidos['antecedentes_penales'].upper() == 'CON ANTECEDENTES'
+        return None
+
+    @property
+    def fecha_emision_extraida(self):
+        fecha_str = self.datos_extraidos.get('fecha_emision') 
+        if fecha_str:
+            try:
+                return datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        return None
+
+    def delete(self, *args, **kwargs):
+        # Asegúrate de que default_storage esté importado si lo usas aquí
+        from django.core.files.storage import default_storage # Importación local si es necesario
+        from django.conf import settings # Importación local si es necesario
+
+        if self.certificado_url:
+            try:
+                file_path_in_gcs = self.certificado_url
+                
+                if file_path_in_gcs.startswith('https://storage.googleapis.com/'):
+                    bucket_name = os.getenv('GS_BUCKET_NAME', 'matchjob-media') 
+                    match = re.search(f'/{bucket_name}/(.*)', file_path_in_gcs)
+                    if match:
+                        file_path_in_gcs = match.group(1)
+                    else:
+                        print(f"DEBUG: No se pudo extraer la ruta del archivo de GCS de la URL: {file_path_in_gcs}")
+                        file_path_in_gcs = None
+                
+                if file_path_in_gcs and default_storage.exists(file_path_in_gcs):
+                    default_storage.delete(file_path_in_gcs)
+                    print(f"Archivo de certificado eliminado de GCS: {file_path_in_gcs}")
+                else:
+                    print(f"Advertencia: Archivo de certificado no encontrado en GCS para eliminar o ya no existe: {file_path_in_gcs}")
+            except Exception as e:
+                print(f"Error al intentar eliminar el archivo de certificado de GCS: {e}")
+        super().delete(*args, **kwargs)
