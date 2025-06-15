@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='cv',
             name='archivo_cv',
-            field=models.FileField(blank=True, null=True, upload_to=gestionOfertas.models.cv_upload_to, verbose_name='Archivo CV'),
+            field=models.FileField(blank=True, null=True,upload_to='cvs/', verbose_name='Archivo CV'),
         ),
         migrations.AlterField(
             model_name='postulacion',

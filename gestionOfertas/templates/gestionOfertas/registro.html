@@ -5,416 +5,422 @@
 
 {% block content %}
 <style>
-  /* Tus estilos CSS existentes aquí */
-  .form-control, .form-select {
-    border-radius: 8px;
-    padding: 12px 15px;
-    border: 2px solid #e0e0e0;
-    transition: all 0.3s;
-  }
-  .form-control:focus, .form-select:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
-    outline: none;
-  }
-  .input-group-text {
-    background-color: #f8f9fa;
-    border: 2px solid #e0e0e0;
-    border-right: none;
-  }
-  .input-with-icon {
-    position: relative;
-  }
+  /* Tus estilos CSS existentes aquí */
+  .form-control, .form-select {
+    border-radius: 8px;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
+    outline: none;
+  }
+  .input-group-text {
+    background-color: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-right: none;
+  }
+  .input-with-icon {
+    position: relative;
+  }
 
-  .input-with-icon > i:not(.password-toggle) {
-    position: absolute;
-    top: 50%;
-    left: 15px;
-    transform: translateY(-50%);
-    color: #6c757d;
-    pointer-events: none;
-  }
-  .input-with-icon input,
-  .input-with-icon select,
-  .input-with-icon textarea {
-    padding-left: 40px;
-  }
-  .password-toggle {
-    position: absolute;
-    top: 50%;
-    right: 15px;
-    transform: translateY(-50%);
-    cursor: pointer;
-    color: #6c757d;
-  }
+  .input-with-icon > i:not(.password-toggle) {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+  }
+  .input-with-icon input,
+  .input-with-icon select,
+  .input-with-icon textarea {
+    padding-left: 40px;
+  }
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 15px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #6c757d;
+  }
 </style>
 
 <div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-      <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
-        <div class="card-header bg-primary text-white py-3">
-          <h2 class="text-center mb-0">Crear una cuenta</h2>
-        </div>
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
+        <div class="card-header bg-primary text-white py-3">
+          <h2 class="text-center mb-0">Crear una cuenta</h2>
+        </div>
 
-        <div class="card-body p-4 p-md-5">
-          {% if messages %}
-            {% for message in messages %}
-              <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>
-            {% endfor %}
-          {% endif %}
+        <div class="card-body p-4 p-md-5">
+          {% if messages %}
+            {% for message in messages %}
+              <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
 
-          {% if form.non_field_errors %}
-              <div class="alert alert-danger">
-                  {% for error in form.non_field_errors %}
-                      <p class="mb-1">{{ error }}</p>
-                  {% endfor %}
-              </div>
-          {% endif %}
+          {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                  {% for error in form.non_field_errors %}
+                      <p class="mb-1">{{ error }}</p>
+                  {% endfor %}
+              </div>
+          {% endif %}
 
-          <form method="post" enctype="multipart/form-data" novalidate class="needs-validation"> {# IMPORTANTE: enctype="multipart/form-data" #}
-            {% csrf_token %}
+          <form method="post" enctype="multipart/form-data" novalidate class="needs-validation"> {# IMPORTANTE: enctype="multipart/form-data" #}
+            {% csrf_token %}
 
-            <div class="mb-4">
-              <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label fw-bold">{{ form.tipo_usuario.label }}</label>
-              {{ form.tipo_usuario.errors }}
-              {# Renderiza el <select> que ya tiene 'form-select' desde forms.py #}
-              {{ form.tipo_usuario }}
-              <small class="text-muted">Selecciona si eres persona natural o empresa</small>
-            </div>
+            <div class="mb-4">
+              <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label fw-bold">{{ form.tipo_usuario.label }}</label>
+              {{ form.tipo_usuario.errors }}
+              {# Renderiza el <select> que ya tiene 'form-select' desde forms.py #}
+              {{ form.tipo_usuario }}
+              <small class="text-muted">Selecciona si eres persona natural o empresa</small>
+            </div>
 
-            <div id="persona-fields" style="display:none;" class="mb-4">
-              <h5 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Información Personal</h5>
-              <div class="row g-3">
-                {# Nombres #}
-                <div class="col-md-6">
-                  <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
-                    {{ form.nombres.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-person"></i>
-                      {{ form.nombres }}
-                  </div>
-                </div>
-                {# Apellidos #}
-                <div class="col-md-6">
-                  <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
-                    {{ form.apellidos.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-person"></i>
-                      {{ form.apellidos }}
-                  </div>
-                </div>
-                {# Fecha Nacimiento #}
-                <div class="col-md-6">
-                  <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
-                    {{ form.fecha_nacimiento.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-calendar"></i>
-                      {{ form.fecha_nacimiento }}
-                  </div>
-                </div>
-                {# Nacionalidad #}
-                <div class="col-md-6">
-                  <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
-                    {{ form.nacionalidad.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-globe"></i>
-                      {{ form.nacionalidad }}
-                  </div>
-                </div>
+            <div id="persona-fields" style="display:none;" class="mb-4">
+              <h5 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Información Personal</h5>
+              <div class="row g-3">
+                {# Nombres #}
+                <div class="col-md-6">
+                  <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
+                    {{ form.nombres.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-person"></i>
+                      {{ form.nombres }}
+                  </div>
+                </div>
+                {# Apellidos #}
+                <div class="col-md-6">
+                  <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
+                    {{ form.apellidos.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-person"></i>
+                      {{ form.apellidos }}
+                  </div>
+                </div>
+                {# Fecha Nacimiento #}
+                <div class="col-md-6">
+                  <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
+                    {{ form.fecha_nacimiento.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-calendar"></i>
+                      {{ form.fecha_nacimiento }}
+                  </div>
+                </div>
+                {# Nacionalidad #}
+                <div class="col-md-6">
+                  <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
+                    {{ form.nacionalidad.errors }}
+                  <div class="input-with-icon">
+                    <i class="bi bi-globe"></i>
+                      {{ form.nacionalidad }}
+                  </div>
+                </div>
 
-                {# --- CAMPO CV: AÑADIDO AQUÍ --- #}
-                <div class="col-12">
-                  <label for="{{ form.cv_archivo.id_for_label }}" class="form-label">{{ form.cv_archivo.label }}</label>
-                    {{ form.cv_archivo.errors }}
-                  {{ form.cv_archivo }}
-                  {% if form.cv_archivo.help_text %}
-                      <div class="form-text text-muted">{{ form.cv_archivo.help_text }}</div>
-                  {% endif %}
-                </div>
-                {# --- FIN CAMPO CV --- #}
+                {# --- CAMPO CV: AÑADIDO AQUÍ --- #}
+                <div class="col-12">
+                  <label for="{{ form.cv_archivo.id_for_label }}" class="form-label">{{ form.cv_archivo.label }}</label>
+                    {{ form.cv_archivo.errors }}
+                  {{ form.cv_archivo }}
+                  {% if form.cv_archivo.help_text %}
+                      <div class="form-text text-muted">{{ form.cv_archivo.help_text }}</div> {# No necesita |safe aquí #}
+                  {% endif %}
+                </div>
+                {# --- FIN CAMPO CV --- #}
 
-                {# --- CAMPO CERTIFICADO DE ANTECEDENTES: AÑADIDO AQUÍ --- #}
-                <div class="col-12">
-                  <label for="{{ form.certificado_pdf.id_for_label }}" class="form-label">{{ form.certificado_pdf.label }}</label>
-                    {{ form.certificado_pdf.errors }}
-                  {{ form.certificado_pdf }}
-                  {% if form.certificado_pdf.help_text %}
-                      <div class="form-text text-muted">{{ form.certificado_pdf.help_text }}</div>
-                  {% endif %}
-                </div>
-                {# --- FIN CAMPO CERTIFICADO DE ANTECEDENTES --- #}
+                {# --- CAMPO CERTIFICADO DE ANTECEDENTES: AÑADIDO AQUÍ --- #}
+                <div class="col-12">
+                  <label for="{{ form.certificado_pdf.id_for_label }}" class="form-label">{{ form.certificado_pdf.label }}</label>
+                    {{ form.certificado_pdf.errors }}
+                  {{ form.certificado_pdf }}
+                  {% if form.certificado_pdf.help_text %}
+                      <div class="form-text text-muted">{{ form.certificado_pdf.help_text }}</div> {# No necesita |safe aquí #}
+                  {% endif %}
+                </div>
+                {# --- FIN CAMPO CERTIFICADO DE ANTECEDENTES --- #}
 
-              </div> {# Fin de row g-3 de Persona #}
-            </div> {# Fin de persona-fields #}
+              </div> {# Fin de row g-3 de Persona #}
+            </div> {# Fin de persona-fields #}
 
-            <div id="empresa-fields" style="display:none;" class="mb-4">
-                <div class="alert alert-info text-center" role="alert">
-                    <i class="bi bi-info-circle-fill me-2"></i>
-                    Los campos de la empresa se rellenarán automáticamente al ingresar y validar el RUT.
-                </div>
-                <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Información de la Empresa</h5>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
-                        {{ form.nombre_empresa.errors }}
-                        <div class="input-with-icon">
-                            <i class="bi bi-building"></i>
-                            <input type="text"
-                                   name="{{ form.nombre_empresa.name }}"
-                                   id="{{ form.nombre_empresa.id_for_label }}" 
-                                   class="form-control"
-                                   placeholder="{{ form.nombre_empresa.field.widget.attrs.placeholder }}" 
-                                   value="{{ form.nombre_empresa.value|default_if_none:'' }}"
-                                   readonly disabled>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
-                        {{ form.razon_social.errors }}
-                        <div class="input-with-icon">
-                            <i class="bi bi-card-text"></i>
-                            <input type="text"
-                                   name="{{ form.razon_social.name }}"
-                                   id="{{ form.razon_social.id_for_label }}" 
-                                   class="form-control"
-                                   placeholder="{{ form.razon_social.field.widget.attrs.placeholder }}" 
-                                   value="{{ form.razon_social.value|default_if_none:'' }}"
-                                   readonly disabled>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
-                        {{ form.giro.errors }}
-                        <div class="input-with-icon">
-                            <i class="bi bi-briefcase"></i>
-                            <input type="text"
-                                   name="{{ form.giro.name }}"
-                                   id="{{ form.giro.id_for_label }}" 
-                                   class="form-control"
-                                   placeholder="{{ form.giro.field.widget.attrs.placeholder }}" 
-                                   value="{{ form.giro.value|default_if_none:'' }}"
-                                   readonly disabled>
-                        </div>
-                    </div>
-                </div> {# Fin de row g-3 de Empresa #}
-            </div> {# Fin de empresa-fields #}
+            <div id="empresa-fields" style="display:none;" class="mb-4">
+                <div class="alert alert-info text-center" role="alert">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Los campos de la empresa se rellenarán automáticamente al ingresar y validar el RUT.
+                </div>
+                <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Información de la Empresa</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
+                        {{ form.nombre_empresa.errors }}
+                        <div class="input-with-icon">
+                            <i class="bi bi-building"></i>
+                            <input type="text"
+                                   name="{{ form.nombre_empresa.name }}"
+                                   id="{{ form.nombre_empresa.id_for_label }}" 
+                                   class="form-control"
+                                   placeholder="{{ form.nombre_empresa.field.widget.attrs.placeholder }}" 
+                                   value="{{ form.nombre_empresa.value|default_if_none:'' }}"
+                                   readonly disabled>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
+                        {{ form.razon_social.errors }}
+                        <div class="input-with-icon">
+                            <i class="bi bi-card-text"></i>
+                            <input type="text"
+                                   name="{{ form.razon_social.name }}"
+                                   id="{{ form.razon_social.id_for_label }}" 
+                                   class="form-control"
+                                   placeholder="{{ form.razon_social.field.widget.attrs.placeholder }}" 
+                                   value="{{ form.razon_social.value|default_if_none:'' }}"
+                                   readonly disabled>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
+                        {{ form.giro.errors }}
+                        <div class="input-with-icon">
+                            <i class="bi bi-briefcase"></i>
+                            <input type="text"
+                                   name="{{ form.giro.name }}"
+                                   id="{{ form.giro.id_for_label }}" 
+                                   class="form-control"
+                                   placeholder="{{ form.giro.field.widget.attrs.placeholder }}" 
+                                   value="{{ form.giro.value|default_if_none:'' }}"
+                                   readonly disabled>
+                        </div>
+                    </div>
+                </div> {# Fin de row g-3 de Empresa #}
+            </div> {# Fin de empresa-fields #}
 
 
-            <hr class="my-4" />
-            <h5 class="text-primary mb-3">
-              <i class="bi bi-person-circle me-2"></i>Información de Cuenta
-            </h5>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
-                  {{ form.username.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-person"></i>
-                    {{ form.username }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
-                  {{ form.correo.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-envelope"></i>
-                    {{ form.correo }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
-                  {{ form.telefono.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-telephone"></i>
-                    {{ form.telefono }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
-                  {{ form.direccion.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-geo-alt"></i>
-                    {{ form.direccion }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
-                {{ form.password.errors }}
-                <div class="input-with-icon position-relative">
-                  <i class="bi bi-lock-fill"></i>
-                  {{ form.password }}
-                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">{{ form.confirm_password.label }}</label>
-                {{ form.confirm_password.errors }}
-                <div class="input-with-icon position-relative">
-                <i class="bi bi-lock-fill"></i>
-                {{ form.confirm_password }}
-                <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_confirm_password', this)"></i>
-                </div>
-                </div>
-            </div>
+            <hr class="my-4" />
+            <h5 class="text-primary mb-3">
+              <i class="bi bi-person-circle me-2"></i>Información de Cuenta
+            </h5>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                  {{ form.username.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-person"></i>
+                    {{ form.username }}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
+                  {{ form.correo.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-envelope"></i>
+                    {{ form.correo }}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
+                  {{ form.telefono.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-telephone"></i>
+                    {{ form.telefono }}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
+                  {{ form.direccion.errors }}
+                <div class="input-with-icon">
+                  <i class="bi bi-geo-alt"></i>
+                    {{ form.direccion }}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+                {{ form.password.errors }}
+                <div class="input-with-icon position-relative">
+                  <i class="bi bi-lock-fill"></i>
+                  {{ form.password }}
+                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">{{ form.confirm_password.label }}</label>
+                {{ form.confirm_password.errors }}
+                <div class="input-with-icon position-relative">
+                <i class="bi bi-lock-fill"></i>
+                {{ form.confirm_password }}
+                <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_confirm_password', this)"></i>
+                </div>
+                </div>
+            </div>
 
-            <div class="d-grid mt-4">
-              <button type="submit" class="btn btn-primary btn-lg py-2">
-                <i class="bi bi-person-plus me-2"></i>Crear cuenta
-              </button>
-            </div>
-          </form>
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-primary btn-lg py-2">
+                <i class="bi bi-person-plus me-2"></i>Crear cuenta
+              </button>
+            </div>
+          </form>
 
-          <div class="text-center mt-4 pt-3 border-top">
-            <p class="mb-0">
-              ¿Ya tienes una cuenta?
-              <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+          <div class="text-center mt-4 pt-3 border-top">
+            <p class="mb-0">
+              ¿Ya tienes una cuenta?
+              <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a>
+            </p>
+          </div>
+        </div>
+      </div>
+      </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block js %}
 <script>
-    // Función para mostrar/ocultar campos según el tipo de usuario seleccionado
-    function toggleUsuarioFields() {
-        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-        if (!tipoUsuarioSelect) { console.error("Elemento 'id_tipo_usuario' no encontrado."); return; }
-        const tipoUsuario = tipoUsuarioSelect.value;
-        const personaFields = document.getElementById('persona-fields');
-        const empresaFields = document.getElementById('empresa-fields');
-        if (!personaFields) { console.error("Elemento 'persona-fields' no encontrado."); return; }
-        if (!empresaFields) { console.error("Elemento 'empresa-fields' no encontrado."); return; }
+    // Función para mostrar/ocultar campos según el tipo de usuario seleccionado
+    function toggleUsuarioFields() {
+        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+        if (!tipoUsuarioSelect) { console.error("Elemento 'id_tipo_usuario' no encontrado."); return; }
+        const tipoUsuario = tipoUsuarioSelect.value;
+        const personaFields = document.getElementById('persona-fields');
+        const empresaFields = document.getElementById('empresa-fields');
+        if (!personaFields) { console.error("Elemento 'persona-fields' no encontrado."); return; }
+        if (!empresaFields) { console.error("Elemento 'empresa-fields' no encontrado."); return; }
 
-        console.log("Tipo Usuario Seleccionado:", tipoUsuario); // Debug
+        console.log("Tipo Usuario Seleccionado:", tipoUsuario); // Debug
 
-        const personaInputs = personaFields.querySelectorAll('input:not([type="file"]), select, textarea'); // Excluir campos de tipo file para no afectar su 'required'
-        const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
-        const cvInput = personaFields.querySelector('[name="cv_archivo"]'); 
-        const certificadoInput = personaFields.querySelector('[name="certificado_pdf"]'); // Nuevo: Selecciona el input de certificado
+        // QuerySelector para todos los inputs, selects, textareas DENTRO de persona-fields que no sean file
+        const personaInputs = personaFields.querySelectorAll('input:not([type="file"]), select, textarea'); 
+        const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
+        
+        // Campos de archivo (FileField) - Referenciamos directamente para control específico
+        const cvInput = document.getElementById('id_cv_archivo'); 
+        const certificadoInput = document.getElementById('id_certificado_pdf'); 
 
-        // Ocultar ambos y resetear required
-        personaFields.style.display = 'none';
-        empresaFields.style.display = 'none';
-        personaInputs.forEach(input => input.required = false);
-        empresaInputs.forEach(input => input.required = false);
+        // Ocultar ambos y resetear required (excepto para los campos de archivo)
+        personaFields.style.display = 'none';
+        empresaFields.style.display = 'none';
 
-        // Mostrar y requerir los campos correctos
-        if (tipoUsuario === 'persona') {
-            console.log("Mostrando campos Persona"); // Debug
-            personaFields.style.display = 'block';
-            personaInputs.forEach(input => {
-                if (input.name === 'nombres' || input.name === 'apellidos') {
-                    input.required = true;
-                }
-            });
-            // Mantener los campos de archivo como no requeridos por JS si ya lo son en Django
-            if (cvInput) cvInput.required = false; 
-            if (certificadoInput) certificadoInput.required = false;
+        personaInputs.forEach(input => input.required = false); // Restablecer solo los no-file
+        empresaInputs.forEach(input => input.required = false);
 
-        } else if (tipoUsuario === 'empresa') {
-            console.log("Mostrando campos Empresa"); // Debug
-            empresaFields.style.display = 'block';
-            // Asegurar que los campos de archivo no sean requeridos si se muestra empresa
-            if (cvInput) cvInput.required = false;
-            if (certificadoInput) certificadoInput.required = false;
-            // No hacemos campos de empresa "required" en el HTML
-        } else {
-            console.log("Tipo no reconocido u opción default, ocultando específicos."); // Debug
-        }
-    }
+        // Importante: Los campos FileField son opcionales en el RegistroForm
+        // Por lo tanto, NO deben ser marcados como 'required' por JavaScript aquí.
+        // Django determinará si son requeridos o no basándose en el form.
+        if (cvInput) cvInput.removeAttribute('required'); 
+        if (certificadoInput) certificadoInput.removeAttribute('required');
 
-    // ... (El resto de tus funciones JS existentes: togglePassword, formatRut) ...
-    function togglePassword(id, icon) {
-        const input = document.getElementById(id);
-        if (!input) return;
-        if (input.type === "password") {
-            input.type = "text";
-            icon.classList.remove("bi-eye-slash");
-            icon.classList.add("bi-eye");
-        } else {
-            input.type = "password";
-            icon.classList.remove("bi-eye");
-            icon.classList.add("bi-eye-slash");
-        }
-    }
+        // Mostrar y requerir los campos correctos
+        if (tipoUsuario === 'persona') {
+            console.log("Mostrando campos Persona"); // Debug
+            personaFields.style.display = 'block';
+            // Marcar como requeridos los campos de Persona Natural que DEBEN ser requeridos (e.g., nombres, apellidos)
+            // Los campos de archivo (CV, certificado) son OPCIONALES, por lo que NO se marcan como requeridos aquí.
+            personaInputs.forEach(input => {
+                if (input.name === 'nombres' || input.name === 'apellidos' || input.name === 'fecha_nacimiento' || input.name === 'nacionalidad') {
+                    input.required = true;
+                }
+            });
+        } else if (tipoUsuario === 'empresa') {
+            console.log("Mostrando campos Empresa"); // Debug
+            empresaFields.style.display = 'block';
+            // Los campos de empresa se rellenan automáticamente (readonly disabled), por lo tanto no se marcan como required
+            // Asegúrate de que tu Django Form NO los marque como required al iniciar
+        } else {
+            console.log("Tipo no reconocido u opción default, ocultando específicos."); // Debug
+        }
+    }
 
-    function formatRut(rut) {
-        let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
-        let body = ''; let dv = '';
-        if (cleanRut.length > 1) { dv = cleanRut.slice(-1); body = cleanRut.slice(0, -1); }
-        else { if (cleanRut !== 'K'){ body = cleanRut; } else { dv = 'K'; } }
-        body = body.slice(0, 8);
-        if (body.length === 0) { return dv; }
-        let formatted = body; if (dv !== '') { formatted += '-' + dv; }
-        return formatted;
-    }
+    // ... (El resto de tus funciones JS existentes: togglePassword, formatRut) ...
+    function togglePassword(id, icon) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("bi-eye-slash");
+            icon.classList.add("bi-eye");
+        } else {
+            input.type = "password";
+            icon.classList.remove("bi-eye");
+            icon.classList.add("bi-eye-slash");
+        }
+    }
+
+    function formatRut(rut) {
+        let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
+        let body = ''; let dv = '';
+        if (cleanRut.length > 1) { dv = cleanRut.slice(-1); body = cleanRut.slice(0, -1); }
+        else { if (cleanRut !== 'K'){ body = cleanRut; } else { dv = 'K'; } }
+        body = body.slice(0, 8);
+        if (body.length === 0) { return dv; }
+        let formatted = body; if (dv !== '') { formatted += '-' + dv; }
+        return formatted;
+    }
 
 
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM Cargado, configurando listeners."); // Debug
-        toggleUsuarioFields(); // Llamada inicial
-        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-        if (tipoUsuarioSelect) {
-            tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
-        } else {
-            console.error("Listener no añadido: 'id_tipo_usuario' no encontrado al cargar.");
-        }
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM Cargado, configurando listeners."); // Debug
+        toggleUsuarioFields(); // Llamada inicial
+        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+        if (tipoUsuarioSelect) {
+            tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+        } else {
+            console.error("Listener no añadido: 'id_tipo_usuario' no encontrado al cargar.");
+        }
 
-        // Listener para el RUT para formatearlo a medida que el usuario escribe
-        const rutInput = document.getElementById('id_username'); // ID del campo RUT
-        if (rutInput) {
-            rutInput.addEventListener('input', function (e) {
-                const originalValue = e.target.value; 
-                const formattedValue = formatRut(originalValue);
-                if (originalValue !== formattedValue) {
-                    let start = e.target.selectionStart; 
-                    let end = e.target.selectionEnd;
-                    let diff = formattedValue.length - originalValue.length;
-                    e.target.value = formattedValue;
-                    if (start !== null && end !== null) {
-                        try { e.target.setSelectionRange(start + diff, end + diff); } catch(err){}
-                    }
-                }
-            });
-            rutInput.addEventListener('blur', function(e) { e.target.value = formatRut(e.target.value); });
-        } else {
-            console.error("Listener de RUT no añadido: 'id_username' no encontrado.");
-        }
+        // Listener para el RUT para formatearlo a medida que el usuario escribe
+        const rutInput = document.getElementById('id_username'); // ID del campo RUT
+        if (rutInput) {
+            rutInput.addEventListener('input', function (e) {
+                const originalValue = e.target.value; 
+                const formattedValue = formatRut(originalValue);
+                if (originalValue !== formattedValue) {
+                    let start = e.target.selectionStart; 
+                    let end = e.target.selectionEnd;
+                    let diff = formattedValue.length - originalValue.length;
+                    e.target.value = formattedValue;
+                    if (start !== null && end !== null) {
+                        try { e.target.setSelectionRange(start + diff, end + diff); } catch(err){}
+                    }
+                }
+            });
+            rutInput.addEventListener('blur', function(e) { e.target.value = formatRut(e.target.value); });
+        } else {
+            console.error("Listener de RUT no añadido: 'id_username' no encontrado.");
+        }
 
-        // Mejorar la experiencia de los campos de fecha
-        const fechaNacimiento = document.getElementById('id_fecha_nacimiento');
-        if (fechaNacimiento) { fechaNacimiento.type = 'date'; }
-        else { console.warn("Elemento 'id_fecha_nacimiento' no encontrado para mejora."); }
+        // Mejorar la experiencia de los campos de fecha
+        const fechaNacimiento = document.getElementById('id_fecha_nacimiento');
+        if (fechaNacimiento) { fechaNacimiento.type = 'date'; }
+        else { console.warn("Elemento 'id_fecha_nacimiento' no encontrado para mejora."); }
 
-        // --- NUEVO SCRIPT: Habilitar campos de empresa antes del envío del formulario ---
-        const registerForm = document.querySelector('form');
-        if (registerForm) {
-            registerForm.addEventListener('submit', function() {
-                const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-                if (tipoUsuarioSelect && tipoUsuarioSelect.value === 'empresa') {
-                    // Habilitar los campos de empresa solo si el tipo de usuario es empresa
-                    const nombreEmpresaInput = document.getElementById('id_nombre_empresa');
-                    const razonSocialInput = document.getElementById('id_razon_social');
-                    const giroInput = document.getElementById('id_giro');
+        // --- NUEVO SCRIPT: Habilitar campos de empresa antes del envío del formulario ---
+        const registerForm = document.querySelector('form');
+        if (registerForm) {
+            registerForm.addEventListener('submit', function() {
+                const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+                if (tipoUsuarioSelect && tipoUsuarioSelect.value === 'empresa') {
+                    // Habilitar los campos de empresa solo si el tipo de usuario es empresa
+                    const nombreEmpresaInput = document.getElementById('id_nombre_empresa');
+                    const razonSocialInput = document.getElementById('id_razon_social');
+                    const giroInput = document.getElementById('id_giro');
 
-                    if (nombreEmpresaInput) nombreEmpresaInput.disabled = false;
-                    if (razonSocialInput) razonSocialInput.disabled = false;
-                    if (giroInput) giroInput.disabled = false;
+                    if (nombreEmpresaInput) nombreEmpresaInput.disabled = false;
+                    if (razonSocialInput) razonSocialInput.disabled = false;
+                    if (giroInput) giroInput.disabled = false;
 
-                    console.log("DEBUG JS: Campos de empresa habilitados para el envío.");
-                }
-            });
-        } else {
-            console.error("DEBUG JS: Formulario de registro no encontrado para añadir listener de submit.");
-        }
-    });
+                    console.log("DEBUG JS: Campos de empresa habilitados para el envío.");
+                }
+            });
+        } else {
+            console.error("DEBUG JS: Formulario de registro no encontrado para añadir listener de submit.");
+        }
+    });
 </script>
 {% endblock %}

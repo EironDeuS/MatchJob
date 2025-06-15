@@ -2,19 +2,23 @@
 
 from django.db import models
 from django.db.models import JSONField
-from datetime import datetime
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from django.db.models import Avg
 from django.core.validators import MinValueValidator, MaxValueValidator
-import os
 from django.urls import reverse
-import re
-from datetime import datetime
 from django.core.files.storage import default_storage
-from django.conf import settings
+from django.conf import settings # Solo si usas alguna configuración de settings.py en tus modelos
+from django.db.models import Avg
+
+
+import re
+import os
+import json
+from datetime import datetime
+
+from django.core.serializers.json import DjangoJSONEncoder
 
 
 # -----------------------------
@@ -220,79 +224,158 @@ class Empresa(models.Model):
         return self.usuario.ofertas_creadas.filter(esta_activa=True) # Usa related_name de OfertaTrabajo.creador
 
 # -----------------------------
-# CV
+# CV y certificado
 # -----------------------------
-#-- funcion para el cv_upload_to
-def cv_upload_to(instance, filename):
-    """
-    Genera la ruta y nombre de archivo para el CV subido.
-    Formato: cvs/RUT_nombreoriginal.extension
-    """
-    try:
-        rut_usuario = instance.persona.usuario.username
-    except AttributeError:
-        rut_usuario = 'sin_rut'
 
-    nombre_original, extension = os.path.splitext(filename)
-    nuevo_nombre = f"{rut_usuario}_{nombre_original}{extension}"
-    # Esta parte seguirá generando 'cvs/nombre.pdf'
-    ruta_final = os.path.join('cvs', nuevo_nombre) 
-    return ruta_final
+class EstadoDocumento(models.TextChoices):
+    PENDIENTE = 'pending', _('Pendiente de Procesamiento')
+    PROCESSING = 'processing', _('Procesando por IA')
+    PROCESSED = 'processed', _('Procesado Exitosamente')
+    REJECTED = 'rejected', _('Rechazado por IA')
+    ERROR = 'error', _('Error en Procesamiento')
+
 
 class CV(models.Model):
-    persona = models.OneToOneField(PersonaNatural, on_delete=models.CASCADE, related_name='cv')
+    persona = models.OneToOneField('PersonaNatural', on_delete=models.CASCADE, related_name='cv')
+    archivo_cv = models.CharField(max_length=500, blank=True, null=True) # Guarda la URL de GCS
     
-    # Campo principal para el archivo PDF del CV
-    archivo_cv = models.FileField(
-        _('Archivo CV'),
-        upload_to=cv_upload_to,
-        blank=True,
-        null=True
-    )
-
-    # *** EL CAMPO CLAVE: JSON completo de la IA ***
-    datos_analizados_ia = models.JSONField( 
-        _('Datos analizados por IA'),
-        blank=True,
-        null=True,
-        help_text="JSON completo de la información extraída del CV por la IA."
-    )
-
-    # Campos planos para una búsqueda/display rápido y básico
-    # Estos se poblarían desde el JSON_analizados_ia
-    nombre_completo = models.CharField(_('Nombre completo del CV'), max_length=200, blank=True, null=True)
-    email_contacto = models.EmailField(_('Correo de contacto'), blank=True, null=True)
+    # Este es el campo central para toda la información extraída por la IA
+    datos_analizados_ia = JSONField(encoder=DjangoJSONEncoder, default=dict) 
     
-    # Puedes mantener un resumen si quieres, o derivarlo del JSON si la IA lo provee
-    resumen_profesional = models.TextField(_('Resumen profesional'), blank=True, null=True)
+    # CAMPOS REDUNDANTES ELIMINADOS:
+    # nombre_completo
+    # email_contacto
+    # resumen_profesional
 
-
-    fecha_subida = models.DateTimeField(_('Fecha de subida'), auto_now_add=True)
-    fecha_actualizacion = models.DateTimeField(_('Fecha de actualización'), auto_now=True)
-
-    class Meta:
-        verbose_name = _('CV')
-        verbose_name_plural = _('CVs')
+    processing_status = models.CharField(
+        max_length=20,
+        choices=EstadoDocumento.choices,
+        default=EstadoDocumento.PENDIENTE
+    )
+    rejection_reason = models.TextField(blank=True, null=True)
+    last_processed_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"CV de {self.nombre_completo or self.persona.usuario.username}"
+        return f"CV de {self.persona.usuario.username} ({self.get_processing_status_display()})"
 
-    # Propiedades para acceder fácilmente a datos del JSON (ejemplos)
+    # --- PROPIEDADES PARA ACCEDER A LOS DATOS CLAVE DEL CV DESDE EL JSONFIELD ---
     @property
-    def experiencia_laboral_ia(self):
-        return self.datos_analizados_ia.get('experiencia_laboral', []) if self.datos_analizados_ia else []
-
-    @property
-    def educacion_ia(self):
-        return self.datos_analizados_ia.get('educacion', []) if self.datos_analizados_ia else []
+    def nombre_completo_cv(self):
+        """Devuelve el nombre completo extraído del CV."""
+        return self.datos_analizados_ia.get('datos_personales', {}).get('nombre_completo')
 
     @property
-    def habilidades_ia_dict(self):
-        return self.datos_analizados_ia.get('habilidades', {}) if self.datos_analizados_ia else {}
+    def email_contacto_cv(self):
+        """Devuelve el email de contacto extraído del CV, validando su formato."""
+        email = self.datos_analizados_ia.get('datos_personales', {}).get('email')
+        # Validar un formato básico de email. Si no es válido, devuelve None.
+        if email and re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
+            return email
+        return None
 
     @property
-    def idiomas_ia_list(self):
-        return self.datos_analizados_ia.get('idiomas', []) if self.datos_analizados_ia else []
+    def telefono_cv(self):
+        """Devuelve el número de teléfono extraído del CV."""
+        return self.datos_analizados_ia.get('datos_personales', {}).get('telefono')
+
+    @property
+    def rut_o_dni_cv(self):
+        """Devuelve el RUT/DNI extraído del CV."""
+        return self.datos_analizados_ia.get('datos_personales', {}).get('rut_o_dni')
+
+    @property
+    def resumen_ejecutivo_cv(self):
+        """Devuelve el resumen ejecutivo o perfil profesional extraído del CV."""
+        return self.datos_analizados_ia.get('resumen_ejecutivo')
+
+    @property
+    def experiencia_laboral_cv(self):
+        """Devuelve la lista de experiencias laborales extraídas del CV."""
+        return self.datos_analizados_ia.get('experiencia_laboral', [])
+
+    @property
+    def educacion_cv(self):
+        """Devuelve la lista de educación extraída del CV."""
+        return self.datos_analizados_ia.get('educacion', [])
+
+    @property
+    def habilidades_cv(self):
+        """Devuelve el diccionario de habilidades extraídas del CV."""
+        return self.datos_analizadas_ia.get('habilidades', {})
+
+    @property
+    def idiomas_cv(self):
+        """Devuelve la lista de idiomas extraídas del CV."""
+        return self.datos_analizadas_ia.get('idiomas', [])
+
+
+class CertificadoAntecedentes(models.Model):
+    persona = models.OneToOneField('PersonaNatural', on_delete=models.CASCADE, related_name='certificado_antecedentes')
+    archivo_certificado = models.CharField(max_length=500, blank=True, null=True) 
+
+    # Este es el campo central para toda la información extraída por la IA
+    datos_analizados_ia = JSONField(encoder=DjangoJSONEncoder, default=dict)
+
+    # CAMPOS REDUNDANTES ELIMINADOS:
+    # rut_certificado
+    # nombre_completo_certificado
+    # fecha_emision
+    # numero_documento
+    # tiene_anotaciones_vigentes
+    # institucion_emisora
+
+    processing_status = models.CharField(
+        max_length=20,
+        choices=EstadoDocumento.choices,
+        default=EstadoDocumento.PENDIENTE
+    )
+    rejection_reason = models.TextField(blank=True, null=True)
+    last_processed_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = _('Certificado de Antecedentes')
+        verbose_name_plural = _('Certificados de Antecedentes')
+        ordering = ['-last_processed_at']
+
+    def __str__(self):
+        return f"Certificado de {self.persona.usuario.username} ({self.get_processing_status_display()})"
+
+    # --- PROPIEDADES PARA ACCEDER A LOS DATOS CLAVE DEL CERTIFICADO DESDE EL JSONFIELD ---
+    @property
+    def rut_certificado_extraido(self):
+        """Devuelve el RUT extraído del certificado."""
+        return self.datos_analizados_ia.get('rut')
+
+    @property
+    def nombre_completo_certificado_extraido(self):
+        """Devuelve el nombre completo extraído del certificado."""
+        return self.datos_analizados_ia.get('nombre_completo')
+
+    @property
+    def fecha_emision_certificado_extraida(self):
+        """Devuelve la fecha de emisión extraída del certificado como objeto date."""
+        fecha_str = self.datos_analizados_ia.get('fecha_emision')
+        if fecha_str:
+            try:
+                return datetime.datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            except ValueError:
+                return None
+        return None
+
+    @property
+    def numero_documento_certificado_extraido(self):
+        """Devuelve el número de documento/folio extraído del certificado."""
+        return self.datos_analizados_ia.get('numero_documento')
+
+    @property
+    def tiene_anotaciones_vigentes_certificado_extraido(self):
+        """Indica si el certificado tiene anotaciones vigentes (boolean)."""
+        return self.datos_analizados_ia.get('tiene_anotaciones_vigentes')
+
+    @property
+    def institucion_emisora_certificado_extraida(self):
+        """Devuelve la institución emisora del certificado."""
+        return self.datos_analizados_ia.get('institucion_emisora')
 
 # -----------------------------
 # Categoría
@@ -561,77 +644,3 @@ class MuestraTrabajo(models.Model):
     def es_imagen(self):
         return self.archivo.name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))
 
-# ------------------------------------
-# Certificado de Antecedentes
-# # ------------------------------------
-class CertificadoAntecedentes(models.Model):
-    # ¡ESTO ES CORRECTO Y ES LA BASE DE LA SOLUCIÓN!
-    persona = models.OneToOneField(PersonaNatural, on_delete=models.CASCADE, related_name='certificado_antecedentes')
-    
-    certificado_archivo = models.FileField(upload_to='certificados/', blank=True, null=True)
-    datos_extraidos = JSONField(default=dict, blank=True, null=True, verbose_name="Datos del Certificado extraídos por IA")
-    
-    esta_verificado = models.BooleanField(default=False, verbose_name="Certificado Verificado (por el sistema o manualmente)")
-    fecha_subida = models.DateTimeField(auto_now_add=True)
-    fecha_actualizacion = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = _('Certificado de Antecedentes')
-        verbose_name_plural = _('Certificados de Antecedentes')
-        ordering = ['-fecha_subida']
-
-
-    def __str__(self):
-        # ¡CORREGIDO! Ahora accedes a través de self.persona para llegar al usuario.
-        return f"Certificado de Antecedentes de {self.persona.usuario.username}"
-
-    @property
-    def run_extraido(self):
-        return self.datos_extraidos.get('rut') if self.datos_extraidos else 'N/A' 
-
-    @property
-    def nombre_completo_extraido(self):
-        return self.datos_extraidos.get('nombre_completo') if self.datos_analizados_ia else 'N/A'
-
-    @property
-    def tiene_antecedentes_extraido(self):
-        if self.datos_extraidos and 'antecedentes_penales' in self.datos_extraidos:
-            return self.datos_extraidos['antecedentes_penales'].upper() == 'CON ANTECEDENTES'
-        return None
-
-    @property
-    def fecha_emision_extraida(self):
-        fecha_str = self.datos_extraidos.get('fecha_emision') 
-        if fecha_str:
-            try:
-                return datetime.strptime(fecha_str, '%Y-%m-%d').date()
-            except ValueError:
-                pass
-        return None
-
-    def delete(self, *args, **kwargs):
-        # Asegúrate de que default_storage esté importado si lo usas aquí
-        from django.core.files.storage import default_storage # Importación local si es necesario
-        from django.conf import settings # Importación local si es necesario
-
-        if self.certificado_url:
-            try:
-                file_path_in_gcs = self.certificado_url
-                
-                if file_path_in_gcs.startswith('https://storage.googleapis.com/'):
-                    bucket_name = os.getenv('GS_BUCKET_NAME', 'matchjob-media') 
-                    match = re.search(f'/{bucket_name}/(.*)', file_path_in_gcs)
-                    if match:
-                        file_path_in_gcs = match.group(1)
-                    else:
-                        print(f"DEBUG: No se pudo extraer la ruta del archivo de GCS de la URL: {file_path_in_gcs}")
-                        file_path_in_gcs = None
-                
-                if file_path_in_gcs and default_storage.exists(file_path_in_gcs):
-                    default_storage.delete(file_path_in_gcs)
-                    print(f"Archivo de certificado eliminado de GCS: {file_path_in_gcs}")
-                else:
-                    print(f"Advertencia: Archivo de certificado no encontrado en GCS para eliminar o ya no existe: {file_path_in_gcs}")
-            except Exception as e:
-                print(f"Error al intentar eliminar el archivo de certificado de GCS: {e}")
-        super().delete(*args, **kwargs)
