@@ -432,7 +432,8 @@ class OfertaTrabajo(models.Model):
             return True
         return self.fecha_cierre >= timezone.now().date()
     def get_absolute_url(self):
-     return reverse('detalle_oferta', args=[str(self.id)])
+        return reverse('detalle_oferta', args=[str(self.id)])
+
 # -----------------------------
 # Postulación
 # -----------------------------
