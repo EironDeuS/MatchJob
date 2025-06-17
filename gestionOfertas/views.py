@@ -1085,20 +1085,30 @@ def historial_valoraciones(request, usuario_id):
     # Postulaciones pendientes de valoración
     postulaciones_pendientes = []
     if request.user == usuario_perfil:  # Solo mostrar si es el propio usuario
-        if usuario_perfil.tipo_usuario == 'empresa':
-            postulaciones = Postulacion.objects.filter(
-                oferta__creador=usuario_perfil,
-                estado='finalizado'
-            ).select_related('persona', 'oferta')
-        elif usuario_perfil.tipo_usuario == 'persona':
-            postulaciones = usuario_perfil.personanatural.postulaciones.filter(
-                estado='finalizado'
-            ).select_related('oferta', 'oferta__creador')
-        else:
-            postulaciones = []
+        
+        # Preparamos una consulta base para postulaciones finalizadas
+        postulaciones_finalizadas = Postulacion.objects.filter(estado='finalizado')
 
-        for postulacion in postulaciones:
-            # Verificar si ya existe una valoración para esta postulación
+        if usuario_perfil.tipo_usuario == 'empresa':
+            # La lógica para empresa ya era correcta: solo puede crear ofertas.
+            postulaciones = postulaciones_finalizadas.filter(
+                oferta__creador=usuario_perfil
+            )
+        
+        elif usuario_perfil.tipo_usuario == 'persona':
+            # --- AQUÍ ESTÁ LA CORRECCIÓN ---
+            # Buscamos postulaciones donde la persona es el POSTULANTE O el CREADOR de la oferta.
+            # Asumo que el modelo Postulacion tiene un campo 'persona' que apunta a PersonaNatural
+            # y PersonaNatural tiene un campo 'usuario' que apunta a Usuario.
+            postulaciones = postulaciones_finalizadas.filter(
+                Q(persona__usuario=usuario_perfil) | Q(oferta__creador=usuario_perfil)
+            ).distinct() # .distinct() para evitar duplicados si una persona se postula a su propia oferta (caso borde)
+
+        else:
+            postulaciones = Postulacion.objects.none() # Manera más limpia de devolver un queryset vacío
+
+        # El resto de tu lógica para verificar si ya existe una valoración es correcta y no necesita cambios.
+        for postulacion in postulaciones.select_related('persona', 'oferta', 'oferta__creador'):
             if not Valoracion.objects.filter(postulacion=postulacion, emisor=request.user).exists():
                 postulaciones_pendientes.append(postulacion)
 
