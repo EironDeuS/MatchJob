@@ -1,5 +1,5 @@
 {# gestionOfertas/emails/confirmacion_contratacion.html #}
-{% load i18n %} 
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>¡Felicitaciones! Has sido contratado/a</title>
     <style>
-        /* Estilos básicos para el correo electrónico */
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 20px auto; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         .header { background-color: #007bff; color: #ffffff; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; }
@@ -22,27 +21,34 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>¡Noticias de Contratación!</h2>
+            <h2>¡Felicitaciones por tu nueva contratación!</h2>
         </div>
         <div class="content">
             <p>Estimado/a <strong>{{ postulante.nombres }} {{ postulante.apellidos }}</strong>,</p>
-            <p>Nos complace informarte que la empresa <strong>{{ empresa.nombre_empresa }}</strong> te ha seleccionado para la oferta de trabajo:</p>
+            <p>Nos complace informarte que <strong>{{ contratante_nombre }}</strong> te ha seleccionado para la oferta de trabajo:</p>
             <h3>{{ oferta.nombre }}</h3>
-            <p>La fecha de contratación efectiva, según nuestros registros, es el {{ fecha_contratacion_formateada }}.</p> {# ¡CAMBIO AQUI: Usar la variable formateada! #}
+            <p>La fecha de contratación efectiva, según nuestros registros, es el <strong>{{ fecha_contratacion_formateada }}</strong>.</p>
+
             <p><strong>Detalles de la oferta:</strong></p>
             <ul>
-                <li><strong>Empresa:</strong> {{ empresa.nombre_empresa }}</li>
-                <li><strong>Razón Social:</strong> {{ empresa.razon_social }}</li>
-                <li><strong>Giro:</strong> {{ empresa.giro }}</li>
+                {% if es_empresa %}
+                    <li><strong>Empresa:</strong> {{ contratante_nombre }}</li>
+                    <li><strong>Razón Social:</strong> {{ razon_social }}</li>
+                    <li><strong>Giro:</strong> {{ giro }}</li>
+                {% else %}
+                    <li><strong>Contratante:</strong> Persona Natural - {{ contratante_nombre }}</li>
+                {% endif %}
                 <li><strong>Salario:</strong> {{ oferta.salario|default_if_none:"No especificado" }}</li>
-                <li><strong>Tipo de Contrato:</strong> {{ oferta.get_tipo_contrato_display }}</li>
+                <li><strong>Tipo de Contrato:</strong> {{ oferta.get_tipo_contrato_display|default:"No especificado" }}</li>
                 <li><strong>Ubicación:</strong> {{ oferta.direccion|default_if_none:"No especificada" }}</li>
             </ul>
-            <p>Por favor, ponte en contacto con la empresa para los siguientes pasos.</p>
-            <p>Puedes ver los detalles de tu postulación y la oferta en nuestro sitio web:</p>
+
+            <p>Te recomendamos ponerte en contacto con el contratante para coordinar los siguientes pasos.</p>
+
             <p style="text-align: center;">
                 <a href="{{ url_sitio }}{% url 'detalle_oferta' oferta.id %}" class="button">Ver Oferta en MatchJob</a>
             </p>
+
             <p>Atentamente,</p>
             <p>El equipo de MatchJob</p>
             <p>Fecha de envío: {{ fecha_actual }}</p>
