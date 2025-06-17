@@ -12,7 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Cargar variables de entorno del archivo .env (para desarrollo local)
 load_dotenv()
 
-SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
+# SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
+SIMPLEAPI_API_KEY='6647-W930-6391-1081-4347'
 
 # --- MESSAGE TAGS (Django Messages Framework) ---
 MESSAGE_TAGS = {
@@ -306,6 +307,10 @@ LOGGING = {
 
 GOOGLE_MAPS_API_KEY ='AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0'
 
-
+GOOGLE_API_KEY='asdasd'
 
 LOGIN_URL = '/iniciar_sesion/'
+
+# Configuración de los umbrales de IA para postulaciones
+UMBRAL_IA_APROBADO_NORMAL = 70.00
+UMBRAL_IA_APROBADO_URGENTE = 55.00 # Más permisivo

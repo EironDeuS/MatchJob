@@ -15,9 +15,13 @@ from pypdf.errors import PdfReadError
 from django.core.validators import RegexValidator
 import googlemaps
 from django.conf import settings
+import logging
 from gestionOfertas.utils import validar_rut_empresa
 from .utils import validate_rut_format, clean_rut, validar_rut_empresa 
 from .models import Usuario, PersonaNatural, CV, CertificadoAntecedentes, EstadoDocumento 
+
+logger = logging.getLogger(__name__)
+
 
 
 class LoginForm(AuthenticationForm):
@@ -201,27 +205,58 @@ class CertificadoValidationMixin:
         
         return present_general and present_content
 
-# --- FORMULARIO PRINCIPAL ---
-class EditarPerfilPersonaForm(CVValidationMixin, CertificadoValidationMixin, forms.ModelForm):
-    # Campos de Usuario (del modelo Usuario directamente)
-    correo = forms.EmailField(
-        label="Correo electrónico",
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tu@ejemplo.com'})
-    )
-    telefono = forms.CharField(
-        label="Teléfono",
-        max_length=20,
+# --- NUEVO UsuarioForm ---
+# --- UsuarioPerfilForm ---
+class UsuarioPerfilForm(forms.ModelForm):
+    ubicacion_display = forms.CharField(
+        label='Dirección (arrastra el marcador o busca)',
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: +56912345678'})
-    )
-    direccion = forms.CharField(
-        label="Dirección",
-        max_length=255,
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Calle Falsa 123'})
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ej: Av. Libertador Bernardo O\'Higgins 340, Santiago'
+        })
     )
 
-    # Campos de archivo (serán validados por las mixins)
+    class Meta:
+        model = Usuario
+        fields = ['correo', 'telefono', 'direccion', 'latitud', 'longitud']
+        widgets = {
+            'correo': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tu@ejemplo.com'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: +56912345678'}),
+            'direccion': forms.HiddenInput(),
+            'latitud': forms.HiddenInput(),
+            'longitud': forms.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.instance and self.instance.direccion and not self.is_bound:
+            self.fields['ubicacion_display'].initial = self.instance.direccion
+        
+    def clean_correo(self):
+        correo = self.cleaned_data.get('correo')
+        if correo:
+            usuario_qs = Usuario.objects.filter(correo=correo)
+            if self.instance and self.instance.pk: # Usar self.instance para el usuario actual
+                usuario_qs = usuario_qs.exclude(pk=self.instance.pk)
+            if usuario_qs.exists():
+                raise forms.ValidationError(_("Este correo ya está registrado."))
+        return correo
+
+    def clean(self):
+        cleaned_data = super().clean()
+        ubicacion_display = cleaned_data.get('ubicacion_display')
+        
+        if not ubicacion_display:
+            cleaned_data['latitud'] = None
+            cleaned_data['longitud'] = None
+            cleaned_data['direccion'] = None
+        # No necesitas más lógica de geocodificación aquí si JS lo hace.
+        return cleaned_data
+    
+# --- MANTÉN PersonaNaturalForm para sus propios campos ---
+class PersonaNaturalPerfilForm(CVValidationMixin, CertificadoValidationMixin, forms.ModelForm):
     cv_archivo = forms.FileField( 
         label="Subir nuevo Currículum Vitae (PDF)",
         required=False, 
@@ -236,7 +271,6 @@ class EditarPerfilPersonaForm(CVValidationMixin, CertificadoValidationMixin, for
     class Meta:
         model = PersonaNatural
         fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad']
-        
         widgets = {
             'nombres': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Nombres'}),
             'apellidos': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Apellidos'}),
@@ -248,131 +282,351 @@ class EditarPerfilPersonaForm(CVValidationMixin, CertificadoValidationMixin, for
         }
 
     def __init__(self, *args, **kwargs):
-        self.usuario_actual = kwargs.pop('usuario_actual', None) 
         super().__init__(*args, **kwargs)
-
-        # Inicializar campos de Usuario a partir de la instancia de Usuario
-        if self.instance and hasattr(self.instance, 'usuario') and self.instance.usuario and not self.is_bound:
-            self.fields['correo'].initial = self.instance.usuario.correo
-            self.fields['telefono'].initial = self.instance.usuario.telefono
-            self.fields['direccion'].initial = self.instance.usuario.direccion
-
-        # --- Lógica para CV ---
+        
+        # Lógica para CV
         cv_instance = None
-        try:
-            cv_instance = self.instance.cv 
-        except CV.DoesNotExist:
-            cv_instance = None
-        except AttributeError:
-            cv_instance = None
+        try: 
+            cv_instance = self.instance.cv
+        except (CV.DoesNotExist, AttributeError): 
+            pass # No hay CV o self.instance es None
 
         cv_status_html = ""
-        # Verificar si hay una instancia de CV y si tiene un archivo asociado
+        # Verifica si cv_instance existe Y si el FileField tiene un archivo asociado (no es None o vacío)
         if cv_instance and cv_instance.archivo_cv:
             try:
-                cv_url = default_storage.url(cv_instance.archivo_cv)
-
-                # ¡CAMBIO AQUÍ! Usar 'processing_status' en lugar de 'estado'
-                status_code = cv_instance.processing_status 
-                status_display = cv_instance.get_processing_status_display() 
-
-                status_class = "text-secondary" 
-                status_icon = '<i class="bi bi-info-circle-fill me-1"></i>' 
-
-                if status_code == EstadoDocumento.PENDIENTE:
-                    status_class = "text-warning" 
-                    status_icon = '<i class="bi bi-hourglass-split me-1"></i>' 
-                elif status_code == EstadoDocumento.PROCESSING:
-                    status_class = "text-info" 
-                    status_icon = '<i class="bi bi-arrow-repeat me-1"></i>' 
-                elif status_code == EstadoDocumento.PROCESSED:
-                    status_class = "text-success" 
-                    status_icon = '<i class="bi bi-check-circle-fill me-1"></i>' 
-                elif status_code == EstadoDocumento.REJECTED:
-                    status_class = "text-danger" 
-                    status_icon = '<i class="bi bi-x-circle-fill me-1"></i>' 
-                elif status_code == EstadoDocumento.ERROR:
-                    status_class = "text-danger" 
-                    status_icon = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' 
-
-                cv_status_html = (
-                    f'CV actual: <a href="{cv_url}" target="_blank" class="fw-bold">Ver CV</a>. '
-                    f'Sube uno nuevo para reemplazar. Estado: <span class="{status_class} fw-bold">{status_icon}{status_display}</span>'
-                )
-            except Exception as e:
-                cv_status_html = f'<span class="text-danger">Error al cargar CV o su estado: {e}</span>'
-        else:
-            cv_status_html = "No has subido un CV aún. Sube uno aquí."
-
-        self.fields['cv_archivo'].help_text = mark_safe(cv_status_html)
-
-
-        # --- Lógica para Certificado de Antecedentes ---
-        cert_instance = None
-        try:
-            cert_instance = self.instance.certificado_antecedentes 
-        except CertificadoAntecedentes.DoesNotExist:
-            cert_instance = None
-        except AttributeError:
-            cert_instance = None
-
-        cert_status_html = ""
-        # Verificar si hay una instancia de Certificado y si tiene un archivo asociado
-        if cert_instance and cert_instance.archivo_certificado:
-            try:
-                cert_url = default_storage.url(cert_instance.archivo_certificado)
-
-                # ¡CAMBIO AQUÍ! Asumo que CertificadoAntecedentes también tiene 'processing_status'
-                # Si en tu modelo CertificadoAntecedentes el campo se llama 'estado' (o cualquier otra cosa),
-                # deberás cambiar 'processing_status' por el nombre correcto en esta línea.
-                status_code = cert_instance.processing_status 
-                status_display = cert_instance.get_processing_status_display()
-
+                # ¡CAMBIO AQUÍ! Acceder a la URL directamente desde el FileField
+                cv_url = cv_instance.archivo_cv.url 
+                
+                status_code = cv_instance.processing_status
+                status_display = cv_instance.get_processing_status_display()
                 status_class = "text-secondary"
                 status_icon = '<i class="bi bi-info-circle-fill me-1"></i>'
+                
+                if status_code == EstadoDocumento.PENDIENTE: 
+                    status_class = "text-warning"; status_icon = '<i class="bi bi-hourglass-split me-1"></i>'
+                elif status_code == EstadoDocumento.PROCESSING: 
+                    status_class = "text-info"; status_icon = '<i class="bi bi-arrow-repeat me-1"></i>'
+                elif status_code == EstadoDocumento.PROCESSED: 
+                    status_class = "text-success"; status_icon = '<i class="bi bi-check-circle-fill me-1"></i>'
+                elif status_code in [EstadoDocumento.REJECTED, EstadoDocumento.ERROR]: 
+                    status_class = "text-danger"; status_icon = '<i class="bi bi-x-circle-fill me-1"></i>'
+                
+                cv_status_html = (f'CV actual: <a href="{cv_url}" target="_blank" class="fw-bold">Ver CV</a>. '
+                                  f'Sube uno nuevo para reemplazar. Estado: <span class="{status_class} fw-bold">{status_icon}{status_display}</span>')
+            except Exception as e:
+                cv_status_html = f'<span class="text-danger">Error al cargar CV o su estado: {e}</span>'
+        else: 
+            cv_status_html = "No has subido un CV aún. Sube uno aquí."
+        self.fields['cv_archivo'].help_text = mark_safe(cv_status_html)
 
-                if status_code == EstadoDocumento.PENDIENTE:
-                    status_class = "text-warning"
-                    status_icon = '<i class="bi bi-hourglass-split me-1"></i>'
-                elif status_code == EstadoDocumento.PROCESSING:
-                    status_class = "text-info"
-                    status_icon = '<i class="bi bi-arrow-repeat me-1"></i>'
-                elif status_code == EstadoDocumento.PROCESSED:
-                    status_class = "text-success"
-                    status_icon = '<i class="bi bi-check-circle-fill me-1"></i>'
-                elif status_code == EstadoDocumento.REJECTED:
-                    status_class = "text-danger"
-                    status_icon = '<i class="bi bi-x-circle-fill me-1"></i>'
-                elif status_code == EstadoDocumento.ERROR:
-                    status_class = "text-danger"
-                    status_icon = '<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+        # Lógica para Certificado
+        cert_instance = None
+        try: 
+            cert_instance = self.instance.certificado_antecedentes
+        except (CertificadoAntecedentes.DoesNotExist, AttributeError): 
+            pass # No hay certificado o self.instance es None
 
-                cert_status_html = (
-                    f'Certificado actual: <a href="{cert_url}" target="_blank" class="fw-bold">Ver Certificado</a>. '
-                    f'Sube uno nuevo para reemplazar. Estado: <span class="{status_class} fw-bold">{status_icon}{status_display}</span>'
-                )
+        cert_status_html = ""
+        # Verifica si cert_instance existe Y si el FileField tiene un archivo asociado (no es None o vacío)
+        if cert_instance and cert_instance.archivo_certificado:
+            try:
+                # ¡CAMBIO AQUÍ! Acceder a la URL directamente desde el FileField
+                cert_url = cert_instance.archivo_certificado.url
+                
+                status_code = cert_instance.processing_status
+                status_display = cert_instance.get_processing_status_display()
+                status_class = "text-secondary"
+                status_icon = '<i class="bi bi-info-circle-fill me-1"></i>'
+                
+                if status_code == EstadoDocumento.PENDIENTE: 
+                    status_class = "text-warning"; status_icon = '<i class="bi bi-hourglass-split me-1"></i>'
+                elif status_code == EstadoDocumento.PROCESSING: 
+                    status_class = "text-info"; status_icon = '<i class="bi bi-arrow-repeat me-1"></i>'
+                elif status_code == EstadoDocumento.PROCESSED: 
+                    status_class = "text-success"; status_icon = '<i class="bi bi-check-circle-fill me-1"></i>'
+                elif status_code in [EstadoDocumento.REJECTED, EstadoDocumento.ERROR]: 
+                    status_class = "text-danger"; status_icon = '<i class="bi bi-x-circle-fill me-1"></i>'
+                
+                cert_status_html = (f'Certificado actual: <a href="{cert_url}" target="_blank" class="fw-bold">Ver Certificado</a>. '
+                                    f'Sube uno nuevo para reemplazar. Estado: <span class="{status_class} fw-bold">{status_icon}{status_display}</span>')
             except Exception as e:
                 cert_status_html = f'<span class="text-danger">Error al cargar Certificado o su estado: {e}</span>'
-        else:
+        else: 
             cert_status_html = "No has subido un certificado de antecedentes aún. Sube uno aquí."
-
         self.fields['certificado_pdf'].help_text = mark_safe(cert_status_html)
 
+# --- FORMULARIO PRINCIPAL ---
+# class EditarPerfilPersonaForm(CVValidationMixin, CertificadoValidationMixin, forms.ModelForm):
+#     # ... (Todos tus campos actuales: correo, telefono, ubicacion_display, direccion, latitud, longitud, cv_archivo, certificado_pdf) ...
+#     correo = forms.EmailField(
+#         label="Correo electrónico",
+#         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tu@ejemplo.com'})
+#     )
+#     telefono = forms.CharField(
+#         label="Teléfono",
+#         max_length=20,
+#         required=False,
+#         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: +56912345678'})
+#     )
+    
+#     ubicacion_display = forms.CharField(
+#         label='Dirección (arrastra el marcador o busca)',
+#         required=False,
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'placeholder': 'Ej: Av. Libertador Bernardo O\'Higgins 340, Santiago'
+#         })
+#     )
+    
+#     direccion = forms.CharField(
+#         widget=forms.HiddenInput(),
+#         required=False
+#     )
+#     latitud = forms.FloatField(
+#         widget=forms.HiddenInput(),
+#         required=False
+#     )
+#     longitud = forms.FloatField(
+#         widget=forms.HiddenInput(),
+#         required=False
+#     )
 
-    def clean_correo(self):
-        correo = self.cleaned_data.get('correo')
-        if correo:
-            usuario_qs = Usuario.objects.filter(correo=correo)
-            if self.usuario_actual:
-                usuario_qs = usuario_qs.exclude(pk=self.usuario_actual.pk)
-            if usuario_qs.exists():
-                raise forms.ValidationError("Este correo ya está registrado.")
-        return correo
+#     cv_archivo = forms.FileField( 
+#         label="Subir nuevo Currículum Vitae (PDF)",
+#         required=False, 
+#         widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'})
+#     )
+#     certificado_pdf = forms.FileField(
+#         label="Subir nuevo Certificado de Antecedentes (PDF)",
+#         required=False, 
+#         widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.pdf'})
+#     )
 
-    def clean(self):
-        cleaned_data = super().clean()
-        # Puedes añadir validaciones adicionales aquí
-        return cleaned_data
+#     class Meta:
+#         model = PersonaNatural
+#         fields = ['nombres', 'apellidos', 'fecha_nacimiento', 'nacionalidad']
+        
+#         widgets = {
+#             'nombres': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Nombres'}),
+#             'apellidos': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tus Apellidos'}),
+#             'fecha_nacimiento': forms.DateInput(
+#                 attrs={'type': 'date', 'class': 'form-control'},
+#                 format='%Y-%m-%d'
+#             ),
+#             'nacionalidad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Chilena'}),
+#         }
+
+#     def __init__(self, *args, **kwargs):
+#         self.usuario_actual = kwargs.pop('usuario_actual', None) 
+#         super().__init__(*args, **kwargs)
+
+#         if self.instance and hasattr(self.instance, 'usuario') and self.instance.usuario:
+#             usuario = self.instance.usuario
+#             if not self.is_bound:
+#                 self.fields['correo'].initial = usuario.correo
+#                 self.fields['telefono'].initial = usuario.telefono
+#                 self.fields['direccion'].initial = usuario.direccion
+#                 self.fields['latitud'].initial = usuario.latitud
+#                 self.fields['longitud'].initial = usuario.longitud
+#                 self.fields['ubicacion_display'].initial = usuario.direccion # Asegúrate de que esto se precargue si hay dirección
+
+#         # --- Lógica para CV (mantener igual) ---
+#         cv_instance = None
+#         try:
+#             cv_instance = self.instance.cv 
+#         except CV.DoesNotExist:
+#             cv_instance = None
+#         except AttributeError:
+#             cv_instance = None
+
+#         cv_status_html = ""
+#         if cv_instance and cv_instance.archivo_cv:
+#             try:
+#                 cv_url = default_storage.url(cv_instance.archivo_cv)
+#                 status_code = cv_instance.processing_status 
+#                 status_display = cv_instance.get_processing_status_display() 
+
+#                 status_class = "text-secondary" 
+#                 status_icon = '<i class="bi bi-info-circle-fill me-1"></i>' 
+
+#                 if status_code == EstadoDocumento.PENDIENTE:
+#                     status_class = "text-warning" 
+#                     status_icon = '<i class="bi bi-hourglass-split me-1"></i>' 
+#                 elif status_code == EstadoDocumento.PROCESSING:
+#                     status_class = "text-info" 
+#                     status_icon = '<i class="bi bi-arrow-repeat me-1"></i>' 
+#                 elif status_code == EstadoDocumento.PROCESSED:
+#                     status_class = "text-success" 
+#                     status_icon = '<i class="bi bi-check-circle-fill me-1"></i>' 
+#                 elif status_code == EstadoDocumento.REJECTED:
+#                     status_class = "text-danger" 
+#                     status_icon = '<i class="bi bi-x-circle-fill me-1"></i>' 
+#                 elif status_code == EstadoDocumento.ERROR:
+#                     status_class = "text-danger" 
+#                     status_icon = '<i class="bi bi-exclamation-triangle-fill me-1"></i>' 
+
+#                 cv_status_html = (
+#                     f'CV actual: <a href="{cv_url}" target="_blank" class="fw-bold">Ver CV</a>. '
+#                     f'Sube uno nuevo para reemplazar. Estado: <span class="{status_class} fw-bold">{status_icon}{status_display}</span>'
+#                 )
+#             except Exception as e:
+#                 cv_status_html = f'<span class="text-danger">Error al cargar CV o su estado: {e}</span>'
+#         else:
+#             cv_status_html = "No has subido un CV aún. Sube uno aquí."
+
+#         self.fields['cv_archivo'].help_text = mark_safe(cv_status_html)
+
+#         # --- Lógica para Certificado (mantener igual) ---
+#         cert_instance = None
+#         try:
+#             cert_instance = self.instance.certificado_antecedentes 
+#         except CertificadoAntecedentes.DoesNotExist:
+#             cert_instance = None
+#         except AttributeError:
+#             cert_instance = None
+
+#         cert_status_html = ""
+#         if cert_instance and cert_instance.archivo_certificado:
+#             try:
+#                 cert_url = default_storage.url(cert_instance.archivo_certificado)
+#                 status_code = cert_instance.processing_status 
+#                 status_display = cert_instance.get_processing_status_display()
+
+#                 status_class = "text-secondary"
+#                 status_icon = '<i class="bi bi-info-circle-fill me-1"></i>'
+
+#                 if status_code == EstadoDocumento.PENDIENTE:
+#                     status_class = "text-warning"
+#                     status_icon = '<i class="bi bi-hourglass-split me-1"></i>'
+#                 elif status_code == EstadoDocumento.PROCESSING:
+#                     status_class = "text-info"
+#                     status_icon = '<i class="bi bi-arrow-repeat me-1"></i>'
+#                 elif status_code == EstadoDocumento.PROCESSED:
+#                     status_class = "text-success"
+#                     status_icon = '<i class="bi bi-check-circle-fill me-1"></i>'
+#                 elif status_code == EstadoDocumento.REJECTED:
+#                     status_class = "text-danger"
+#                     status_icon = '<i class="bi bi-x-circle-fill me-1"></i>'
+#                 elif status_code == EstadoDocumento.ERROR:
+#                     status_class = "text-danger"
+#                     status_icon = '<i class="bi bi-exclamation-triangle-fill me-1"></i>'
+
+#                 cert_status_html = (
+#                     f'Certificado actual: <a href="{cert_url}" target="_blank" class="fw-bold">Ver Certificado</a>. '
+#                     f'Sube uno nuevo para reemplazar. Estado: <span class="{status_class} fw-bold">{status_icon}{status_display}</span>'
+#                 )
+#             except Exception as e:
+#                 cert_status_html = f'<span class="text-danger">Error al cargar Certificado o su estado: {e}</span>'
+#         else:
+#             cert_status_html = "No has subido un certificado de antecedentes aún. Sube uno aquí."
+
+#         self.fields['certificado_pdf'].help_text = mark_safe(cert_status_html)
+
+#     def clean_correo(self):
+#         correo = self.cleaned_data.get('correo')
+#         if correo:
+#             usuario_qs = Usuario.objects.filter(correo=correo)
+#             if self.usuario_actual:
+#                 usuario_qs = usuario_qs.exclude(pk=self.usuario_actual.pk)
+#             if usuario_qs.exists():
+#                 raise forms.ValidationError(_("Este correo ya está registrado."))
+#         return correo
+
+#     def clean(self):
+#         cleaned_data = super().clean()
+        
+#         ubicacion_display = cleaned_data.get('ubicacion_display')
+#         latitud = cleaned_data.get('latitud')
+#         longitud = cleaned_data.get('longitud')
+#         direccion = cleaned_data.get('direccion') # Obtener la direccion formateada del hidden input
+
+#         # Inicializar cliente de Google Maps para geocodificación
+#         gmaps = None
+#         if hasattr(settings, 'GOOGLE_MAPS_API_KEY') and settings.GOOGLE_MAPS_API_KEY:
+#             try:
+#                 gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+#             except ImportError:
+#                 logger.warning("googlemaps no está instalado, geocodificación deshabilitada")
+#             except Exception as e:
+#                 logger.error(f"Error al inicializar googlemaps en form.clean: {e}")
+
+#         # Lógica de validación y posible geocodificación/reverse geocodificación si los campos ocultos no se llenaron
+#         if ubicacion_display:
+#             if not (latitud and longitud): # Si ubicacion_display tiene valor pero coords no
+#                 if gmaps:
+#                     try:
+#                         geocode_result = gmaps.geocode(ubicacion_display)
+#                         if geocode_result:
+#                             location = geocode_result[0]['geometry']['location']
+#                             cleaned_data['latitud'] = location['lat']
+#                             cleaned_data['longitud'] = location['lng']
+#                             cleaned_data['direccion'] = geocode_result[0]['formatted_address'] # Actualiza el campo oculto
+#                             logger.info(f"Geocodificación exitosa en form.clean para: {ubicacion_display}")
+#                         else:
+#                             # Si no se pudo geocodificar, es un error de usuario (no seleccionó bien)
+#                             self.add_error('ubicacion_display', _('Por favor, selecciona una ubicación válida del autocompletado o arrastra el marcador en el mapa.'))
+#                             logger.warning(f"No se pudo geocodificar la dirección: {ubicacion_display}")
+#                     except Exception as e:
+#                         self.add_error('ubicacion_display', _(f'Error al geocodificar tu dirección: {e}'))
+#                         logger.error(f"Error en geocodificación en form.clean para {ubicacion_display}: {e}")
+#                 else:
+#                     self.add_error('ubicacion_display', _('No se pudo verificar la dirección debido a que la API de mapas no está disponible.'))
+#             elif (latitud and longitud) and not direccion: # Si hay coords pero no dirección formateada (raro si JS funciona)
+#                 if gmaps:
+#                     try:
+#                         reverse_geocode = gmaps.reverse_geocode((latitud, longitud))
+#                         if reverse_geocode:
+#                             cleaned_data['direccion'] = reverse_geocode[0]['formatted_address']
+#                             logger.info(f"Reverse geocodificación exitosa en form.clean para: ({latitud}, {longitud})")
+#                         else:
+#                             # Si no se pudo obtener la dirección formateada, usa la display
+#                             cleaned_data['direccion'] = ubicacion_display
+#                             logger.warning(f"No se pudo reverse-geocodificar coords: ({latitud}, {longitud}), usando ubicacion_display.")
+#                     except Exception as e:
+#                         logger.error(f"Error en reverse geocodificación en form.clean para ({latitud}, {longitud}): {e}")
+#                         cleaned_data['direccion'] = ubicacion_display # Asegurarse de tener algún valor
+#                 else:
+#                     cleaned_data['direccion'] = ubicacion_display # Sin gmaps, usamos lo que el usuario escribió
+
+
+#         # Si el usuario no proporcionó ninguna dirección (ubicacion_display está vacío),
+#         # limpia también las coordenadas para evitar guardar 0,0 si no hay intención de guardar una ubicación
+#         if not ubicacion_display:
+#             cleaned_data['latitud'] = None
+#             cleaned_data['longitud'] = None
+#             cleaned_data['direccion'] = None
+#             logger.info(f"Form.clean(): ubicacion_display vacio. Estableciendo lat/lng/dir a None. Result: lat={cleaned_data['latitud']}, lng={cleaned_data['longitud']}, dir={cleaned_data['direccion']}")
+#         else:
+#             logger.info(f"Form.clean(): ubicacion_display='{ubicacion_display}'. Final cleaned_data: lat={cleaned_data['latitud']}, lng={cleaned_data['longitud']}, dir={cleaned_data['direccion']}")
+#         return cleaned_data
+    
+#     def save(self, commit=True):
+#     # Debugging: imprimir cleaned_data antes de guardar
+#         logger.info(f"Form.save() DEBUG - cleaned_data: {self.cleaned_data}")
+        
+#         usuario = self.instance.usuario
+#         usuario.correo = self.cleaned_data.get('correo')
+#         usuario.telefono = self.cleaned_data.get('telefono')
+        
+#         # Verificar que los valores están llegando correctamente
+#         new_direccion = self.cleaned_data.get('direccion')
+#         new_latitud = self.cleaned_data.get('latitud')
+#         new_longitud = self.cleaned_data.get('longitud')
+        
+#         logger.info(f"Form.save() DEBUG - Valores a guardar: dir='{new_direccion}', lat={new_latitud}, lng={new_longitud}")
+        
+#         usuario.direccion = new_direccion
+#         usuario.latitud = new_latitud
+#         usuario.longitud = new_longitud
+        
+#         if commit:
+#             usuario.save()
+#             logger.info(f"Form.save() DEBUG - Usuario guardado. Verificando DB: dir='{usuario.direccion}', lat={usuario.latitud}, lng={usuario.longitud}")
+
+#         # Guardar PersonaNatural
+#         persona_natural = super().save(commit=commit)
+#         return persona_natural
     
 # --- RegistroForm: Cambios para añadir el campo de certificado ---
 # RegistroForm hereda de forms.Form, NO de forms.ModelForm
@@ -402,12 +656,32 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
         required=False,
         widget=forms.TextInput(attrs={'placeholder': '+569 XXXXXXXX', 'class': 'form-control'})
     )
-    direccion = forms.CharField(
-        label="Dirección",
-        max_length=255,
-        required=False,
-        widget=forms.TextInput(attrs={'placeholder': 'Calle, número, comuna', 'class': 'form-control'})
+    
+    # Campo para el autocompletado de la dirección
+    ubicacion_display = forms.CharField(
+        label=_('Dirección'), # Nuevo label
+        required=False, # Puede ser opcional en el registro si no se define una ubicación
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'id': 'id_ubicacion_display', # ID específico para el registro
+            'placeholder': _('Ej: Av. Libertador Bernardo O\'Higgins 340, Santiago')
+        })
     )
+    # Campos ocultos para la dirección formateada, latitud y longitud
+    direccion = forms.CharField( # Este campo se llenará automáticamente por JS
+        widget=forms.HiddenInput(),
+        required=False # Es opcional en el modelo, también aquí
+    )
+    latitud = forms.FloatField( # Este campo se llenará automáticamente por JS
+        widget=forms.HiddenInput(),
+        required=False # Es opcional en el modelo
+    )
+    longitud = forms.FloatField( # Este campo se llenará automáticamente por JS
+        widget=forms.HiddenInput(),
+        required=False # Es opcional en el modelo
+    )
+
+
     password = forms.CharField(
         label="Contraseña",
         required=True,
@@ -466,7 +740,6 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
     )
 
     # --- CAMPOS DE SUBIDA DE ARCHIVOS ---
-    # Estos son FileFields para recibir el archivo, la lógica de guardado es en la vista
     certificado_pdf = forms.FileField(
         label="Subir Certificado de Antecedentes (PDF)",
         required=False, # Opcional al registrarse
@@ -484,16 +757,14 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
     # --- Métodos clean (validación de campos individuales) ---
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        # Verificar si el RUT ya está registrado
         if Usuario.objects.filter(username=username).exists():
             raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
         
-        # Estandarización y validación del RUT usando las funciones importadas
         try:
             rut_formatted = validate_rut_format(username)
             return clean_rut(rut_formatted)
         except ValidationError as e:
-            raise forms.ValidationError(e.message) # Relanza la ValidationError de Django
+            raise forms.ValidationError(e.message)
 
     def clean_correo(self):
         correo = self.cleaned_data.get('correo')
@@ -513,6 +784,14 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
         tipo_usuario = cleaned_data.get('tipo_usuario')
         username_rut = cleaned_data.get('username') # Ya validado y formateado por clean_username
 
+        # Validar campos de ubicación si se proporcionó una dirección de display
+        ubicacion_display = cleaned_data.get('ubicacion_display')
+        latitud = cleaned_data.get('latitud')
+        longitud = cleaned_data.get('longitud')
+
+        if ubicacion_display and not (latitud and longitud):
+            self.add_error('ubicacion_display', _('Por favor, selecciona una ubicación válida del autocompletado o arrastra el marcador en el mapa.'))
+        
         # Validaciones para Persona Natural
         if tipo_usuario == 'persona': 
             required_fields_persona = {
@@ -525,18 +804,8 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
                 if not cleaned_data.get(field_name):
                     self.add_error(field_name, f"{label_name} es requerido para personas naturales.")
 
-            # Validación de archivos CV y Certificado si son requeridos en el registro
-            # Si required=False en el FileField y no quieres forzar la subida aquí,
-            # puedes comentar o eliminar estas líneas.
-            # if not self.cleaned_data.get('cv_archivo'):
-            #     self.add_error('cv_archivo', "Es obligatorio subir el CV al registrarse como persona natural.")
-            # if not self.cleaned_data.get('certificado_pdf'):
-            #     self.add_error('certificado_pdf', "Es obligatorio subir el Certificado de Antecedentes al registrarse como persona natural.")
-
-
         # Validaciones para Empresa (lógica del SII sin cambios)
         elif tipo_usuario == 'empresa':
-            # Asegurarse de que los campos específicos de empresa estén presentes
             required_fields_empresa = {
                 'nombre_empresa': 'Nombre de la Empresa',
                 'razon_social': 'Razón Social',
@@ -550,16 +819,19 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
                 resultado = validar_rut_empresa(username_rut) 
                 if resultado['valida']:
                     api_data = resultado['datos']
-                    
                     api_razon_social = api_data.get('razonSocial')
                     if api_razon_social:
-                        cleaned_data['razon_social'] = api_razon_social
-                        cleaned_data['nombre_empresa'] = api_razon_social # Asignar también a nombre_empresa
+                        # Si el usuario no proporcionó una razón social, usa la de la API
+                        if not cleaned_data.get('razon_social'):
+                            cleaned_data['razon_social'] = api_razon_social
+                        # Si el usuario no proporcionó un nombre de empresa, usa la razón social de la API
+                        if not cleaned_data.get('nombre_empresa'):
+                            cleaned_data['nombre_empresa'] = api_razon_social 
                     
                     api_actividades = api_data.get('actividadesEconomicas')
                     if api_actividades and len(api_actividades) > 0:
                         first_giro_desc = api_actividades[0].get('descripcion')
-                        if first_giro_desc:
+                        if first_giro_desc and not cleaned_data.get('giro'):
                             cleaned_data['giro'] = first_giro_desc
                 else:
                     self.add_error('username', f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
@@ -577,7 +849,9 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
             username=self.cleaned_data['username'],
             correo=self.cleaned_data['correo'],
             telefono=self.cleaned_data.get('telefono'),
-            direccion=self.cleaned_data.get('direccion'),
+            direccion=self.cleaned_data.get('direccion'), # <-- Guardar la dirección del formulario
+            latitud=self.cleaned_data.get('latitud'),     # <-- Guardar la latitud del formulario
+            longitud=self.cleaned_data.get('longitud'),   # <-- Guardar la longitud del formulario
             tipo_usuario=self.cleaned_data['tipo_usuario'],
             is_active=True # Se activa al registrarse
         )
@@ -586,8 +860,7 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
         if commit:
             user.save()
         
-        return user 
-
+        return user
 
 
 class UsuarioCreationForm(forms.ModelForm):

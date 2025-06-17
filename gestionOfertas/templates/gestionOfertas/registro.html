@@ -1,426 +1,618 @@
 {% extends 'gestionOfertas/base.html' %}
-{% load static %} 
+{% load static %}
 
 {% block title %}Registro - MatchJob{% endblock %}
 
 {% block content %}
 <style>
-  /* Tus estilos CSS existentes aquí */
-  .form-control, .form-select {
-    border-radius: 8px;
-    padding: 12px 15px;
-    border: 2px solid #e0e0e0;
-    transition: all 0.3s;
-  }
-  .form-control:focus, .form-select:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
-    outline: none;
-  }
-  .input-group-text {
-    background-color: #f8f9fa;
-    border: 2px solid #e0e0e0;
-    border-right: none;
-  }
-  .input-with-icon {
-    position: relative;
-  }
+    /* Tus estilos CSS existentes aquí (manténlos si ya los tienes) */
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 12px 15px;
+        border: 2px solid #e0e0e0;
+        transition: all 0.3s;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #4a90e2;
+        box-shadow: 0 0 0 0.25rem rgba(74, 144, 226, 0.25);
+        outline: none;
+    }
+    .input-group-text {
+        background-color: #f8f9fa;
+        border: 2px solid #e0e0e0;
+        border-right: none;
+    }
+    .input-with-icon {
+        position: relative;
+    }
 
-  .input-with-icon > i:not(.password-toggle) {
-    position: absolute;
-    top: 50%;
-    left: 15px;
-    transform: translateY(-50%);
-    color: #6c757d;
-    pointer-events: none;
-  }
-  .input-with-icon input,
-  .input-with-icon select,
-  .input-with-icon textarea {
-    padding-left: 40px;
-  }
-  .password-toggle {
-    position: absolute;
-    top: 50%;
-    right: 15px;
-    transform: translateY(-50%);
-    cursor: pointer;
-    color: #6c757d;
-  }
+    .input-with-icon > i:not(.password-toggle) {
+        position: absolute;
+        top: 50%;
+        left: 15px;
+        transform: translateY(-50%);
+        color: #6c757d;
+        pointer-events: none;
+    }
+    .input-with-icon input,
+    .input-with-icon select,
+    .input-with-icon textarea {
+        padding-left: 40px;
+    }
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #6c757d;
+    }
+
+    /* ESTILOS ESPECÍFICOS PARA EL MAPA */
+    #map-container {
+        height: 250px; /* Altura fija para el mapa */
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        margin-top: 15px;
+        overflow: hidden; /* Asegura que el mapa se ajuste al borde redondeado */
+    }
+    #map {
+        height: 100%;
+        width: 100%;
+    }
+    /* Asegura que el cuadro de sugerencias de Google Places esté por encima de otros elementos */
+    .pac-container {
+        z-index: 1050;
+    }
 </style>
 
 <div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
-      <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
-        <div class="card-header bg-primary text-white py-3">
-          <h2 class="text-center mb-0">Crear una cuenta</h2>
-        </div>
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-3 overflow-hidden">
+                <div class="card-header bg-primary text-white py-3">
+                    <h2 class="text-center mb-0">Crear una cuenta</h2>
+                </div>
 
-        <div class="card-body p-4 p-md-5">
-          {% if messages %}
-            {% for message in messages %}
-              <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>
-            {% endfor %}
-          {% endif %}
+                <div class="card-body p-4 p-md-5">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
 
-          {% if form.non_field_errors %}
-              <div class="alert alert-danger">
-                  {% for error in form.non_field_errors %}
-                      <p class="mb-1">{{ error }}</p>
-                  {% endfor %}
-              </div>
-          {% endif %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <p class="mb-1">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
 
-          <form method="post" enctype="multipart/form-data" novalidate class="needs-validation"> {# IMPORTANTE: enctype="multipart/form-data" #}
-            {% csrf_token %}
+                    {# Asegúrate de incluir enctype="multipart/form-data" si manejas subida de archivos (CV, etc.) #}
+                    <form method="post" enctype="multipart/form-data" novalidate class="needs-validation">
+                        {% csrf_token %}
 
-            <div class="mb-4">
-              <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label fw-bold">{{ form.tipo_usuario.label }}</label>
-              {{ form.tipo_usuario.errors }}
-              {# Renderiza el <select> que ya tiene 'form-select' desde forms.py #}
-              {{ form.tipo_usuario }}
-              <small class="text-muted">Selecciona si eres persona natural o empresa</small>
-            </div>
+                        <div class="mb-4">
+                            <label for="{{ form.tipo_usuario.id_for_label }}" class="form-label fw-bold">{{ form.tipo_usuario.label }}</label>
+                            {{ form.tipo_usuario.errors }}
+                            {{ form.tipo_usuario }}
+                            <small class="text-muted">Selecciona si eres persona natural o empresa</small>
+                        </div>
 
-            <div id="persona-fields" style="display:none;" class="mb-4">
-              <h5 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Información Personal</h5>
-              <div class="row g-3">
-                {# Nombres #}
-                <div class="col-md-6">
-                  <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
-                    {{ form.nombres.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-person"></i>
-                      {{ form.nombres }}
-                  </div>
-                </div>
-                {# Apellidos #}
-                <div class="col-md-6">
-                  <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
-                    {{ form.apellidos.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-person"></i>
-                      {{ form.apellidos }}
-                  </div>
-                </div>
-                {# Fecha Nacimiento #}
-                <div class="col-md-6">
-                  <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
-                    {{ form.fecha_nacimiento.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-calendar"></i>
-                      {{ form.fecha_nacimiento }}
-                  </div>
-                </div>
-                {# Nacionalidad #}
-                <div class="col-md-6">
-                  <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
-                    {{ form.nacionalidad.errors }}
-                  <div class="input-with-icon">
-                    <i class="bi bi-globe"></i>
-                      {{ form.nacionalidad }}
-                  </div>
-                </div>
+                        {# Contenedor para campos de Persona Natural (Mantener como lo tengas) #}
+                        <div id="persona-fields" style="display:none;" class="mb-4">
+                            <h5 class="text-primary mb-3"><i class="bi bi-person-badge me-2"></i>Información Personal</h5>
+                            <div class="row g-3">
+                                {# Nombres #}
+                                <div class="col-md-6">
+                                    <label for="{{ form.nombres.id_for_label }}" class="form-label">{{ form.nombres.label }}</label>
+                                    {{ form.nombres.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-person"></i>
+                                        {{ form.nombres }}
+                                    </div>
+                                </div>
+                                {# Apellidos #}
+                                <div class="col-md-6">
+                                    <label for="{{ form.apellidos.id_for_label }}" class="form-label">{{ form.apellidos.label }}</label>
+                                    {{ form.apellidos.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-person"></i>
+                                        {{ form.apellidos }}
+                                    </div>
+                                </div>
+                                {# Fecha Nacimiento #}
+                                <div class="col-md-6">
+                                    <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
+                                    {{ form.fecha_nacimiento.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-calendar"></i>
+                                        {{ form.fecha_nacimiento }}
+                                    </div>
+                                </div>
+                                {# Nacionalidad #}
+                                <div class="col-md-6">
+                                    <label for="{{ form.nacionalidad.id_for_label }}" class="form-label">{{ form.nacionalidad.label }}</label>
+                                    {{ form.nacionalidad.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-globe"></i>
+                                        {{ form.nacionalidad }}
+                                    </div>
+                                </div>
+            
+                                <div class="col-12">
+                                    <label for="{{ form.cv_archivo.id_for_label }}" class="form-label">{{ form.cv_archivo.label }}</label>
+                                    {{ form.cv_archivo.errors }}
+                                    {{ form.cv_archivo }}
+                                    {% if form.cv_archivo.help_text %}
+                                        <div class="form-text text-muted">{{ form.cv_archivo.help_text|safe }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-12">
+                                    <label for="{{ form.certificado_pdf.id_for_label }}" class="form-label">{{ form.certificado_pdf.label }}</label>
+                                    {{ form.certificado_pdf.errors }}
+                                    {{ form.certificado_pdf }}
+                                    {% if form.certificado_pdf.help_text %}
+                                        <div class="form-text text-muted">{{ form.certificado_pdf.help_text|safe }}</div>
+                                    {% endif %}
+                                </div>
 
-                {# --- CAMPO CV: AÑADIDO AQUÍ --- #}
-                <div class="col-12">
-                  <label for="{{ form.cv_archivo.id_for_label }}" class="form-label">{{ form.cv_archivo.label }}</label>
-                    {{ form.cv_archivo.errors }}
-                  {{ form.cv_archivo }}
-                  {% if form.cv_archivo.help_text %}
-                      <div class="form-text text-muted">{{ form.cv_archivo.help_text }}</div> {# No necesita |safe aquí #}
-                  {% endif %}
-                </div>
-                {# --- FIN CAMPO CV --- #}
+                            </div> {# Fin de row g-3 de Persona #}
+                        </div> {# Fin de persona-fields #}
 
-                {# --- CAMPO CERTIFICADO DE ANTECEDENTES: AÑADIDO AQUÍ --- #}
-                <div class="col-12">
-                  <label for="{{ form.certificado_pdf.id_for_label }}" class="form-label">{{ form.certificado_pdf.label }}</label>
-                    {{ form.certificado_pdf.errors }}
-                  {{ form.certificado_pdf }}
-                  {% if form.certificado_pdf.help_text %}
-                      <div class="form-text text-muted">{{ form.certificado_pdf.help_text }}</div> {# No necesita |safe aquí #}
-                  {% endif %}
-                </div>
-                {# --- FIN CAMPO CERTIFICADO DE ANTECEDENTES --- #}
-
-              </div> {# Fin de row g-3 de Persona #}
-            </div> {# Fin de persona-fields #}
-
-            <div id="empresa-fields" style="display:none;" class="mb-4">
-                <div class="alert alert-info text-center" role="alert">
-                    <i class="bi bi-info-circle-fill me-2"></i>
-                    Los campos de la empresa se rellenarán automáticamente al ingresar y validar el RUT.
-                </div>
-                <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Información de la Empresa</h5>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
-                        {{ form.nombre_empresa.errors }}
-                        <div class="input-with-icon">
-                            <i class="bi bi-building"></i>
-                            <input type="text"
-                                   name="{{ form.nombre_empresa.name }}"
-                                   id="{{ form.nombre_empresa.id_for_label }}" 
-                                   class="form-control"
-                                   placeholder="{{ form.nombre_empresa.field.widget.attrs.placeholder }}" 
-                                   value="{{ form.nombre_empresa.value|default_if_none:'' }}"
-                                   readonly disabled>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
-                        {{ form.razon_social.errors }}
-                        <div class="input-with-icon">
-                            <i class="bi bi-card-text"></i>
-                            <input type="text"
-                                   name="{{ form.razon_social.name }}"
-                                   id="{{ form.razon_social.id_for_label }}" 
-                                   class="form-control"
-                                   placeholder="{{ form.razon_social.field.widget.attrs.placeholder }}" 
-                                   value="{{ form.razon_social.value|default_if_none:'' }}"
-                                   readonly disabled>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
-                        {{ form.giro.errors }}
-                        <div class="input-with-icon">
-                            <i class="bi bi-briefcase"></i>
-                            <input type="text"
-                                   name="{{ form.giro.name }}"
-                                   id="{{ form.giro.id_for_label }}" 
-                                   class="form-control"
-                                   placeholder="{{ form.giro.field.widget.attrs.placeholder }}" 
-                                   value="{{ form.giro.value|default_if_none:'' }}"
-                                   readonly disabled>
-                        </div>
-                    </div>
-                </div> {# Fin de row g-3 de Empresa #}
-            </div> {# Fin de empresa-fields #}
+                        {# Contenedor para campos de Empresa (Mantener como lo tengas) #}
+                        <div id="empresa-fields" style="display:none;" class="mb-4">
+                            <div class="alert alert-info text-center" role="alert">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                Los campos de la empresa se rellenarán automáticamente al ingresar y validar el RUT.
+                            </div>
+                            <h5 class="text-primary mb-3"><i class="bi bi-building me-2"></i>Información de la Empresa</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.nombre_empresa.id_for_label }}" class="form-label">{{ form.nombre_empresa.label }}</label>
+                                    {{ form.nombre_empresa.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-building"></i>
+                                        <input type="text"
+                                               name="{{ form.nombre_empresa.name }}"
+                                               id="{{ form.nombre_empresa.id_for_label }}"
+                                               class="form-control"
+                                               placeholder="{{ form.nombre_empresa.field.widget.attrs.placeholder }}"
+                                               value="{{ form.nombre_empresa.value|default_if_none:'' }}"
+                                               readonly disabled>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ form.razon_social.id_for_label }}" class="form-label">{{ form.razon_social.label }}</label>
+                                    {{ form.razon_social.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-card-text"></i>
+                                        <input type="text"
+                                               name="{{ form.razon_social.name }}"
+                                               id="{{ form.razon_social.id_for_label }}"
+                                               class="form-control"
+                                               placeholder="{{ form.razon_social.field.widget.attrs.placeholder }}"
+                                               value="{{ form.razon_social.value|default_if_none:'' }}"
+                                               readonly disabled>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label for="{{ form.giro.id_for_label }}" class="form-label">{{ form.giro.label }}</label>
+                                    {{ form.giro.errors }}
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-briefcase"></i>
+                                        <input type="text"
+                                               name="{{ form.giro.name }}"
+                                               id="{{ form.giro.id_for_label }}"
+                                               class="form-control"
+                                               placeholder="{{ form.giro.field.widget.attrs.placeholder }}"
+                                               value="{{ form.giro.value|default_if_none:'' }}"
+                                               readonly disabled>
+                                    </div>
+                                </div>
+                            </div> {# Fin de row g-3 de Empresa #}
+                        </div> {# Fin de empresa-fields #}
 
 
-            <hr class="my-4" />
-            <h5 class="text-primary mb-3">
-              <i class="bi bi-person-circle me-2"></i>Información de Cuenta
-            </h5>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
-                  {{ form.username.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-person"></i>
-                    {{ form.username }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
-                  {{ form.correo.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-envelope"></i>
-                    {{ form.correo }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
-                  {{ form.telefono.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-telephone"></i>
-                    {{ form.telefono }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.direccion.id_for_label }}" class="form-label">{{ form.direccion.label }}</label>
-                  {{ form.direccion.errors }}
-                <div class="input-with-icon">
-                  <i class="bi bi-geo-alt"></i>
-                    {{ form.direccion }}
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
-                {{ form.password.errors }}
-                <div class="input-with-icon position-relative">
-                  <i class="bi bi-lock-fill"></i>
-                  {{ form.password }}
-                  <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">{{ form.confirm_password.label }}</label>
-                {{ form.confirm_password.errors }}
-                <div class="input-with-icon position-relative">
-                <i class="bi bi-lock-fill"></i>
-                {{ form.confirm_password }}
-                <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_confirm_password', this)"></i>
-                </div>
-                </div>
-            </div>
+                        <hr class="my-4" />
+                        <h5 class="text-primary mb-3">
+                            <i class="bi bi-person-circle me-2"></i>Información de Cuenta
+                        </h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">{{ form.username.label }}</label>
+                                {{ form.username.errors }}
+                                <div class="input-with-icon">
+                                    <i class="bi bi-person"></i>
+                                    {{ form.username }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.correo.id_for_label }}" class="form-label">{{ form.correo.label }}</label>
+                                {{ form.correo.errors }}
+                                <div class="input-with-icon">
+                                    <i class="bi bi-envelope"></i>
+                                    {{ form.correo }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
+                                {{ form.telefono.errors }}
+                                <div class="input-with-icon">
+                                    <i class="bi bi-telephone"></i>
+                                    {{ form.telefono }}
+                                </div>
+                            </div>
 
-            <div class="d-grid mt-4">
-              <button type="submit" class="btn btn-primary btn-lg py-2">
-                <i class="bi bi-person-plus me-2"></i>Crear cuenta
-              </button>
-            </div>
-          </form>
+                            {# CAMPO DE DIRECCIÓN CON AUTOCOMPLETADO DE GOOGLE PLACES #}
+                            <div class="col-md-6">
+                                <label for="{{ form.ubicacion_display.id_for_label }}" class="form-label">{{ form.ubicacion_display.label }}</label>
+                                {{ form.ubicacion_display.errors }}
+                                <div class="input-with-icon">
+                                    <i class="bi bi-geo-alt"></i>
+                                    {{ form.ubicacion_display }} {# Este es el campo VISIBLE #}
+                                </div>
+                                <small class="text-muted">Empieza a escribir tu dirección y selecciona de las sugerencias.</small>
+                            </div>
 
-          <div class="text-center mt-4 pt-3 border-top">
-            <p class="mb-0">
-              ¿Ya tienes una cuenta?
-              <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a>
-            </p>
-          </div>
-        </div>
-      </div>
-      </div>
-  </div>
+                            {# CAMPOS OCULTOS PARA LATITUD Y LONGITUD (Django los renderiza como HiddenInput) #}
+                            {{ form.direccion }}  {# Campo oculto para la dirección formateada #}
+                            {{ form.latitud }}
+                            {{ form.longitud }}
+
+                            {# CONTENEDOR DEL MAPA (inicialmente oculto) #}
+                            <div class="col-12" id="map-container-parent" style="display: none;">
+                                <label class="form-label">Ubicación en el mapa:</label>
+                                <div id="map-container">
+                                    <div id="map"></div>
+                                </div>
+                                <small class="text-muted">Puedes arrastrar el marcador para ajustar la ubicación.</small>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">{{ form.password.label }}</label>
+                                {{ form.password.errors }}
+                                <div class="input-with-icon position-relative">
+                                    <i class="bi bi-lock-fill"></i>
+                                    {{ form.password }}
+                                    <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_password', this)"></i>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.confirm_password.id_for_label }}" class="form-label">{{ form.confirm_password.label }}</label>
+                                {{ form.confirm_password.errors }}
+                                <div class="input-with-icon position-relative">
+                                <i class="bi bi-lock-fill"></i>
+                                {{ form.confirm_password }}
+                                <i class="bi bi-eye-slash password-toggle" onclick="togglePassword('id_confirm_password', this)"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg py-2">
+                                <i class="bi bi-person-plus me-2"></i>Crear cuenta
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <p class="mb-0">
+                            ¿Ya tienes una cuenta?
+                            <a href="{% url 'iniciar_sesion' %}" class="fw-bold">Inicia sesión aquí</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block js %}
 <script>
-    // Función para mostrar/ocultar campos según el tipo de usuario seleccionado
-    function toggleUsuarioFields() {
-        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-        if (!tipoUsuarioSelect) { console.error("Elemento 'id_tipo_usuario' no encontrado."); return; }
-        const tipoUsuario = tipoUsuarioSelect.value;
-        const personaFields = document.getElementById('persona-fields');
-        const empresaFields = document.getElementById('empresa-fields');
-        if (!personaFields) { console.error("Elemento 'persona-fields' no encontrado."); return; }
-        if (!empresaFields) { console.error("Elemento 'empresa-fields' no encontrado."); return; }
+    // --- Tus funciones JavaScript existentes (toggleUsuarioFields, formatRut, togglePassword) ---
 
-        console.log("Tipo Usuario Seleccionado:", tipoUsuario); // Debug
+    // Función para mostrar/ocultar campos según el tipo de usuario seleccionado
+    function toggleUsuarioFields() {
+        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+        if (!tipoUsuarioSelect) { console.error("Elemento 'id_tipo_usuario' no encontrado."); return; }
+        const tipoUsuario = tipoUsuarioSelect.value;
+        const personaFields = document.getElementById('persona-fields');
+        const empresaFields = document.getElementById('empresa-fields');
+        if (!personaFields) { console.error("Elemento 'persona-fields' no encontrado."); return; }
+        if (!empresaFields) { console.error("Elemento 'empresa-fields' no encontrado."); return; }
 
-        // QuerySelector para todos los inputs, selects, textareas DENTRO de persona-fields que no sean file
-        const personaInputs = personaFields.querySelectorAll('input:not([type="file"]), select, textarea'); 
-        const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
-        
-        // Campos de archivo (FileField) - Referenciamos directamente para control específico
-        const cvInput = document.getElementById('id_cv_archivo'); 
-        const certificadoInput = document.getElementById('id_certificado_pdf'); 
+        console.log("Tipo Usuario Seleccionado:", tipoUsuario); // Debug
 
-        // Ocultar ambos y resetear required (excepto para los campos de archivo)
-        personaFields.style.display = 'none';
-        empresaFields.style.display = 'none';
+        const personaTextInputs = personaFields.querySelectorAll('input:not([type="file"]), select, textarea');
+        const empresaInputs = empresaFields.querySelectorAll('input, select, textarea');
 
-        personaInputs.forEach(input => input.required = false); // Restablecer solo los no-file
-        empresaInputs.forEach(input => input.required = false);
+        personaFields.style.display = 'none';
+        empresaFields.style.display = 'none';
 
-        // Importante: Los campos FileField son opcionales en el RegistroForm
-        // Por lo tanto, NO deben ser marcados como 'required' por JavaScript aquí.
-        // Django determinará si son requeridos o no basándose en el form.
-        if (cvInput) cvInput.removeAttribute('required'); 
-        if (certificadoInput) certificadoInput.removeAttribute('required');
+        personaTextInputs.forEach(input => input.required = false);
+        empresaInputs.forEach(input => input.required = false);
 
-        // Mostrar y requerir los campos correctos
-        if (tipoUsuario === 'persona') {
-            console.log("Mostrando campos Persona"); // Debug
-            personaFields.style.display = 'block';
-            // Marcar como requeridos los campos de Persona Natural que DEBEN ser requeridos (e.g., nombres, apellidos)
-            // Los campos de archivo (CV, certificado) son OPCIONALES, por lo que NO se marcan como requeridos aquí.
-            personaInputs.forEach(input => {
-                if (input.name === 'nombres' || input.name === 'apellidos' || input.name === 'fecha_nacimiento' || input.name === 'nacionalidad') {
-                    input.required = true;
-                }
-            });
-        } else if (tipoUsuario === 'empresa') {
-            console.log("Mostrando campos Empresa"); // Debug
-            empresaFields.style.display = 'block';
-            // Los campos de empresa se rellenan automáticamente (readonly disabled), por lo tanto no se marcan como required
-            // Asegúrate de que tu Django Form NO los marque como required al iniciar
-        } else {
-            console.log("Tipo no reconocido u opción default, ocultando específicos."); // Debug
-        }
-    }
+        if (tipoUsuario === 'persona') {
+            console.log("Mostrando campos Persona"); // Debug
+            personaFields.style.display = 'block';
+            personaTextInputs.forEach(input => {
+                // Aquí marca como requeridos los campos que necesites para Persona Natural
+                if (input.name === 'nombres' || input.name === 'apellidos' || input.name === 'fecha_nacimiento' || input.name === 'nacionalidad') {
+                    input.required = true;
+                }
+            });
+            // Si CV o certificado son requeridos para persona, descomenta y hazlos requeridos aquí:
+            const cvInput = document.getElementById('id_cv_archivo');
+            if (cvInput) cvInput.required = true;
+            const certificadoInput = document.getElementById('id_certificado_pdf');
+            if (certificadoInput) certificadoInput.required = true;
 
-    // ... (El resto de tus funciones JS existentes: togglePassword, formatRut) ...
-    function togglePassword(id, icon) {
-        const input = document.getElementById(id);
-        if (!input) return;
-        if (input.type === "password") {
-            input.type = "text";
-            icon.classList.remove("bi-eye-slash");
-            icon.classList.add("bi-eye");
-        } else {
-            input.type = "password";
-            icon.classList.remove("bi-eye");
-            icon.classList.add("bi-eye-slash");
-        }
-    }
+        } else if (tipoUsuario === 'empresa') {
+            console.log("Mostrando campos Empresa"); // Debug
+            empresaFields.style.display = 'block';
+            // Los campos de empresa se rellenan automáticamente (readonly disabled),
+            // por lo tanto, no se marcan como required por JavaScript aquí.
+        } else {
+            console.log("Tipo no reconocido u opción default, ocultando específicos."); // Debug
+        }
+    }
 
-    function formatRut(rut) {
-        let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
-        let body = ''; let dv = '';
-        if (cleanRut.length > 1) { dv = cleanRut.slice(-1); body = cleanRut.slice(0, -1); }
-        else { if (cleanRut !== 'K'){ body = cleanRut; } else { dv = 'K'; } }
-        body = body.slice(0, 8);
-        if (body.length === 0) { return dv; }
-        let formatted = body; if (dv !== '') { formatted += '-' + dv; }
-        return formatted;
-    }
+    // Función para alternar la visibilidad de la contraseña
+    function togglePassword(id, icon) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("bi-eye-slash");
+            icon.classList.add("bi-eye");
+        } else {
+            input.type = "password";
+            icon.classList.remove("bi-eye");
+            icon.classList.add("bi-eye-slash");
+        }
+    }
+
+    // Función para formatear el RUT (sin puntos, con guión y DV)
+    function formatRut(rut) {
+        let cleanRut = rut.replace(/[^0-9kK]/gi, '').toUpperCase();
+        let body = '';
+        let dv = '';
+
+        if (cleanRut.length > 1) {
+            dv = cleanRut.slice(-1);
+            body = cleanRut.slice(0, -1);
+        } else {
+            if (cleanRut === 'K'){
+                dv = 'K';
+            } else {
+                body = cleanRut;
+            }
+        }
+        body = body.slice(0, 8);
+        let formatted = body;
+        if (dv !== '') {
+            formatted += '-' + dv;
+        }
+        return formatted;
+    }
+
+    // --- FIN DE TUS FUNCIONES EXISTENTES ---
 
 
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM Cargado, configurando listeners."); // Debug
-        toggleUsuarioFields(); // Llamada inicial
-        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-        if (tipoUsuarioSelect) {
-            tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
-        } else {
-            console.error("Listener no añadido: 'id_tipo_usuario' no encontrado al cargar.");
-        }
+    // --- LÓGICA DE GOOGLE MAPS Y GEOCODIFICACIÓN ---
+    let map;
+    let marker;
+    let autocomplete;
 
-        // Listener para el RUT para formatearlo a medida que el usuario escribe
-        const rutInput = document.getElementById('id_username'); // ID del campo RUT
-        if (rutInput) {
-            rutInput.addEventListener('input', function (e) {
-                const originalValue = e.target.value; 
-                const formattedValue = formatRut(originalValue);
-                if (originalValue !== formattedValue) {
-                    let start = e.target.selectionStart; 
-                    let end = e.target.selectionEnd;
-                    let diff = formattedValue.length - originalValue.length;
-                    e.target.value = formattedValue;
-                    if (start !== null && end !== null) {
-                        try { e.target.setSelectionRange(start + diff, end + diff); } catch(err){}
-                    }
-                }
-            });
-            rutInput.addEventListener('blur', function(e) { e.target.value = formatRut(e.target.value); });
-        } else {
-            console.error("Listener de RUT no añadido: 'id_username' no encontrado.");
-        }
+    function initMap() {
+        console.log("Google Maps API cargada y initMap ejecutado.");
+        // Coordenadas iniciales para Chile (Santiago como centro)
+        const chileCenter = { lat: -33.4489, lng: -70.6693 };
 
-        // Mejorar la experiencia de los campos de fecha
-        const fechaNacimiento = document.getElementById('id_fecha_nacimiento');
-        if (fechaNacimiento) { fechaNacimiento.type = 'date'; }
-        else { console.warn("Elemento 'id_fecha_nacimiento' no encontrado para mejora."); }
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: chileCenter,
+            zoom: 12,
+            mapTypeId: 'roadmap',
+            gestureHandling: 'cooperative',
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false
+        });
 
-        // --- NUEVO SCRIPT: Habilitar campos de empresa antes del envío del formulario ---
-        const registerForm = document.querySelector('form');
-        if (registerForm) {
-            registerForm.addEventListener('submit', function() {
-                const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
-                if (tipoUsuarioSelect && tipoUsuarioSelect.value === 'empresa') {
-                    // Habilitar los campos de empresa solo si el tipo de usuario es empresa
-                    const nombreEmpresaInput = document.getElementById('id_nombre_empresa');
-                    const razonSocialInput = document.getElementById('id_razon_social');
-                    const giroInput = document.getElementById('id_giro');
+        marker = new google.maps.Marker({
+            map: map,
+            position: chileCenter,
+            draggable: true, // Permite arrastrar el marcador
+            title: "Arrastra para ajustar la ubicación"
+        });
 
-                    if (nombreEmpresaInput) nombreEmpresaInput.disabled = false;
-                    if (razonSocialInput) razonSocialInput.disabled = false;
-                    if (giroInput) giroInput.disabled = false;
+        // Actualizar latitud y longitud cuando el marcador se arrastra
+        marker.addListener('dragend', function() {
+            const newPos = marker.getPosition();
+            document.getElementById('id_latitud').value = newPos.lat();
+            document.getElementById('id_longitud').value = newPos.lng();
+            console.log("Marcador arrastrado a:", newPos.lat(), newPos.lng());
+        });
 
-                    console.log("DEBUG JS: Campos de empresa habilitados para el envío.");
-                }
-            });
-        } else {
-            console.error("DEBUG JS: Formulario de registro no encontrado para añadir listener de submit.");
-        }
-    });
+        // CORRECCIÓN: Usar 'id_ubicacion_display' en lugar de 'id_direccion'
+        const addressInput = document.getElementById('id_ubicacion_display');
+        if (addressInput) {
+            // Opciones de autocompletado para restringir a Chile
+            const options = {
+                componentRestrictions: { country: 'cl' }, // Restringe a Chile
+                fields: ['formatted_address', 'geometry', 'name'], // Campos que necesitamos
+                types: ['address'], // Sugerir solo direcciones
+            };
+
+            autocomplete = new google.maps.places.Autocomplete(addressInput, options);
+            autocomplete.bindTo('bounds', map); // Vincula a la vista del mapa
+
+            autocomplete.addListener('place_changed', function() {
+                const place = autocomplete.getPlace();
+                console.log("Lugar seleccionado:", place); // Debug
+
+                if (!place.geometry) {
+                    // El usuario no seleccionó un lugar sugerido, solo escribió
+                    console.error("No se encontraron detalles para: '" + place.name + "'");
+                    // Limpiar lat/lng y ocultar el mapa si no hay geolocalización
+                    document.getElementById('id_latitud').value = '';
+                    document.getElementById('id_longitud').value = '';
+                    document.getElementById('id_direccion').value = '';
+                    document.getElementById('map-container-parent').style.display = 'none';
+                    return;
+                }
+
+                // Si se encontró una geometría, mostrar el mapa y el marcador
+                document.getElementById('map-container-parent').style.display = 'block';
+
+                // Centrar el mapa y colocar el marcador
+                map.fitBounds(place.geometry.viewport); // Ajustar el zoom al área del lugar
+                map.setCenter(place.geometry.location); // Centrar en la ubicación precisa
+                marker.setPosition(place.geometry.location); // Mover el marcador
+
+                // Rellenar los campos ocultos de latitud y longitud
+                document.getElementById('id_latitud').value = place.geometry.location.lat();
+                document.getElementById('id_longitud').value = place.geometry.location.lng();
+                document.getElementById('id_direccion').value = place.formatted_address;
+
+                // Asegurar que el campo de dirección tenga el formato completo
+                if (place.formatted_address) {
+                    addressInput.value = place.formatted_address;
+                }
+            });
+
+            // Opcional: Listener para cuando el usuario borra la dirección
+            addressInput.addEventListener('input', function() {
+                if (addressInput.value === '') {
+                    document.getElementById('id_latitud').value = '';
+                    document.getElementById('id_longitud').value = '';
+                    document.getElementById('id_direccion').value = '';
+                    document.getElementById('map-container-parent').style.display = 'none';
+                }
+            });
+
+            // Si el formulario ya tiene una dirección y coordenadas (ej. error de validación), inicializar el mapa
+            // Esto es útil si el usuario vuelve al formulario con errores y ya había puesto una dirección
+            const initialLat = document.getElementById('id_latitud').value;
+            const initialLng = document.getElementById('id_longitud').value;
+            const initialAddress = document.getElementById('id_direccion').value;
+
+            if (initialLat && initialLng && initialAddress) {
+                const initialLocation = new google.maps.LatLng(parseFloat(initialLat), parseFloat(initialLng));
+                map.setCenter(initialLocation);
+                marker.setPosition(initialLocation);
+                document.getElementById('map-container-parent').style.display = 'block';
+                map.setZoom(15); // Zoom más cercano si ya hay una ubicación inicial
+            }
+
+        } else {
+            console.error("Elemento 'id_ubicacion_display' no encontrado para autocompletado.");
+        }
+    }
+
+    function handleMapError() {
+        console.error("Error al cargar la API de Google Maps.");
+        const mapContainerParent = document.getElementById('map-container-parent');
+        if (mapContainerParent) {
+            mapContainerParent.innerHTML = `
+                <div class="alert alert-danger" role="alert" style="text-align: center;">
+                    <h4>⚠️ Error al cargar el mapa</h4>
+                    <p>Por favor, verifica que la clave de API de Google Maps esté configurada correctamente y tengas conexión a internet.</p>
+                </div>
+            `;
+            mapContainerParent.style.display = 'block'; // Asegúrate de que el contenedor de error sea visible
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM Cargado, configurando listeners.");
+        toggleUsuarioFields(); // Llamada inicial para establecer el estado correcto al cargar la página
+
+        const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+        if (tipoUsuarioSelect) {
+            tipoUsuarioSelect.addEventListener('change', toggleUsuarioFields);
+        } else {
+            console.error("Listener no añadido: 'id_tipo_usuario' no encontrado al cargar.");
+        }
+
+        const rutInput = document.getElementById('id_username');
+        if (rutInput) {
+            rutInput.addEventListener('input', function (e) {
+                const originalValue = e.target.value;
+                const formattedValue = formatRut(originalValue);
+                if (originalValue !== formattedValue) {
+                    let start = e.target.selectionStart;
+                    let end = e.target.selectionEnd;
+                    let diff = formattedValue.length - originalValue.length;
+                    e.target.value = formattedValue;
+                    if (start !== null && end !== null) {
+                        try { e.target.setSelectionRange(start + diff, end + diff); } catch(err){ /* Ignorar errores */ }
+                    }
+                }
+            });
+            rutInput.addEventListener('blur', function(e) { e.target.value = formatRut(e.target.value); });
+
+            // Listener para buscar información de la empresa al quitar el foco del RUT
+            rutInput.addEventListener('blur', function() {
+                const tipoUsuario = tipoUsuarioSelect.value;
+                if (tipoUsuario === 'empresa') {
+                    const rut = rutInput.value;
+                    // Limpia los campos de empresa si se cambia el RUT
+                    document.getElementById('id_nombre_empresa').value = '';
+                    document.getElementById('id_razon_social').value = '';
+                    document.getElementById('id_giro').value = '';
+        
+                    if (rut && rut.length >= 9 && rut.includes('-')) {
+                        console.log("DEBUG JS: RUT de empresa ingresado. La validación se hará en el backend al enviar el formulario.");
+                        // Eliminamos la llamada AJAX aquí. La validación la manejará el formulario de Django.
+                        // Ya no es necesario el fetch a document_data_receiver para el RUT de empresa.
+                    }
+                }
+            });
+        } else {
+            console.error("Listener de RUT no añadido: 'id_username' no encontrado.");
+        }
+
+        const fechaNacimiento = document.getElementById('id_fecha_nacimiento');
+        if (fechaNacimiento) {
+            fechaNacimiento.type = 'date';
+        } else {
+            console.warn("Elemento 'id_fecha_nacimiento' no encontrado para mejora.");
+        }
+
+        // Habilitar campos de empresa antes del envío del formulario
+        const registerForm = document.querySelector('form');
+        if (registerForm) {
+            registerForm.addEventListener('submit', function() {
+                const tipoUsuarioSelect = document.getElementById('id_tipo_usuario');
+                if (tipoUsuarioSelect && tipoUsuarioSelect.value === 'empresa') {
+                    const nombreEmpresaInput = document.getElementById('id_nombre_empresa');
+                    const razonSocialInput = document.getElementById('id_razon_social');
+                    const giroInput = document.getElementById('id_giro');
+
+                    if (nombreEmpresaInput) nombreEmpresaInput.disabled = false;
+                    if (razonSocialInput) razonSocialInput.disabled = false;
+                    if (giroInput) giroInput.disabled = false;
+
+                    console.log("DEBUG JS: Campos de empresa habilitados para el envío.");
+                }
+            });
+        } else {
+            console.error("DEBUG JS: Formulario de registro no encontrado para añadir listener de submit.");
+        }
+    });
 </script>
+
+{# SCRIPT DE GOOGLE MAPS API: Va al final del bloque js #}
+{# El parámetro 'callback=initMap' asegura que 'initMap' se llama una vez que la API se carga #}
+{# 'libraries=places' es necesario para el autocompletado de direcciones #}
+{# 'onerror' es un atributo del script tag que maneja errores de carga de la API #}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&language=es&region=CL&callback=initMap" async defer></script>
 {% endblock %}

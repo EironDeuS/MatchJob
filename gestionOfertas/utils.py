@@ -1,14 +1,35 @@
+# utils.py
+
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import PersonaNatural
+from .models import PersonaNatural, CV, CertificadoAntecedentes, EstadoDocumento # Asegúrate de que CV y CertificadoAntecedentes estén aquí
 import logging, requests, os
 from django.utils.html import strip_tags
 from django.core.exceptions import ValidationError
 from django.template.loader import render_to_string
-import re  # Import the re module for regular expressions
+import re
+from django.db import transaction # Para asegurar la atomicidad
+import json # Para manejar los datos JSON
+import google.generativeai as genai # Para interactuar con la API de Gemini
+import googlemaps
+logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)  # para registrar errores si quieres
+# # Configuración para la API de Google Gemini (mantener esto es importante si usas Gemini)
+# if hasattr(settings, 'GOOGLE_API_KEY') and settings.GOOGLE_MAPS_API_KEY:
+#     try:
+#         genai.configure(api_key=settings.GOOGLE_MAPS_API_KEY)
+#         logger.info("Google Gemini API configurada.")
+#     except Exception as e:
+#         logger.error(f"Error al configurar Google Gemini API: {e}")
+# else:
+#     logger.warning("GOOGLE_API_KEY no encontrada en settings.py. La funcionalidad de IA de Gemini podría no estar disponible.")
 
+# GMAPS_API_KEY = settings.GOOGLE_MAPS_API_KEY if hasattr(settings, 'Maps_API_KEY') else None
+# if GMAPS_API_KEY:
+#     gmaps = googlemaps.Client(key=GMAPS_API_KEY)
+#     logger.info("Google Maps API configurada.")
+# else:
+#     logger.warning("Maps_API_KEY no encontrada en settings.py. La funcionalidad de distancia podría estar limitada.")
 
 from django.utils.html import strip_tags
 
@@ -214,3 +235,265 @@ def clean_rut(rut_formatted):
         raise ValidationError(f"RUT inválido. Dígito verificador incorrecto. Esperado: {calculated_dv}")
 
     return rut_formatted # Retorna el RUT limpio y formateado con guión
+
+
+# Función para calcular distancia (adaptada de tu mapa.html)
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """
+    Calcula la distancia en kilómetros entre dos puntos geográficos (latitud, longitud)
+    utilizando la API de Google Maps Distance Matrix.
+    Retorna la distancia en km o None si hay un error.
+    """
+    if not GMAPS_API_KEY:
+        logger.warning("Maps_API_KEY no configurada. No se puede calcular la distancia.")
+        return None
+    
+    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+        logger.warning("Coordenadas incompletas para calcular distancia.")
+        return None
+
+    try:
+        origins = [(lat1, lon1)]
+        destinations = [(lat2, lon2)]
+        
+        # Request a Distance Matrix API
+        matrix = gmaps.distance_matrix(origins, destinations, mode="driving")
+        
+        if matrix['status'] == 'OK' and matrix['rows'][0]['elements'][0]['status'] == 'OK':
+            distance_meters = matrix['rows'][0]['elements'][0]['distance']['value']
+            return distance_meters / 1000.0  # Convertir a kilómetros
+        else:
+            logger.error(f"Error al obtener distancia de Google Maps API: {matrix.get('error_message', 'Desconocido')}")
+            return None
+    except Exception as e:
+        logger.error(f"Excepción al calcular distancia: {e}", exc_info=True)
+        return None
+
+
+def evaluate_postulacion_with_gemini(postulacion_instance):
+    """
+    Evalúa la idoneidad de un candidato (Postulacion) para una oferta de trabajo
+    utilizando información del CV, Certificado de Antecedentes y la Oferta de Trabajo.
+    Calcula un puntaje de 0-100 y almacena razones.
+    """
+    if not postulacion_instance or not isinstance(postulacion_instance, Postulacion):
+        return {'status': 'error', 'message': 'Instancia de Postulacion inválida para evaluación.'}
+
+    # Acceder a los modelos relacionados
+    persona = postulacion_instance.persona
+    oferta = postulacion_instance.oferta
+    cv = getattr(persona, 'cv', None)
+    certificado = getattr(persona, 'certificado_antecedentes', None)
+
+    # Inicializar el puntaje y razones
+    puntaje_ia = 0
+    razones_ia = {}
+    rechazo_automatico_distancia = False
+
+    # --- 1. Verificación de distancia (Rechazo automático si > 200km) ---
+    if oferta.latitud and oferta.longitud and persona.usuario.direccion:
+        # Intentar obtener lat/lon de la dirección de la persona si no tiene CV con coordenadas
+        # Para simplificar, asumiremos que si el CV tiene lat/lon, lo usamos, sino usamos la dirección del usuario.
+        # Idealmente, la dirección del usuario debería geocodificarse al momento del registro/edición del perfil
+        # y guardarse en PersonaNatural.latitud/longitud.
+        
+        # Para este ejemplo, si no hay lat/lon en el CV (datos_analizados_ia.get('datos_personales', {}).get('ubicacion_latitud')),
+        # y el usuario NO tiene lat/lon en su perfil, podríamos intentar geocodificar la dirección de su perfil.
+        # Sin embargo, eso sería una llamada a la API de Google Maps Geocoding por cada postulación, lo cual es costoso y lento.
+        # Es MUCHO mejor guardar lat/lon en el modelo PersonaNatural cuando el usuario introduce su dirección.
+
+        # Asumiremos que PersonaNatural.usuario.direccion es suficiente para un geocoding *previamente hecho*.
+        # Si tienes latitud y longitud directamente en PersonaNatural, úsalas.
+        # Si no, deberías considerar añadir campos `latitud` y `longitud` a `PersonaNatural`
+        # y poblar esos campos cuando el usuario registra su dirección.
+        
+        # Para la demostración, usaremos la latitud/longitud de la oferta y del CV (si disponible) o asumiremos
+        # que el CV extrae la ciudad/país y lo podemos usar en el prompt, o que la PersonaNatural tiene lat/lon.
+
+        # VOY A ASUMIR que tienes `latitud` y `longitud` en el modelo `PersonaNatural`
+        # Si no los tienes, necesitarás un paso de geocodificación al guardar la dirección del usuario.
+        
+        # Ejemplo: Usando lat/lon del perfil de usuario, o de los datos del CV si están allí.
+        # Idealmente, el modelo PersonaNatural debería tener campos latitud y longitud.
+        
+        # Si el CV extrae una ubicación específica que pueda ser geocodificada:
+        cv_location_lat = cv.datos_analizados_ia.get('datos_personales', {}).get('ubicacion_latitud')
+        cv_location_lon = cv.datos_analizados_ia.get('datos_personales', {}).get('ubicacion_longitud')
+
+        # Si PersonaNatural tiene campos de latitud y longitud, úsalos:
+        # user_lat = persona.latitud
+        # user_lon = persona.longitud
+        
+        # Por ahora, para la demostración, si no tenemos lat/lon exactos en el CV, asumiremos una ubicación genérica
+        # o haremos que Gemini infiera una ubicación aproximada de la dirección del usuario para la distancia.
+        # La forma más robusta es tener `latitud` y `longitud` en `PersonaNatural`.
+        
+        # Si la dirección del usuario está en el campo `direccion` del modelo `Usuario`:
+        user_address = persona.usuario.direccion
+        if user_address:
+            # Este es un punto crítico: idealmente esta dirección ya debería estar geocodificada.
+            # Aquí la geocodificamos al vuelo SOLO para este ejemplo. En producción, ¡evitar esto si es posible!
+            try:
+                geocode_result = gmaps.geocode(user_address + ", Chile") # Asumiendo Chile como país
+                if geocode_result:
+                    user_lat = geocode_result[0]['geometry']['location']['lat']
+                    user_lon = geocode_result[0]['geometry']['location']['lng']
+                    
+                    distance_km = calculate_distance(user_lat, user_lon, oferta.latitud, oferta.longitud)
+                    
+                    if distance_km is not None:
+                        if distance_km > 200:
+                            postulacion_instance.estado = 'rechazado'
+                            postulacion_instance.rechazo_automatico_distancia = True
+                            postulacion_instance.razones_ia['rechazo_distancia'] = f"Distancia ({distance_km:.2f} km) excede el límite de 200 km."
+                            postulacion_instance.puntaje_ia = 0 # Puntaje cero por rechazo
+                            postulacion_instance.save()
+                            logger.info(f"Postulación ID {postulacion_instance.id} rechazada automáticamente por distancia: {distance_km:.2f} km.")
+                            return {'status': 'rejected', 'message': 'Rechazado automáticamente por distancia.', 'score': 0}
+                        else:
+                            razones_ia['distancia_km'] = f"{distance_km:.2f} km"
+                    else:
+                        logger.warning(f"No se pudo calcular la distancia para postulación ID {postulacion_instance.id}. Continuando sin chequeo de distancia.")
+
+            except Exception as e:
+                logger.error(f"Error al geocodificar dirección de usuario o calcular distancia para Postulación ID {postulacion_instance.id}: {e}", exc_info=True)
+                # No rechazamos automáticamente si falla la geocodificación/distancia, pero lo loggeamos.
+                razones_ia['distancia_error'] = f"No se pudo calcular distancia: {e}"
+
+    # --- 2. Recopilar toda la información para la IA ---
+    # Convertir los datos a un formato textual o JSON estructurado para Gemini
+    
+    # Datos de la persona (usuario y PersonaNatural)
+    person_info = {
+        "nombres": persona.nombres,
+        "apellidos": persona.apellidos,
+        "rut_perfil": persona.usuario.username,
+        "email_perfil": persona.usuario.correo,
+        "telefono_perfil": persona.usuario.telefono,
+        "direccion_perfil": persona.usuario.direccion,
+        "fecha_nacimiento_perfil": str(persona.fecha_nacimiento) if persona.fecha_nacimiento else None,
+        "nacionalidad": persona.nacionalidad,
+    }
+
+    # Datos del CV
+    cv_info = cv.datos_analizados_ia if cv else {}
+    if cv_info.get('datos_personales'):
+        # Eliminar datos personales del CV si ya los tenemos del perfil para evitar redundancia o conflicto
+        # o si queremos que la IA los use solo para validación cruzada.
+        # Por ahora, los dejamos para que la IA los evalúe en coherencia.
+        pass 
+    
+    # Datos del Certificado de Antecedentes
+    cert_info = certificado.datos_analizados_ia if certificado else {}
+
+    # Datos de la Oferta de Trabajo
+    offer_info = {
+        "titulo": oferta.nombre,
+        "descripcion": oferta.descripcion,
+        "requisitos": oferta.requisitos,
+        "beneficios": oferta.beneficios,
+        "salario": oferta.salario,
+        "tipo_contrato": oferta.get_tipo_contrato_display(),
+        "ubicacion_oferta_direccion": oferta.direccion,
+        "es_servicio": oferta.es_servicio,
+        "urgente": oferta.urgente,
+        "categoria": oferta.categoria.nombre_categoria if oferta.categoria else "Sin Categoria",
+        "fecha_cierre": str(oferta.fecha_cierre) if oferta.fecha_cierre else "No especificada"
+    }
+    
+    full_input_for_gemini = {
+        "candidato_perfil": person_info,
+        "cv_analizado": cv_info,
+        "certificado_antecedentes_analizado": cert_info,
+        "oferta_trabajo": offer_info,
+        "validaciones_previas": razones_ia # Incluir distancia si se calculó
+    }
+
+    # Construir el prompt para Gemini
+    prompt = (
+        f"Eres un experto en reclutamiento y análisis de perfiles. Tu tarea es evaluar la idoneidad de un candidato "
+        f"para una oferta de trabajo específica, basándote en la siguiente información estructurada en JSON. "
+        f"Asigna un 'puntaje_ia' de 0 a 100, donde 100 es una coincidencia perfecta y 0 es una no coincidencia o rechazo total. "
+        f"Considera los siguientes criterios, dándoles el peso adecuado:\n"
+        f"- Coincidencia de habilidades y experiencia del CV con los requisitos de la oferta.\n"
+        f"- Nivel educativo relevante del CV.\n"
+        f"- Idiomas (especialmente inglés si es relevante para el puesto).\n"
+        f"- Coherencia y profesionalismo general del CV (resumen, formato, etc.).\n"
+        f"- Ausencia de antecedentes en el certificado (es crucial para la idoneidad).\n"
+        f"- Coherencia de datos personales entre perfil, CV y certificado.\n"
+        f"- Otros factores relevantes que puedas inferir (ej. experiencia en proyectos similares).\n"
+        f"- Prioriza la claridad y concisión en las razones del puntaje.\n"
+        f"- Si no hay CV o certificado, evalúa el perfil base y la oferta, y ajusta el puntaje de forma conservadora.\n\n"
+        f"Proporciona la respuesta en formato JSON, incluyendo 'puntaje_ia' y 'razones_ia' (un diccionario con 'fortalezas', 'oportunidades_mejora' y 'resumen_coincidencia').\n\n"
+        f"Datos para el análisis:\n{json.dumps(full_input_for_gemini, indent=2)}\n\n"
+        f"Formato JSON esperado para la salida:\n"
+        f"{{\n"
+        f"  \"puntaje_ia\": \"integer (0-100)\",\n"
+        f"  \"razones_ia\": {{\n"
+        f"    \"fortalezas\": \"string\",\n"
+        f"    \"oportunidades_mejora\": \"string\",\n"
+        f"    \"resumen_coincidencia\": \"string\"\n"
+        f"  }}\n"
+        f"}}"
+    )
+
+    try:
+        # Marcar la postulación como en procesamiento
+        postulacion_instance.estado = 'revisado' # O un nuevo estado 'procesando_ia' si lo defines
+        postulacion_instance.save(update_fields=['estado'])
+
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+
+        response_text = response.text.strip()
+        # Limpiar el output si Gemini lo envuelve en bloques de código
+        if response_text.startswith("```json") and response_text.endswith("```"):
+            json_str = response_text[7:-3].strip()
+        else:
+            json_str = response_text
+        
+        ia_analysis_result = json.loads(json_str)
+
+        # Extraer puntaje y razones
+        new_puntaje = ia_analysis_result.get('puntaje_ia')
+        new_razones = ia_analysis_result.get('razones_ia')
+
+        # Asegurarse de que el puntaje sea un entero válido
+        if new_puntaje is not None:
+            try:
+                new_puntaje = int(new_puntaje)
+                if not (0 <= new_puntaje <= 100):
+                    raise ValueError("Puntaje IA fuera de rango (0-100).")
+            except ValueError:
+                logger.error(f"Puntaje IA inválido para Postulación ID {postulacion_instance.id}: {new_puntaje}")
+                new_puntaje = None # Invalidar el puntaje si no es un número o está fuera de rango
+        
+        with transaction.atomic():
+            postulacion_instance.puntaje_ia = new_puntaje
+            if new_razones and isinstance(new_razones, dict):
+                postulacion_instance.razones_ia.update(new_razones) # Actualizar el JSONField
+            
+            # Si el puntaje es muy bajo, se puede considerar un rechazo automático por IA
+            if new_puntaje is not None and new_puntaje < 20: # Umbral de ejemplo, puedes ajustar
+                 postulacion_instance.estado = 'rechazado'
+                 postulacion_instance.razones_ia['rechazo_ia_bajo_puntaje'] = f"Puntaje de idoneidad IA muy bajo ({new_puntaje})."
+            else:
+                 postulacion_instance.estado = 'revisado' # Mantener 'revisado' o cambiar a 'apto_para_entrevista' etc.
+
+            postulacion_instance.save()
+            logger.info(f"Postulación de {persona.usuario.username} a {oferta.nombre} (ID: {postulacion_instance.id}) evaluada con IA. Puntaje: {new_puntaje}")
+
+        return {'status': 'success', 'score': new_puntaje, 'reasons': new_razones, 'message': 'Postulación evaluada exitosamente.'}
+
+    except json.JSONDecodeError as e:
+        postulacion_instance.estado = 'error'
+        postulacion_instance.razones_ia['error_ia'] = f"Error de formato JSON en la respuesta de la IA: {e}"
+        postulacion_instance.save(update_fields=['estado', 'razones_ia'])
+        logger.error(f"Error al decodificar JSON de Gemini para Postulación ID {postulacion_instance.id}: {e}\nRespuesta recibida: {response_text[:500]}", exc_info=True)
+        return {'status': 'error', 'message': f'Error al procesar Postulación con IA (JSON inválido): {e}'}
+    except Exception as e:
+        postulacion_instance.estado = 'error'
+        postulacion_instance.razones_ia['error_ia'] = f"Error inesperado durante el procesamiento de la Postulación: {e}"
+        postulacion_instance.save(update_fields=['estado', 'razones_ia'])
+        logger.error(f"Error inesperado al evaluar Postulación con Gemini (Postulación ID: {postulacion_instance.id}): {e}", exc_info=True)
+        return {'status': 'error', 'message': f'Error al procesar Postulación con IA: {e}'}

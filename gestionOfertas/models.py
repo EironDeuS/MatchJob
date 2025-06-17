@@ -11,14 +11,20 @@ from django.urls import reverse
 from django.core.files.storage import default_storage
 from django.conf import settings # Solo si usas alguna configuración de settings.py en tus modelos
 from django.db.models import Avg
+from typing import Optional
 
 
 import re
 import os
 import json
+import logging
 from datetime import datetime
+from decimal import Decimal
 
 from django.core.serializers.json import DjangoJSONEncoder
+
+# Configura el logger para este módulo
+logger = logging.getLogger(__name__)
 
 
 # -----------------------------
@@ -72,6 +78,10 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     direccion = models.CharField(
         _('Dirección'), max_length=255, blank=True, null=True
     )
+    # NUEVOS CAMPOS (antes estaban en PersonaNatural por error, ahora aquí)
+    latitud = models.DecimalField(max_digits=17, decimal_places=14, null=True, blank=True)
+    longitud = models.DecimalField(max_digits=17, decimal_places=14, null=True, blank=True)
+    
     tipo_usuario = models.CharField(
         _('Tipo de usuario'), max_length=20, choices=TIPO_USUARIO_CHOICES, default='persona'
     )
@@ -130,7 +140,6 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     @property
     def email(self):
         return self.correo
-
 
 # -----------------------------
 # Persona Natural (Sin RUT ni Direccion)
@@ -237,7 +246,10 @@ class EstadoDocumento(models.TextChoices):
 
 class CV(models.Model):
     persona = models.OneToOneField('PersonaNatural', on_delete=models.CASCADE, related_name='cv')
-    archivo_cv = models.CharField(max_length=500, blank=True, null=True) # Guarda la URL de GCS
+    archivo_cv = models.FileField(
+        upload_to='cvs/', # La subcarpeta dentro de tu GS_MEDIA_LOCATION
+        null=True, blank=True
+    )
     
     # Este es el campo central para toda la información extraída por la IA
     datos_analizados_ia = JSONField(encoder=DjangoJSONEncoder, default=dict) 
@@ -311,8 +323,10 @@ class CV(models.Model):
 
 class CertificadoAntecedentes(models.Model):
     persona = models.OneToOneField('PersonaNatural', on_delete=models.CASCADE, related_name='certificado_antecedentes')
-    archivo_certificado = models.CharField(max_length=500, blank=True, null=True) 
-
+    archivo_certificado = models.FileField(
+        upload_to='certificados/', # La subcarpeta dentro de tu GS_MEDIA_LOCATION
+        null=True, blank=True
+    )
     # Este es el campo central para toda la información extraída por la IA
     datos_analizados_ia = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
@@ -519,8 +533,7 @@ class OfertaTrabajo(models.Model):
             return True
         return self.fecha_cierre >= timezone.now().date()
     def get_absolute_url(self):
-        return reverse('detalle_oferta', args=[str(self.id)])
-
+     return reverse('detalle_oferta', args=[str(self.id)])
 # -----------------------------
 # Postulación
 # -----------------------------

@@ -43,6 +43,7 @@ urlpatterns = [
     path('perfil/subir-muestra/', views.subir_muestra_trabajo, name='subir_muestra_trabajo'),
     path('muestra/eliminar/<int:muestra_id>/', views.eliminar_muestra_trabajo, name='eliminar_muestra_trabajo'),
     path('api/document-data-receiver/', views.receive_document_data, name='document_data_receiver'),
+    
 
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),
     # path('ofertas/<int:pk>/', views.detalle_oferta, name='detalle_oferta'),
