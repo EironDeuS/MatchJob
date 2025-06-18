@@ -534,10 +534,12 @@ class OfertaTrabajo(models.Model):
         return self.fecha_cierre >= timezone.now().date()
     def get_absolute_url(self):
      return reverse('detalle_oferta', args=[str(self.id)])
+
 # -----------------------------
 # Postulación
 # -----------------------------
 class Postulacion(models.Model):
+    # Tus estados existentes
     ESTADOS = [
         ('pendiente', _('Pendiente')),
         ('filtrado', _('Filtrado')),
@@ -545,7 +547,18 @@ class Postulacion(models.Model):
         ('contratado', _('Contratado')),
         ('rechazado', _('Rechazado')),
         ('finalizado', _('Finalizado')),
+        # Puedes considerar un estado 'revisado' si aún no está cubierto por tu flujo
     ]
+
+    # Nuevos estados para el análisis de la IA
+    ESTADOS_IA_ANALISIS = [
+        ('en_analisis', _('En Análisis')),
+        ('aprobado_ia', _('Aprobado por IA')),
+        ('rechazado_ia', _('Rechazado por IA')),
+        ('error_analisis', _('Error de Análisis')),
+        ('pendiente_ia', _('Pendiente de Análisis IA')), # Nuevo estado inicial para el análisis IA
+    ]
+
     persona = models.ForeignKey(PersonaNatural, on_delete=models.CASCADE, related_name='postulaciones')
     oferta = models.ForeignKey(OfertaTrabajo, on_delete=models.CASCADE, related_name='postulaciones_recibidas')
     cv_enviado = models.ForeignKey(
@@ -556,8 +569,28 @@ class Postulacion(models.Model):
     mensaje = models.TextField(_('Mensaje del postulante'), blank=True)
     estado = models.CharField(_('Estado'), max_length=20, choices=ESTADOS, default='pendiente')
     feedback = models.TextField(_('Feedback'), blank=True)
-    # --- CAMBIO AÑADIDO ---
     filtrada = models.BooleanField(_('Filtrada'), default=False, help_text=_('Indica si la postulación ha sido filtrada manualmente'))
+
+    # --- NUEVOS CAMPOS ---
+    puntaje_ia = models.IntegerField(_('Puntaje de Idoneidad IA'), null=True, blank=True,
+                                     help_text=_('Puntaje de 0-100 calculado por la IA.'))
+    razones_ia = models.JSONField(_('Razones del Análisis IA'), default=dict, blank=True,
+                                  help_text=_('Detalles del análisis de la IA (fortalezas, oportunidades, resumen).'))
+
+    estado_ia_analisis = models.CharField(
+        _('Estado de Análisis IA'),
+        max_length=20,
+        choices=ESTADOS_IA_ANALISIS,
+        default='pendiente_ia', # Estado inicial del análisis IA
+        help_text=_('Estado del procesamiento del análisis de idoneidad por IA.')
+    )
+    # Este campo almacenará la razón del estado de análisis IA, por ejemplo, "Puntaje muy bajo"
+    # o "Certificado de antecedentes rechazado".
+    razon_estado_ia = models.TextField(_('Razón del Estado IA'), blank=True,
+                                       help_text=_('Detalles sobre el estado del análisis de la IA (rechazo, error).'))
+    # Campo para indicar si fue un rechazo automático por distancia (se usaba en tu código)
+    rechazo_automatico_distancia = models.BooleanField(default=False, help_text=_('Indica si la postulación fue rechazada automáticamente por la distancia.'))
+
 
     class Meta:
         verbose_name = _('Postulación')
@@ -568,13 +601,12 @@ class Postulacion(models.Model):
             models.Index(fields=['persona']),
             models.Index(fields=['oferta']),
             models.Index(fields=['estado']),
-            models.Index(fields=['filtrada']), # Añadimos un índice para el nuevo campo
-            # ¡Opcional: puedes añadir un índice para fecha_contratacion si la vas a usar mucho en filtros!
-            models.Index(fields=['fecha_contratacion']), # Añado este índice por buena práctica
+            models.Index(fields=['filtrada']),
+            models.Index(fields=['fecha_contratacion']),
+            models.Index(fields=['estado_ia_analisis']), # Nuevo índice para el estado IA
         ]
 
     def __str__(self):
-        # Accede al nombre de la persona a través de la relación
         return f"{self.persona} postuló a {self.oferta.nombre}"
 
     def clean(self):
@@ -583,7 +615,6 @@ class Postulacion(models.Model):
         if not self.cv_enviado and hasattr(self.persona, 'cv') and self.persona.cv:
             self.cv_enviado = self.persona.cv
 
-    # ¡ESTE MÉTODO ES CRÍTICO PARA ESTABLECER LA FECHA!
     def save(self, *args, **kwargs):
         # Captura el estado original antes de guardar para detectar cambios
         if self.pk: # Si es una instancia existente (ya tiene un ID en la DB)
@@ -594,7 +625,7 @@ class Postulacion(models.Model):
         super().save(*args, **kwargs) # Llama al método save original
 
     def puede_valorar(self, usuario_actual: Usuario) -> tuple[bool, Usuario | None]:
-        if self.estado != 'finalizado':  # <-- CAMBIO CLAVE
+        if self.estado != 'finalizado':
             return False, None
         emisor = usuario_actual
         receptor = None
@@ -610,7 +641,7 @@ class Postulacion(models.Model):
             emisor=emisor, receptor=receptor, postulacion=self
         ).exists()
         return not valoracion_existente, receptor
-
+    
 # -----------------------------
 # Valoración
 # -----------------------------

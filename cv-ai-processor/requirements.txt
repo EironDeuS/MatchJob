@@ -1,0 +1,9 @@
+functions-framework==3.*
+google-cloud-storage==2.*
+vertexai==1.*
+# PyPDF2==3.* # Podemos eliminarlo, ya no lo usamos para PDFs.
+python-docx==1.*
+requests==2.*
+google-cloud-vision==3.*
+PyMuPDF==1.* # O la versión específica que desees, por ejemplo, 1.23.21
+Pillow==10.* # Para manejar imágenes, necesario si PyMuPDF genera pixmaps que Vision API necesita en un formato específico

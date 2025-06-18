@@ -5,6 +5,7 @@ from django.contrib.messages import constants as messages
 # from google.oauth2 import service_account # Ya no es estrictamente necesario si usamos impersonación
 from dotenv import load_dotenv
 import os
+from datetime import timedelta
 
 # --- BASE DIRECTORY ---
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -307,10 +308,25 @@ LOGGING = {
 
 GOOGLE_MAPS_API_KEY ='AIzaSyBY4CCIFbyI3FH59aSkifR9-ThyY0Na8l0'
 
-GOOGLE_API_KEY='asdasd'
+GOOGLE_API_KEY='AIzaSyBE299IBQEwygvoUL882_64HrKQTLskEhE'
 
 LOGIN_URL = '/iniciar_sesion/'
 
 # Configuración de los umbrales de IA para postulaciones
 UMBRAL_IA_APROBADO_NORMAL = 70.00
 UMBRAL_IA_APROBADO_URGENTE = 55.00 # Más permisivo
+
+
+# Celery Configuration
+# ¡ESTO ES LO QUE DEBE CAMBIAR!
+# Aquí, le indicamos a Celery que obtenga la URL de la variable de entorno 'REDIS_URL'.
+# 'redis://localhost:6379/0' es solo un valor por defecto para cuando corres localmente
+# y REDIS_URL no está definida (ej. si no usas dotenv o no la has configurado localmente).
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Santiago'
+CELERY_ENABLE_UTC = True

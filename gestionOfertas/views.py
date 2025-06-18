@@ -64,6 +64,8 @@ from django.conf import settings
 import googlemaps
 from django.db import transaction
 from .forms import OfertaTrabajoForm
+# Importa la tarea de Celery desde tu tasks.py
+from .tasks import process_postulacion_evaluation 
 
 
 
@@ -100,7 +102,16 @@ def registro(request):
     # Redirigir si el usuario ya está autenticado
     if request.user.is_authenticated:
         messages.info(request, _("Ya has iniciado sesión. No puedes registrarte de nuevo."))
-        return redirect('miperfil') 
+        return redirect('miperfil')
+
+    # Inicializar gmaps (Google Maps client) si la API key está configurada
+    gmaps = None
+    try:
+        if hasattr(settings, 'GOOGLE_MAPS_API_KEY') and settings.GOOGLE_MAPS_API_KEY:
+            gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+    except Exception as e:
+        logger.warning(f"No se pudo inicializar Google Maps client: {e}")
+        gmaps = None
 
     if request.method == 'POST':
         form = RegistroForm(request.POST, request.FILES)
@@ -124,7 +135,7 @@ def registro(request):
             # Si el JS no llenó la latitud/longitud, intentar geocodificar en el backend usando ubicacion_display
             if ubicacion_display and not (latitud_form and longitud_form) and gmaps:
                 try:
-                    gmaps = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+                    # gmaps ya está instanciado globalmente o al inicio de la vista
                     geocode_result = gmaps.geocode(ubicacion_display)
                     if geocode_result:
                         location = geocode_result[0]['geometry']['location']
@@ -145,7 +156,7 @@ def registro(request):
                 longitud_db = longitud_form
                 # Si la dirección formateada no vino del JS, pero sí las coords, intentar geocodificación inversa
                 if not direccion_db and gmaps:
-                     try:
+                    try:
                         reverse_geocode = gmaps.reverse_geocode((latitud_db, longitud_db))
                         if reverse_geocode:
                             direccion_db = reverse_geocode[0]['formatted_address']
@@ -154,7 +165,7 @@ def registro(request):
                         else:
                             messages.warning(request, _('No se pudo obtener la dirección completa por geocodificación inversa.'))
                             logger.warning(f"No se pudo obtener dirección inversa para lat:{latitud_db}, lng:{longitud_db} en registro")
-                     except Exception as e:
+                    except Exception as e:
                         logger.warning(f"Error en geocodificación inversa en registro (solo lat/lng): {e}")
             elif not gmaps:
                 messages.warning(request, _('La geocodificación de la dirección no está disponible (API Key no configurada).'))
@@ -172,7 +183,7 @@ def registro(request):
 
                     # 2. Crear el perfil (PersonaNatural o Empresa)
                     tipo_usuario = form.cleaned_data['tipo_usuario']
-                    
+
                     if tipo_usuario == 'persona':
                         # Crea la PersonaNatural, enlazándola al usuario recién creado
                         persona_natural = PersonaNatural.objects.create(
@@ -189,22 +200,30 @@ def registro(request):
                         if cv_file:
                             try:
                                 file_extension = os.path.splitext(cv_file.name)[1]
-                                # Usar un UUID para el nombre del archivo para evitar colisiones
-                                safe_username = usuario.username.replace('/', '_').replace('\\', '_')
+                                # Asegúrate de limpiar el RUT para usarlo en el nombre del archivo
+                                # Tu código ya hace esto con .replace('.', '')
+                                safe_username = usuario.username.replace('/', '_').replace('\\', '_').replace('.', '')
                                 cv_filename_in_gcs = f'cvs/{safe_username}_CV_{uuid.uuid4().hex}{file_extension}'
-                                
-                                # Guarda el archivo en GCS usando default_storage. Esto devuelve la ruta relativa.
-                                cv_gcs_relative_path = default_storage.save(cv_filename_in_gcs, cv_file)
-                                
-                                # Crea la instancia de CV asociada a la persona_natural
-                                CV.objects.create(
+
+                                # Crea la instancia de CV, asignando directamente el UploadedFile al FileField
+                                cv_instance = CV.objects.create(
                                     persona=persona_natural, # Asociado a la instancia de PersonaNatural
-                                    archivo_cv=cv_gcs_relative_path, # ASIGNAR LA RUTA RELATIVA AL CHARFIELD
+                                    # Cuando asignas un UploadedFile a un FileField, Django lo guarda
+                                    # con el nombre que el FileField usa internamente (ej. upload_to)
+                                    # o puedes forzar un nombre al guardar el modelo
+                                    # Para controlar el nombre directamente, podemos usar default_storage.save()
+                                    # y luego asignar el *nombre resultante* al FileField
                                     processing_status=EstadoDocumento.PENDIENTE, # Establecer estado inicial
                                     rejection_reason=None, # Limpiar razón de rechazo
                                     datos_analizados_ia={}, # Limpiar datos de IA
                                     last_processed_at=timezone.now() # Fecha de última actualización/procesamiento
                                 )
+                                # Ahora, para guardar el archivo con el nombre personalizado:
+                                # default_storage.save devuelve la ruta relativa que se guarda en el FileField.
+                                cv_gcs_relative_path = default_storage.save(cv_filename_in_gcs, cv_file)
+                                cv_instance.archivo_cv.name = cv_gcs_relative_path # Asigna la ruta generada
+                                cv_instance.save(update_fields=['archivo_cv']) # Guarda solo el campo del archivo
+
                                 messages.info(request, _('CV subido exitosamente y en proceso de análisis.'))
                                 logger.info(f"CV subido en registro para {usuario.username}: {cv_gcs_relative_path}")
                             except Exception as e:
@@ -221,22 +240,22 @@ def registro(request):
                         if certificado_file:
                             try:
                                 file_extension = os.path.splitext(certificado_file.name)[1]
-                                # Usar un UUID para el nombre del archivo para evitar colisiones
-                                safe_username = usuario.username.replace('/', '_').replace('\\', '_')
+                                safe_username = usuario.username.replace('/', '_').replace('\\', '_').replace('.', '')
                                 certificado_filename_in_gcs = f'certificados/{safe_username}_CERT_{uuid.uuid4().hex}{file_extension}'
 
-                                # Guarda el archivo en GCS usando default_storage. Esto devuelve la ruta relativa.
-                                certificado_gcs_relative_path = default_storage.save(certificado_filename_in_gcs, certificado_file)
-                                
-                                # Crea la instancia de CertificadoAntecedentes asociada a la persona_natural
-                                CertificadoAntecedentes.objects.create(
+                                # Crea la instancia de CertificadoAntecedentes
+                                cert_instance = CertificadoAntecedentes.objects.create(
                                     persona=persona_natural, # Asociado a la instancia de PersonaNatural
-                                    archivo_certificado=certificado_gcs_relative_path, # ASIGNAR LA RUTA RELATIVA AL CHARFIELD
                                     processing_status=EstadoDocumento.PENDIENTE, # Establecer estado inicial
                                     rejection_reason=None, # Limpiar razón de rechazo
                                     datos_analizados_ia={}, # Limpiar datos de IA
                                     last_processed_at=timezone.now() # Fecha de última actualización/procesamiento
                                 )
+                                # Ahora, para guardar el archivo con el nombre personalizado:
+                                certificado_gcs_relative_path = default_storage.save(certificado_filename_in_gcs, certificado_file)
+                                cert_instance.archivo_certificado.name = certificado_gcs_relative_path # Asigna la ruta generada
+                                cert_instance.save(update_fields=['archivo_certificado']) # Guarda solo el campo del archivo
+
                                 messages.info(request, _('Certificado de antecedentes subido y pendiente de verificación.'))
                                 logger.info(f"Certificado subido en registro para {usuario.username}: {certificado_gcs_relative_path}")
                             except Exception as e:
@@ -248,7 +267,7 @@ def registro(request):
                             # Si no se proporciona certificado, aún así crea la instancia
                             CertificadoAntecedentes.objects.create(persona=persona_natural) # Crea una instancia vacía
                             logger.info(f"Instancia de CertificadoAntecedentes vacía creada para {usuario.username}.")
-                            
+
                     elif tipo_usuario == 'empresa':
                         # Crea la Empresa, enlazándola al usuario recién creado
                         empresa = Empresa.objects.create(
@@ -259,31 +278,31 @@ def registro(request):
                         )
                         logger.info(f"Perfil Empresa creado para {usuario.username} (ID: {empresa.pk})")
 
-                # Si todo dentro de la transacción atómica fue exitoso
-                login(request, usuario) # Loguear al usuario automáticamente
-                messages.success(request, _("¡Registro exitoso! Tu cuenta ha sido creada y has iniciado sesión."))
-                return redirect(reverse('miperfil')) # Redirige al perfil del usuario
+                    # Si todo dentro de la transacción atómica fue exitoso
+                    login(request, usuario) # Loguear al usuario automáticamente
+                    messages.success(request, _("¡Registro exitoso! Tu cuenta ha sido creada y has iniciado sesión."))
+                    return redirect(reverse('miperfil')) # Redirige al perfil del usuario
 
             except IntegrityError as e:
                 logger.error(f"IntegrityError durante el registro para {rut}: {e}", exc_info=True)
                 messages.error(request, _("Error de registro: Este RUT o correo electrónico ya está en uso. Si el problema persiste, contacta a soporte."))
                 return render(request, 'gestionOfertas/registro.html', {
                     'form': form,
-                    'GOOGLE_MAPS_API_KEY': settings.GOOGLE_MAPS_API_KEY  # ← AÑADIR ESTO
+                    'Maps_api_key': settings.GOOGLE_MAPS_API_KEY
                 })
             except ValidationError as e:
                 logger.warning(f"ValidationError durante el registro para {rut}: {e.message}", exc_info=True)
                 messages.error(request, f"Error de validación: {e.message}")
                 return render(request, 'gestionOfertas/registro.html', {
                     'form': form,
-                    'GOOGLE_MAPS_API_KEY': settings.GOOGLE_MAPS_API_KEY  # ← AÑADIR ESTO
+                    'Maps_api_key': settings.GOOGLE_MAPS_API_KEY
                 })
             except Exception as e:
                 logger.exception(f"Error inesperado durante el registro de usuario {rut}: {e}")
                 messages.error(request, _("Ocurrió un error inesperado durante el registro. Por favor, inténtalo de nuevo."))
                 return render(request, 'gestionOfertas/registro.html', {
                     'form': form,
-                    'GOOGLE_MAPS_API_KEY': settings.GOOGLE_MAPS_API_KEY  # ← AÑADIR ESTO
+                    'Maps_api_key': settings.GOOGLE_MAPS_API_KEY
                 })
         else:
             logger.warning(f"Formulario de registro NO VÁLIDO. Errores: {form.errors.as_json()}")
@@ -294,11 +313,10 @@ def registro(request):
                     messages.error(request, f"Error en '{field_label}': {error}")
     else:
         form = RegistroForm()
-    
-    # ← CAMBIO PRINCIPAL: Pasar la API key al contexto del template
+
     return render(request, 'gestionOfertas/registro.html', {
         'form': form,
-        'google_maps_api_key': settings.GOOGLE_MAPS_API_KEY
+        'Maps_api_key': settings.GOOGLE_MAPS_API_KEY
     })
 
 class CustomPasswordResetView(PasswordResetView):
@@ -765,6 +783,9 @@ def editar_oferta(request, oferta_id):
 #         'initial_address': usuario.direccion if usuario.direccion else '',
 #     }
 #     return render(request, 'gestionOfertas/editar_perfil.html', context)
+
+
+
 
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -1263,6 +1284,102 @@ def detalle_oferta(request, oferta_id):
 
 from django.utils import timezone
 
+# @login_required
+# def realizar_postulacion(request, oferta_id):
+#     """
+#     Vista para que un usuario de tipo Persona Natural pueda postularse a una oferta de trabajo.
+#     """
+#     oferta = get_object_or_404(OfertaTrabajo, pk=oferta_id)
+    
+#     try:
+#         persona = request.user.personanatural
+#     except PersonaNatural.DoesNotExist:
+#         messages.error(request, "Solo los usuarios de tipo Persona Natural pueden postular a ofertas.")
+#         return redirect('detalle_oferta', oferta_id=oferta_id)
+#     except AttributeError:
+#         messages.error(request, "Tu tipo de cuenta no puede postular a ofertas de empleo.")
+#         return redirect('detalle_oferta', oferta_id=oferta_id) # O la URL apropiada
+
+#     if oferta.creador == request.user:
+#         messages.error(request, "No puedes postularte a una oferta que tú mismo has creado.")
+#         return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+#     if not oferta.esta_activa:
+#         messages.error(request, "No es posible postular a una oferta inactiva.")
+#         return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+#     if oferta.fecha_cierre and oferta.fecha_cierre < timezone.now().date():
+#         messages.error(request, "No es posible postular a una oferta vencida.")
+#         return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+#     if Postulacion.objects.filter(persona=persona, oferta=oferta).exists():
+#         messages.warning(request, "Ya has postulado a esta oferta anteriormente.")
+#         return redirect('detalle_oferta', oferta_id=oferta_id)
+    
+#     try:
+#         # Creamos la postulación con el estado inicial de "pendiente_ia"
+#         postulacion = Postulacion(
+#             persona=persona,
+#             oferta=oferta,
+#             estado='pendiente_ia', # Estado inicial de la postulación
+#             estado_ia_analisis='pendiente_ia' # Estado específico del análisis IA
+#         )
+#         postulacion.save() # Guarda la postulación en la base de datos
+
+#         # --- ¡AQUÍ ES DONDE SE LLAMA A LA TAREA ASÍNCRONA DE CELERY! ---
+#         # Enviamos el ID de la postulación para que la tarea la cargue y procese.
+#         process_postulacion_evaluation.delay(postulacion.id)
+        
+#         # --- Lógica de envío de correo de confirmación (puede seguir siendo síncrona o hacerse también asíncrona) ---
+#         # Si el envío de correo también toma mucho tiempo, considera moverlo a otra tarea Celery.
+#         # Por ahora, lo mantenemos aquí como estaba, asumiendo que no es crítico para la respuesta inmediata al usuario.
+        
+#         nombre_creador = oferta.creador.username
+        
+#         # Asegúrate de que 'tipo_usuario' exista en tu modelo Usuario o adapta la lógica
+#         if hasattr(oferta.creador, 'tipo_usuario') and oferta.creador.tipo_usuario == 'persona':
+#             try:
+#                 creador_persona = oferta.creador.personanatural
+#                 nombre_creador = f"{creador_persona.nombres} {creador_persona.apellidos}".strip() if creador_persona.nombres or creador_persona.apellidos else oferta.creador.username
+#             except PersonaNatural.DoesNotExist:
+#                 pass
+#         elif hasattr(oferta.creador, 'tipo_usuario') and oferta.creador.tipo_usuario == 'empresa':
+#             try:
+#                 # Asumo que tu modelo Empresa tiene un campo 'nombre'
+#                 nombre_creador = oferta.creador.empresa_perfil.nombre # Usar related_name 'empresa_perfil' si es OneToOneField
+#             except Empresa.DoesNotExist:
+#                 pass
+        
+#         context = {
+#             'nombre_postulante': f"{persona.nombres} {persona.apellidos}".strip() if persona.nombres or persona.apellidos else request.user.username,
+#             'oferta': oferta,
+#             'nombre_creador': nombre_creador,
+#             'url_perfil': request.build_absolute_uri(reverse('/perfil')),  # Ajusta 'perfil' a tu nombre de URL real
+#             'year': timezone.now().year,
+#             'company_name': getattr(settings, 'SITE_NAME', 'MatchJob'), # Usar el nombre de tu sitio
+#             'logo_url': request.build_absolute_uri(settings.STATIC_URL + 'img/logo.png') if hasattr(settings, 'STATIC_URL') else None,
+#         }
+        
+#         html_content = render_to_string('gestionOferta/emails/confirmacion_postulacion.html', context) # ¡Revisa la ruta del template!
+#         text_content = strip_tags(html_content)
+        
+#         subject = f"Confirmación de postulación: {oferta.nombre}"
+#         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@matchjob.com') # ¡Cambia a tu dominio!
+#         to_email = request.user.correo
+        
+#         msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
+#         msg.attach_alternative(html_content, "text/html")
+#         msg.send()
+        
+#         messages.success(request, "¡Tu postulación ha sido enviada con éxito y está siendo evaluada por nuestra IA! Hemos enviado un correo de confirmación.")
+#         # Redirigimos a una página de confirmación, o a las postulaciones del usuario
+#         return redirect('mis_postulaciones_persona') # Asegúrate de que esta URL exista
+    
+#     except Exception as e:
+#         messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
+#         # Si hay un error, redirigir de vuelta a la oferta o a una página de error
+#         return redirect('detalle_oferta', oferta_id=oferta_id)
+
 @login_required
 def realizar_postulacion(request, oferta_id):
     """
@@ -1307,7 +1424,14 @@ def realizar_postulacion(request, oferta_id):
     # Creamos la postulación
     try:
         postulacion = Postulacion(persona=persona, oferta=oferta)
+        # --- AQUÍ EMPIEZAN LOS CAMBIOS ---
+        # Asignar el estado inicial de análisis de la IA
+        postulacion.estado_ia_analisis = 'pendiente_ia' 
         postulacion.save()
+        
+        # Disparar la tarea de evaluación de la IA en segundo plano
+        process_postulacion_evaluation.delay(postulacion.id) # <--- ESTA ES LA LÍNEA QUE BUSCAS
+        # --- AQUÍ TERMINAN LOS CAMBIOS ---
         
         # Obtenemos el nombre del creador según su tipo de usuario
         nombre_creador = oferta.creador.username
@@ -1329,7 +1453,7 @@ def realizar_postulacion(request, oferta_id):
             'nombre_postulante': persona.nombre_completo or request.user.username,
             'oferta': oferta,
             'nombre_creador': nombre_creador,
-            'url_perfil': request.build_absolute_uri('/perfil/'),  # Ajusta según tu URL
+            'url_perfil': request.build_absolute_uri('/perfil/'), # Ajusta según tu URL
             'year': timezone.now().year,
             'company_name': getattr(settings, 'SITE_NAME', 'Portal de Empleos'),
             'logo_url': request.build_absolute_uri(settings.STATIC_URL + 'img/logo.png') if hasattr(settings, 'STATIC_URL') else None,
@@ -1337,7 +1461,7 @@ def realizar_postulacion(request, oferta_id):
         
         # Renderizamos el template HTML
         html_content = render_to_string('gestionOfertas/emails/confirmacion_postulacion.html', context)
-        text_content = strip_tags(html_content)  # Versión de texto plano para clientes que no soportan HTML
+        text_content = strip_tags(html_content) # Versión de texto plano para clientes que no soportan HTML
         
         # Enviamos el correo con contenido HTML
         subject = f"Confirmación de postulación: {oferta.nombre}"
@@ -1355,8 +1479,6 @@ def realizar_postulacion(request, oferta_id):
     except Exception as e:
         messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
         return redirect('detalle_oferta', oferta_id=oferta_id)
-
-
 
 @login_required
 def mis_postulaciones_persona(request):
