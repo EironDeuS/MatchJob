@@ -65,6 +65,8 @@ import googlemaps
 from django.db import transaction
 from .forms import OfertaTrabajoForm
 from gestionOfertas.tasks import encolar_analisis_ia
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
 
 
 
@@ -461,6 +463,9 @@ def inicio(request):
     
     return render(request, 'gestionOfertas/Inicio.html', context)
 
+
+
+
 @login_required
 @require_POST
 def eliminar_postulacion(request, pk): # Asegúrate de que el parámetro sea 'pk' si así lo tienes en urls.py
@@ -582,18 +587,18 @@ def mis_ofertas(request):
     }
     return render(request, 'gestionOfertas/mis_ofertas.html', context)
 
-@login_required
-def postulantes_por_oferta(request, oferta_id):
-    usuario = request.user
-    oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=usuario)
+# @login_required
+# def postulantes_por_oferta(request, oferta_id):
+#     usuario = request.user
+#     oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=usuario)
 
-    postulaciones = oferta.postulaciones_recibidas.select_related('persona', 'persona__usuario')
+#     postulaciones = oferta.postulaciones_recibidas.select_related('persona', 'persona__usuario')
 
-    context = {
-        'oferta': oferta,
-        'postulaciones': postulaciones,
-    }
-    return render(request, 'gestionOfertas/postulantes_oferta.html', context)
+#     context = {
+#         'oferta': oferta,
+#         'postulaciones': postulaciones,
+#     }
+#     return render(request, 'gestionOfertas/postulantes_oferta.html', context)
 
 @login_required
 def editar_oferta(request, oferta_id):
@@ -982,52 +987,257 @@ except locale.Error:
         print("Advertencia: No se pudo configurar el locale para español. Los nombres de los meses podrían no ser correctos.")
 
 
+# @login_required
+# @require_POST
+# def cambiar_estado_postulacion(request, postulacion_id):
+#     with transaction.atomic():
+#         try:
+#             postulacion = get_object_or_404(
+#                 Postulacion,
+#                 id=postulacion_id,
+#                 oferta__creador=request.user
+#             )
+
+#             estado_original = postulacion.estado
+#             nuevo_estado = request.POST.get('nuevo_estado')
+#             estados_validos = ['pendiente', 'match', 'contratado', 'rechazado', 'finalizado']
+
+#             if nuevo_estado not in estados_validos:
+#                 messages.error(request, "Estado no válido.")
+#                 return redirect('miperfil')
+
+#             postulacion.estado = nuevo_estado
+#             postulacion.save()
+
+#             messages.success(request, f"Estado de la postulación actualizado a '{nuevo_estado}'.")
+
+#             # Datos del contratante
+#             es_empresa = bool(postulacion.oferta.empresa)
+
+#             if es_empresa:
+#                 contratante_nombre = postulacion.oferta.empresa.nombre_empresa
+#                 razon_social = postulacion.oferta.empresa.razon_social
+#                 giro = postulacion.oferta.empresa.giro
+#                 contratante_correo = postulacion.oferta.empresa.usuario.correo
+#             else:
+#                 persona = postulacion.oferta.creador.personanatural
+#                 contratante_nombre = f"{persona.nombres} {persona.apellidos}"
+#                 razon_social = "Persona Natural"
+#                 giro = "Independiente"
+#                 contratante_correo = postulacion.oferta.creador.correo
+
+#             # Si fue contratado por primera vez
+#             if nuevo_estado == 'contratado' and estado_original != 'contratado':
+#                 try:
+#                     fecha_contratacion_formateada = postulacion.fecha_contratacion.strftime("%d de %B de %Y")
+#                     contexto = {
+#                         'postulacion': postulacion,
+#                         'postulante': postulacion.persona,
+#                         'oferta': postulacion.oferta,
+#                         'contratante_nombre': contratante_nombre,
+#                         'razon_social': razon_social,
+#                         'giro': giro,
+#                         'fecha_actual': timezone.now().strftime("%d-%m-%Y"),
+#                         'url_sitio': request.build_absolute_uri('/'),
+#                         'fecha_contratacion_formateada': fecha_contratacion_formateada,
+#                         'es_empresa': es_empresa,
+#                     }
+
+#                     # PDF
+#                     template_pdf = get_template('gestionOfertas/pdfs/carta_confirmacion_contratacion.html')
+#                     html_pdf = template_pdf.render(contexto)
+#                     result_file = io.BytesIO()
+#                     pisa_status = pisa.CreatePDF(html_pdf, dest=result_file, encoding='utf-8')
+#                     if pisa_status.err:
+#                         raise Exception("Error al generar el PDF.")
+
+#                     # --------- Correo al Postulante ----------
+#                     html_postulante = render_to_string('gestionOfertas/emails/confirmacion_contratacion.html', contexto)
+#                     text_postulante = strip_tags(html_postulante)
+
+#                     email_postulante = EmailMultiAlternatives(
+#                         subject=f"¡Felicitaciones! Has sido contratado/a para {postulacion.oferta.nombre}",
+#                         body=text_postulante,
+#                         from_email=settings.DEFAULT_FROM_EMAIL,
+#                         to=[postulacion.persona.usuario.correo]
+#                     )
+#                     email_postulante.attach_alternative(html_postulante, "text/html")
+#                     email_postulante.attach(
+#                         f"Confirmacion_Contratacion_{postulacion.persona.usuario.username}_{postulacion.oferta.id}.pdf",
+#                         result_file.getvalue(),
+#                         'application/pdf'
+#                     )
+#                     email_postulante.send()
+
+#                     # --------- Correo al Contratante ----------
+#                     try:
+#                         html_contratante = render_to_string('gestionOfertas/emails/confirmacion_contratacion_para_contratante.html', contexto)
+#                         text_contratante = strip_tags(html_contratante)
+
+#                         email_contratante = EmailMultiAlternatives(
+#                             subject=f"Has contratado a {postulacion.persona.nombres} {postulacion.persona.apellidos} para '{postulacion.oferta.nombre}'",
+#                             body=text_contratante,
+#                             from_email=settings.DEFAULT_FROM_EMAIL,
+#                             to=[contratante_correo]
+#                         )
+#                         email_contratante.attach_alternative(html_contratante, "text/html")
+#                         email_contratante.attach(
+#                             f"Contrato_{postulacion.persona.usuario.username}_{postulacion.oferta.id}.pdf",
+#                             result_file.getvalue(),
+#                             'application/pdf'
+#                         )
+#                         email_contratante.send()
+
+#                         messages.info(request, "Correos de confirmación enviados con éxito.")
+
+#                     except Exception as e:
+#                         logging.getLogger(__name__).error(f"Error al enviar el correo al contratante: {e}", exc_info=True)
+#                         messages.warning(request, "Se contrató correctamente, pero hubo un error al notificar al contratante.")
+
+#                 except Exception as e:
+#                     messages.error(request, f"Error al enviar los correos: {e}")
+#                     logging.getLogger(__name__).exception("Error al enviar correos de contratación")
+
+#         except Postulacion.DoesNotExist:
+#             messages.error(request, "La postulación no existe o no tienes permiso para modificarla.")
+#         except Exception as e:
+#             messages.error(request, f"Ocurrió un error inesperado: {e}")
+
+#     return redirect('miperfil')
+
+
+
+# gestionOfertas/views.py
+
+
+
+
+import logging
+logger = logging.getLogger(__name__)
+
+@login_required
+def ver_postulantes_oferta(request, oferta_id):
+    usuario = request.user
+    print(f"--- DEPURACIÓN: Usuario actual: {usuario.username} (ID: {usuario.id}) ---")
+    print(f"--- DEPURACIÓN: Intentando ver postulantes para oferta ID: {oferta_id} ---")
+
+    try:
+        if usuario.is_superuser or usuario.is_staff:
+            oferta = get_object_or_404(OfertaTrabajo, id=oferta_id)
+            print(f"--- DEPURACIÓN: Superusuario/Staff accediendo a oferta: {oferta.nombre} (ID: {oferta.id}) ---")
+        else:
+            oferta = get_object_or_404(OfertaTrabajo, id=oferta_id, creador=usuario)
+            print(f"--- DEPURACIÓN: Creador ({usuario.username}) accediendo a su oferta: {oferta.nombre} (ID: {oferta.id}) ---")
+    except OfertaTrabajo.DoesNotExist:
+        print(f"--- ERROR: OfertaTrabajo con ID {oferta_id} NO encontrada o NO pertenece al usuario {usuario.username} ---")
+        # Puedes redirigir o mostrar un error 404 aquí si la oferta no se encuentra
+        raise # Vuelve a levantar la excepción para ver el 404 de Django
+
+    filtro_ia = request.GET.get('filtro_ia', 'todas')
+    print(f"--- DEPURACIÓN: Filtro IA aplicado: {filtro_ia} ---")
+
+    # Postulaciones Pendientes (con filtro IA)
+    postulaciones_pendientes_qs = Postulacion.objects.filter(
+        oferta=oferta,
+        estado='pendiente'
+    ).select_related('persona__usuario')
+    print(f"--- DEPURACIÓN: Postulaciones pendientes iniciales (antes del filtro IA): {postulaciones_pendientes_qs.count()} ---")
+
+    if filtro_ia == 'aprobado_ia':
+        postulaciones_pendientes = postulaciones_pendientes_qs.filter(estado_ia_analisis='aprobado_ia')
+    elif filtro_ia == 'rechazado_ia':
+        postulaciones_pendientes = postulaciones_pendientes_qs.filter(estado_ia_analisis='rechazado_ia')
+    else:
+        postulaciones_pendientes = postulaciones_pendientes_qs
+    
+    print(f"--- DEPURACIÓN: Postulaciones pendientes (después del filtro IA, estado '{filtro_ia}'): {postulaciones_pendientes.count()} ---")
+    for p in postulaciones_pendientes:
+        print(f"  --> Postulación Pendiente: ID={p.id}, Persona={p.persona.usuario.username}, Estado IA={p.estado_ia_analisis}")
+
+
+    # Postulaciones en Match
+    postulaciones_match = Postulacion.objects.filter(
+        oferta=oferta,
+        estado='match'
+    ).select_related('persona__usuario')
+    print(f"--- DEPURACIÓN: Postulaciones en Match: {postulaciones_match.count()} ---")
+    for p in postulaciones_match:
+        print(f"  --> Postulación Match: ID={p.id}, Persona={p.persona.usuario.username}")
+
+
+    # Postulaciones Contratadas
+    postulaciones_contratadas = Postulacion.objects.filter(
+        oferta=oferta,
+        estado='contratado'
+    ).select_related('persona__usuario')
+    print(f"--- DEPURACIÓN: Postulaciones Contratadas: {postulaciones_contratadas.count()} ---")
+    for p in postulaciones_contratadas:
+        print(f"  --> Postulación Contratada: ID={p.id}, Persona={p.persona.usuario.username}")
+
+
+    context = {
+        'oferta': oferta,
+        'postulaciones_pendientes': postulaciones_pendientes,
+        'postulaciones_match': postulaciones_match,
+        'postulaciones_contratadas': postulaciones_contratadas,
+        'current_filtro_ia': filtro_ia,
+    }
+    return render(request, 'gestionOfertas/postulantes_oferta.html', context)
+
 @login_required
 @require_POST
 def cambiar_estado_postulacion(request, postulacion_id):
+    """
+    Vista para cambiar el estado de una postulación mediante AJAX.
+    """
     with transaction.atomic():
         try:
             postulacion = get_object_or_404(
                 Postulacion,
                 id=postulacion_id,
-                oferta__creador=request.user
+                oferta__creador=request.user # Asegura que solo el creador de la oferta pueda modificar
             )
 
             estado_original = postulacion.estado
             nuevo_estado = request.POST.get('nuevo_estado')
+            
+            # Definir los estados válidos y las transiciones permitidas
+            # Esto es un ejemplo, ajusta tus reglas de negocio si son más complejas
             estados_validos = ['pendiente', 'match', 'contratado', 'rechazado', 'finalizado']
 
             if nuevo_estado not in estados_validos:
-                messages.error(request, "Estado no válido.")
-                return redirect('miperfil')
+                logger.warning(f"Intento de cambiar a estado inválido: {nuevo_estado} para postulación {postulacion_id} por {request.user.username}")
+                return JsonResponse({'success': False, 'message': 'Estado no válido.'}, status=400) # Bad Request
 
-            postulacion.estado = nuevo_estado
-            postulacion.save()
-
-            messages.success(request, f"Estado de la postulación actualizado a '{nuevo_estado}'.")
-
-            # Datos del contratante
-            es_empresa = bool(postulacion.oferta.empresa)
-
-            if es_empresa:
-                contratante_nombre = postulacion.oferta.empresa.nombre_empresa
-                razon_social = postulacion.oferta.empresa.razon_social
-                giro = postulacion.oferta.empresa.giro
-                contratante_correo = postulacion.oferta.empresa.usuario.correo
-            else:
-                persona = postulacion.oferta.creador.personanatural
-                contratante_nombre = f"{persona.nombres} {persona.apellidos}"
-                razon_social = "Persona Natural"
-                giro = "Independiente"
-                contratante_correo = postulacion.oferta.creador.correo
-
-            # Si fue contratado por primera vez
-            if nuevo_estado == 'contratado' and estado_original != 'contratado':
+            # Lógica específica para cada cambio de estado
+            if nuevo_estado == 'match' and estado_original == 'pendiente':
+                postulacion.estado = nuevo_estado
+                message = "El estado de la postulación ha sido cambiado a 'Match'."
+            elif nuevo_estado == 'contratado' and estado_original == 'match':
+                postulacion.estado = nuevo_estado
+                postulacion.fecha_contratacion = timezone.now() # O la fecha que corresponda
+                message = "El estado de la postulación ha sido cambiado a 'Contratado'."
+                # Lógica de envío de correos y PDF para contratación
                 try:
+                    # Datos del contratante
+                    es_empresa = bool(postulacion.oferta.empresa) # Asume que oferta tiene un campo 'empresa' o 'personanatural'
+
+                    if es_empresa:
+                        contratante_nombre = postulacion.oferta.empresa.nombre_empresa
+                        razon_social = postulacion.oferta.empresa.razon_social
+                        giro = postulacion.oferta.empresa.giro
+                        contratante_correo = postulacion.oferta.empresa.usuario.correo
+                    else:
+                        persona = postulacion.oferta.creador.personanatural # Asume que creador tiene un OneToOne con PersonaNatural
+                        contratante_nombre = f"{persona.nombres} {persona.apellidos}"
+                        razon_social = "Persona Natural"
+                        giro = "Independiente"
+                        contratante_correo = postulacion.oferta.creador.correo
+
                     fecha_contratacion_formateada = postulacion.fecha_contratacion.strftime("%d de %B de %Y")
                     contexto = {
                         'postulacion': postulacion,
-                        'postulante': postulacion.persona,
+                        'postulante': postulacion.persona, # Asume que Postulacion tiene un campo 'persona'
                         'oferta': postulacion.oferta,
                         'contratante_nombre': contratante_nombre,
                         'razon_social': razon_social,
@@ -1083,22 +1293,37 @@ def cambiar_estado_postulacion(request, postulacion_id):
                         )
                         email_contratante.send()
 
-                        messages.info(request, "Correos de confirmación enviados con éxito.")
+                        logger.info(f"Correos de confirmación de contratación enviados con éxito para postulación {postulacion_id}.")
 
                     except Exception as e:
-                        logging.getLogger(__name__).error(f"Error al enviar el correo al contratante: {e}", exc_info=True)
+                        logger.error(f"Error al enviar el correo al contratante: {e}", exc_info=True)
                         messages.warning(request, "Se contrató correctamente, pero hubo un error al notificar al contratante.")
 
                 except Exception as e:
-                    messages.error(request, f"Error al enviar los correos: {e}")
-                    logging.getLogger(__name__).exception("Error al enviar correos de contratación")
+                    logger.exception(f"Error al enviar correos de contratación para postulación {postulacion_id}: {e}")
+                    # Aunque haya error en el correo, la postulación ya se marcó como 'contratado'
+                    # Podrías decidir revertir la transacción aquí si el envío de correo es crítico
+                    return JsonResponse({'success': True, 'message': "Postulación contratada, pero hubo un error al enviar las notificaciones."}, status=200)
+
+            elif nuevo_estado == 'finalizado' and estado_original == 'contratado':
+                postulacion.estado = nuevo_estado
+                message = "El estado de la postulación ha sido cambiado a 'Finalizado'."
+            elif nuevo_estado == 'rechazado' and estado_original in ['pendiente', 'match', 'contratado']: # Permitir rechazar desde varios estados
+                postulacion.estado = nuevo_estado
+                message = "El estado de la postulación ha sido cambiado a 'Rechazado'."
+            else:
+                logger.warning(f"Transición de estado no permitida: {estado_original} -> {nuevo_estado} para postulación {postulacion_id} por {request.user.username}")
+                return JsonResponse({'success': False, 'message': 'Transición de estado no permitida.'}, status=400) # Bad Request
+
+            postulacion.save()
+            return JsonResponse({'success': True, 'message': message})
 
         except Postulacion.DoesNotExist:
-            messages.error(request, "La postulación no existe o no tienes permiso para modificarla.")
+            logger.error(f"Postulación {postulacion_id} no encontrada o sin permisos para el usuario {request.user.username}.")
+            return JsonResponse({'success': False, 'message': 'La postulación no existe o no tienes permiso para modificarla.'}, status=404)
         except Exception as e:
-            messages.error(request, f"Ocurrió un error inesperado: {e}")
-
-    return redirect('miperfil')
+            logger.exception(f"Ocurrió un error inesperado al cambiar el estado de la postulación {postulacion_id}.")
+            return JsonResponse({'success': False, 'message': f'Ocurrió un error inesperado: {str(e)}'}, status=500)
 
 @login_required
 def actualizar_modo_urgente(request):
@@ -1605,25 +1830,22 @@ def agrupar_muestras(lista, tamaño=3):
 
 logger = logging.getLogger(__name__)
 
-# Esta función es CRUCIAL y DEBE ESTAR EN ESTE ARCHIVO o importarse correctamente.
 def get_gcs_relative_path_from_full_url(gcs_url):
     """
     Extrae la ruta relativa del objeto en GCS (ej. 'cvs/nombre.pdf')
     desde una URL completa (https:// o gs://).
+    Esta función sigue siendo necesaria si en algún punto la IA devuelve la URL correcta
+    y necesitas asignar un archivo a un CV/Certificado que aún no lo tiene.
     """
     if not gcs_url:
         return None
     
-    # Asegúrate de que GS_MEDIA_BUCKET_NAME esté definido en settings.py
     bucket_name = getattr(settings, 'GS_MEDIA_BUCKET_NAME', None) 
     if not bucket_name:
         logger.error("GS_MEDIA_BUCKET_NAME no está definido en settings. No se puede procesar la URL de GCS.")
         return None
 
-    # Caso 1: URL https://storage.googleapis.com/<bucket>/path/to/file
     if gcs_url.startswith('https://storage.googleapis.com/'):
-        # Ejemplo: https://storage.googleapis.com/matchjob/cvs/12345678-9_MiCV.pdf
-        # Queremos 'cvs/12345678-9_MiCV.pdf'
         expected_prefix = f'https://storage.googleapis.com/{bucket_name}/'
         if gcs_url.startswith(expected_prefix):
             return gcs_url[len(expected_prefix):]
@@ -1631,10 +1853,7 @@ def get_gcs_relative_path_from_full_url(gcs_url):
             logger.warning(f"URL HTTPS de GCS no coincide con el bucket esperado '{bucket_name}': {gcs_url}")
             return None
     
-    # Caso 2: URL gs://bucket-name/path/to/file
     if gcs_url.startswith('gs://'):
-        # Ejemplo: gs://matchjob/cvs/12345678-9_MiCV.pdf
-        # Queremos 'cvs/12345678-9_MiCV.pdf'
         expected_prefix = f'gs://{bucket_name}/'
         if gcs_url.startswith(expected_prefix):
             return gcs_url[len(expected_prefix):]
@@ -1642,7 +1861,6 @@ def get_gcs_relative_path_from_full_url(gcs_url):
             logger.warning(f"URL GS de GCS no coincide con el bucket esperado '{bucket_name}': {gcs_url}")
             return None 
 
-    # Si la URL no tiene ninguno de los formatos esperados
     logger.error(f"Formato de URL GCS inesperado: {gcs_url}. No se pudo extraer la ruta relativa.")
     return None
 
@@ -1653,22 +1871,30 @@ def process_cv_data(persona, payload):
     
     cv, created = CV.objects.get_or_create(persona=persona)
 
-    # Actualizar la URL de GCS si viene en el payload
-    if 'file_gcs_url' in payload:
-        gcs_url_from_cf = payload['file_gcs_url']
-        
-        # ¡CAMBIO CRUCIAL AQUÍ! Usa la función auxiliar
-        relative_path = get_gcs_relative_path_from_full_url(gcs_url_from_cf)
-        
-        if relative_path:
-            # Asigna la ruta relativa al atributo .name del FileField
-            # Esto NO sube el archivo, solo le dice al FileField dónde está en GCS
-            cv.archivo_cv.name = relative_path 
-            logger.info(f"DEBUG_CF_PROCESS: URL de CV recibida de CF ('{gcs_url_from_cf}') asignada como ruta relativa: '{cv.archivo_cv.name}'")
+    # LÓGICA CLAVE MODIFICADA AQUÍ:
+    # Solo actualiza el campo de archivo (archivo_cv.name) si el objeto CV es nuevo (created=True)
+    # O si el objeto CV existente NO tiene aún un archivo asignado (cv.archivo_cv es False/None o cv.archivo_cv.name está vacío).
+    # Si el CV ya existe y ya tiene un archivo, se IGNORA 'file_gcs_url' del payload.
+    if created or not (cv.archivo_cv and cv.archivo_cv.name): # Si es nuevo o no tiene archivo
+        if 'file_gcs_url' in payload:
+            gcs_url_from_cf = payload['file_gcs_url']
+            
+            # Aquí podrías añadir una validación simple si la URL del payload no debe empezar con 'static/'
+            if gcs_url_from_cf.startswith('static/'):
+                logger.error(f"DEBUG_CF_PROCESS: La URL GCS recibida de CF para CV es incorrecta (empieza con 'static/'): '{gcs_url_from_cf}'. No se asignará esta ruta al FileField.")
+                # No hacemos nada si la URL es incorrecta
+            else:
+                relative_path = get_gcs_relative_path_from_full_url(gcs_url_from_cf)
+                if relative_path:
+                    cv.archivo_cv.name = relative_path 
+                    logger.info(f"DEBUG_CF_PROCESS: URL de CV recibida de CF ('{gcs_url_from_cf}') asignada como ruta relativa: '{cv.archivo_cv.name}'.")
+                else:
+                    logger.error(f"DEBUG_CF_PROCESS: No se pudo determinar la ruta relativa para el CV de CF: '{gcs_url_from_cf}'. El archivo CV no será actualizado en el modelo.")
         else:
-            logger.error(f"DEBUG_CF_PROCESS: No se pudo determinar la ruta relativa para el CV de CF: '{gcs_url_from_cf}'. El archivo CV no será actualizado en el modelo.")
+            logger.warning(f"DEBUG_CF_PROCESS: Payload de CF para CV no contiene 'file_gcs_url'. No se actualiza el archivo_cv en el modelo (y era nuevo o sin archivo).")
     else:
-        logger.warning(f"DEBUG_CF_PROCESS: Payload de CF para CV no contiene 'file_gcs_url'. No se actualiza el archivo_cv en el modelo.")
+        logger.info(f"DEBUG_CF_PROCESS: CV ya existe y tiene un archivo asignado ({cv.archivo_cv.name}). Se ignora 'file_gcs_url' del payload.")
+
 
     # Guardar el JSON completo de la IA directamente en datos_analizados_ia
     cv.datos_analizados_ia = payload.get('extracted_data', {})
@@ -1680,15 +1906,19 @@ def process_cv_data(persona, payload):
 
     try:
         cv.full_clean() 
-        cv.save() # Aquí se guarda la instancia de CV con la nueva ruta relativa
+        cv.save() 
         logger.info(f"CV de {persona.usuario.username} actualizado/creado con estado: {cv.processing_status}. Ruta FileField final guardada: {cv.archivo_cv.name}") 
         return True, "Datos de CV guardados/actualizados correctamente."
+    except ValidationError as e: 
+        logger.error(f"Error de validación al guardar CV de {persona.usuario.username}: {e.message_dict}", exc_info=True)
+        cv.processing_status = EstadoDocumento.ERROR
+        cv.rejection_reason = f"Error de validación al guardar CV: {e.message_dict}"
+        cv.save(update_fields=['processing_status', 'rejection_reason', 'last_processed_at'])
+        return False, f"Error al guardar los datos del CV: {e.message_dict}"
     except Exception as e:
         logger.error(f"Error al guardar CV de {persona.usuario.username}: {e}", exc_info=True)
-        # Si falla el guardado, asegúrate de que el estado refleje el error
         cv.processing_status = EstadoDocumento.ERROR
         cv.rejection_reason = f"Error interno del servidor al guardar CV: {e}"
-        # Solo guarda los campos de estado y razón, para evitar reintentar con el mismo problema que causó la excepción.
         cv.save(update_fields=['processing_status', 'rejection_reason', 'last_processed_at'])
         return False, f"Error al guardar los datos del CV: {e}"
 
@@ -1698,20 +1928,28 @@ def process_certificate_data(persona, payload):
 
     certificado, created = CertificadoAntecedentes.objects.get_or_create(persona=persona)
 
-    # Actualizar la URL de GCS si viene en el payload
-    if 'file_gcs_url' in payload:
-        gcs_url_from_cf = payload['file_gcs_url']
-        
-        # ¡CAMBIO CRUCIAL AQUÍ! Usa la función auxiliar
-        relative_path = get_gcs_relative_path_from_full_url(gcs_url_from_cf)
-        
-        if relative_path:
-            certificado.archivo_certificado.name = relative_path
-            logger.info(f"DEBUG_CF_PROCESS: URL de Certificado recibida de CF ('{gcs_url_from_cf}') asignada como ruta relativa: '{certificado.archivo_certificado.name}'")
+    # LÓGICA CLAVE MODIFICADA AQUÍ:
+    # Solo actualiza el campo de archivo (archivo_certificado.name) si el objeto es nuevo (created=True)
+    # O si el objeto existente NO tiene aún un archivo asignado (certificado.archivo_certificado es False/None o .name está vacío).
+    if created or not (certificado.archivo_certificado and certificado.archivo_certificado.name): # Si es nuevo o no tiene archivo
+        if 'file_gcs_url' in payload:
+            gcs_url_from_cf = payload['file_gcs_url']
+
+            # Aquí podrías añadir una validación simple si la URL del payload no debe empezar con 'static/'
+            if gcs_url_from_cf.startswith('static/'):
+                logger.error(f"DEBUG_CF_PROCESS: La URL GCS recibida de CF para Certificado es incorrecta (empieza con 'static/'): '{gcs_url_from_cf}'. No se asignará esta ruta al FileField.")
+                # No hacemos nada si la URL es incorrecta
+            else:
+                relative_path = get_gcs_relative_path_from_full_url(gcs_url_from_cf)
+                if relative_path:
+                    certificado.archivo_certificado.name = relative_path
+                    logger.info(f"DEBUG_CF_PROCESS: URL de Certificado recibida de CF ('{gcs_url_from_cf}') asignada como ruta relativa: '{certificado.archivo_certificado.name}'.")
+                else:
+                    logger.error(f"DEBUG_CF_PROCESS: No se pudo determinar la ruta relativa para el Certificado de CF: '{gcs_url_from_cf}'. El archivo del certificado no será actualizado en el modelo.")
         else:
-            logger.error(f"DEBUG_CF_PROCESS: No se pudo determinar la ruta relativa para el Certificado de CF: '{gcs_url_from_cf}'. El archivo del certificado no será actualizado en el modelo.")
+            logger.warning(f"DEBUG_CF_PROCESS: Payload de CF para Certificado no contiene 'file_gcs_url'. No se actualiza el archivo_certificado en el modelo (y era nuevo o sin archivo).")
     else:
-        logger.warning(f"DEBUG_CF_PROCESS: Payload de CF para Certificado no contiene 'file_gcs_url'. No se actualiza el archivo_certificado en el modelo.")
+        logger.info(f"DEBUG_CF_PROCESS: Certificado ya existe y tiene un archivo asignado ({certificado.archivo_certificado.name}). Se ignora 'file_gcs_url' del payload.")
 
     # Guardar el JSON completo de la IA
     certificado.datos_analizados_ia = payload.get('extracted_data', {})
@@ -1726,12 +1964,16 @@ def process_certificate_data(persona, payload):
         certificado.save()
         logger.info(f"Certificado de {persona.usuario.username} actualizado/creado con estado: {certificado.processing_status}. Ruta FileField final guardada: {certificado.archivo_certificado.name}")
         return True, "Datos de certificado guardados/actualizados correctamente."
+    except ValidationError as e:
+        logger.error(f"Error de validación al guardar Certificado de {persona.usuario.username}: {e.message_dict}", exc_info=True)
+        certificado.processing_status = EstadoDocumento.ERROR
+        certificado.rejection_reason = f"Error de validación al guardar Certificado: {e.message_dict}"
+        certificado.save(update_fields=['processing_status', 'rejection_reason', 'last_processed_at'])
+        return False, f"Error al guardar los datos del certificado: {e.message_dict}"
     except Exception as e:
         logger.error(f"Error al guardar Certificado de {persona.usuario.username}: {e}", exc_info=True)
-        # Si falla el guardado, asegúrate de que el estado refleje el error
         certificado.processing_status = EstadoDocumento.ERROR
         certificado.rejection_reason = f"Error interno del servidor al guardar Certificado: {e}"
-        # Solo guarda los campos de estado y razón, para evitar reintentar con el mismo problema que causó la excepción.
         certificado.save(update_fields=['processing_status', 'rejection_reason', 'last_processed_at'])
         return False, f"Error al guardar los datos del certificado: {e}"
 
@@ -1745,7 +1987,7 @@ def receive_document_data(request):
         logger.debug(f"Payload recibido: {data}")
 
         rut = data.get('rut')
-        document_type = data.get('document_type') # 'cv' o 'certificate'
+        document_type = data.get('document_type') 
         
         if not rut:
             logger.error("Falta 'rut' en el payload.")
@@ -1755,10 +1997,9 @@ def receive_document_data(request):
             logger.error("Falta 'document_type' en el payload.")
             return JsonResponse({'status': 'error', 'message': 'Falta el tipo de documento.'}, status=400)
 
-        # Buscar el usuario y su PersonaNatural.
         try:
             usuario = Usuario.objects.get(username=rut)
-            persona = get_object_or_404(PersonaNatural, usuario=usuario)
+            persona = PersonaNatural.objects.get(usuario=usuario) 
         except Usuario.DoesNotExist:
             logger.error(f"Usuario con RUT {rut} no encontrado.")
             return JsonResponse({'status': 'error', 'message': f'Usuario con RUT {rut} no encontrado.'}, status=404)
@@ -1772,7 +2013,7 @@ def receive_document_data(request):
         with transaction.atomic(): 
             if document_type == 'cv':
                 success, message = process_cv_data(persona, data)
-            elif document_type == 'CERTIFICADO_ANTECEDENTES': # Asegúrate de que el string coincida con lo que envía la CF
+            elif document_type == 'CERTIFICADO_ANTECEDENTES': 
                 success, message = process_certificate_data(persona, data)
             else:
                 logger.error(f"Tipo de documento no válido: {document_type}")
@@ -1789,7 +2030,6 @@ def receive_document_data(request):
     except Exception as e:
         logger.exception("Error inesperado en receive_document_data:") 
         return JsonResponse({'status': 'error', 'message': f'Error interno del servidor: {e}'}, status=500)
-
 
 import redis
 import socket

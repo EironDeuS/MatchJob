@@ -28,13 +28,13 @@ urlpatterns = [
     path('oferta/<int:oferta_id>/', views.detalle_oferta, name='detalle_oferta'),
     path('perfil/editar/', views.editar_perfil, name='editar_perfil'),
     path('mis_ofertas/', views.mis_ofertas, name='mis_ofertas'),
-    path('ofertas/<int:oferta_id>/postulantes/', views.postulantes_por_oferta, name='postulantes_por_oferta'), #ultimo añadido
+    # path('ofertas/<int:oferta_id>/postulantes/', views.postulantes_por_oferta, name='postulantes_por_oferta'), #ultimo añadido
     path('crear_oferta/', views.crear_oferta, name='crear_oferta'),
     path('editar-oferta/<int:oferta_id>/', views.editar_oferta, name='editar_oferta'),
     path('eliminar-oferta/<int:oferta_id>/', views.eliminar_oferta, name='eliminar_oferta'),
     path('oferta/<int:oferta_id>/postular/', views.realizar_postulacion, name='realizar_postulacion'),
     path('mis-postulaciones/', views.mis_postulaciones_persona, name='mis_postulaciones_persona'),
-    path('cambiar_estado_postulacion/<int:postulacion_id>/', views.cambiar_estado_postulacion, name='cambiar_estado_postulacion'),
+    # path('cambiar_estado_postulacion/<int:postulacion_id>/', views.cambiar_estado_postulacion, name='cambiar_estado_postulacion'),
     path('ranking/', views.ranking_usuarios, name='ranking'),
     path('mapa/', views.mapa_ofertas_trabajo, name='mapa'),
     path('api/ofertas-mapa/', views.api_ofertas_mapa, name='api_ofertas_mapa'),
@@ -48,7 +48,8 @@ urlpatterns = [
     path('muestra/eliminar/<int:muestra_id>/', views.eliminar_muestra_trabajo, name='eliminar_muestra_trabajo'),
     path('api/document-data-receiver/', views.receive_document_data, name='document_data_receiver'),
     path('tasks/analizar_ia/', csrf_exempt(analizar_postulacion_ia_task_handler), name='analizar_ia_task_endpoint'),
-     path('postulaciones/<int:pk>/eliminar/', views.eliminar_postulacion, name='eliminar_postulacion'),
+    path('postulaciones/<int:postulacion_id>/cambiar-estado/', views.cambiar_estado_postulacion, name='cambiar_estado_postulacion'),
+    path('ofertas/<int:oferta_id>/postulantes/', views.ver_postulantes_oferta, name='postulantes_oferta'),
     
 
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),

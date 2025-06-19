@@ -44,35 +44,44 @@
                         <p><i class="bi bi-phone-fill text-secondary me-1"></i> {{ usuario.telefono }}</p>
                     {% endif %}
 
-                    {% if usuario.tipo_usuario == 'persona' and perfil.cv %}
-                        <a href="{{ perfil.cv.url }}" class="btn btn-outline-primary btn-sm mt-2" target="_blank" rel="noopener noreferrer">
-                            <i class="bi bi-file-earmark-person-fill me-1"></i> Ver CV
+                    {# MODIFICACIÓN AQUÍ: Botón para Ver Curriculum Vitae #}
+                    {% if usuario.tipo_usuario == 'persona' and perfil.cv and perfil.cv.archivo_cv %}
+                        <a href="{{ perfil.cv.archivo_cv.url }}" class="btn btn-outline-primary btn-sm mt-2" target="_blank" rel="noopener noreferrer">
+                            <i class="bi bi-file-earmark-person-fill me-1"></i> Ver Curriculum Vitae
                         </a>
                     {% endif %}
+
+                    {# NUEVA SECCIÓN AQUÍ: Botón para Ver Certificado de Antecedentes #}
+                    {% if usuario.tipo_usuario == 'persona' and perfil.certificado_antecedentes and perfil.certificado_antecedentes.archivo_certificado %}
+                        <a href="{{ perfil.certificado_antecedentes.archivo_certificado.url }}" class="btn btn-outline-info btn-sm mt-2 ms-2" target="_blank" rel="noopener noreferrer">
+                            <i class="bi bi-journal-check me-1"></i> Ver Certificado Antecedentes
+                        </a>
+                    {% endif %}
+
                 </div>
             </div>
-                        {% if valoracion_promedio is not None %}
-                            <a href="{% url 'historial_valoraciones' usuario.id %}">
-                                <div class="card shadow-sm mt-4">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i> Calificación Promedio</h5>
-                                        <div class="d-flex justify-content-center align-items-center mb-2">
-                                            <span class="fs-2 fw-bold text-primary me-2">{{ valoracion_promedio|floatformat:1 }}</span>
-                                                <div class="d-flex">
-                                                    {% for i in "12345" %}
-                                                        {% if forloop.counter <= valoracion_promedio %}
-                                                            <i class="bi bi-star-fill text-warning"></i>
-                                                        {% else %}
-                                                            <i class="bi bi-star text-warning"></i>
-                                                        {% endif %}
-                                                    {% endfor %}
-                                                </div>
-                                        </div>
-                                            <p class="text-muted">({{ cantidad_valoraciones }} valoraciones)</p>
-                                    </div>
+            {% if valoracion_promedio is not None %}
+                <a href="{% url 'historial_valoraciones' usuario.id %}">
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-body text-center">
+                            <h5 class="card-title"><i class="bi bi-star-fill text-warning me-2"></i> Calificación Promedio</h5>
+                            <div class="d-flex justify-content-center align-items-center mb-2">
+                                <span class="fs-2 fw-bold text-primary me-2">{{ valoracion_promedio|floatformat:1 }}</span>
+                                <div class="d-flex">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= valoracion_promedio %}
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                        {% else %}
+                                            <i class="bi bi-star text-warning"></i>
+                                        {% endif %}
+                                    {% endfor %}
                                 </div>
-                            </a>
-                        {% endif %}
+                            </div>
+                            <p class="text-muted">({{ cantidad_valoraciones }} valoraciones)</p>
+                        </div>
+                    </div>
+                </a>
+            {% endif %}
         </div>
 
         <div class="col-lg-8 col-md-7">
@@ -131,8 +140,7 @@
     </div>
 </div>
 
-            <!-- Sección completa: Galería + Subida -->
-        {% if usuario.tipo_usuario == 'persona' %}
+            {% if usuario.tipo_usuario == 'persona' %}
         <style>
         .carousel-control-prev-icon,
         .carousel-control-next-icon {

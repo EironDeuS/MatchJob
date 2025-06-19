@@ -6,6 +6,26 @@
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/postulantes_oferta.css' %}">
     
+    <style>
+        /* Estilos para hacer el tooltip más ancho */
+        .tooltip {
+            --bs-tooltip-max-width: 500px !important;
+        }
+        
+        .tooltip-inner {
+            max-width: 500px !important;
+            white-space: normal !important;
+            text-align: left !important;
+            padding: 12px 16px !important;
+            font-size: 0.875rem !important;
+            line-height: 1.4 !important;
+        }
+        
+        .tooltip-inner strong {
+            color: #fff !important;
+        }
+    </style>
+    
 {% endblock %}
 
 {% block content %}
@@ -14,114 +34,349 @@
         <i class="bi bi-people-fill me-2"></i> Postulantes para: <strong>{{ oferta.nombre }}</strong>
     </h2>
 
-    {% if postulaciones %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle"> {# Added align-middle for better vertical alignment #}
-        <thead class="table-light">
-            <tr>
-                <th><i class="bi bi-person-fill text-muted"></i> Postulante</th>
-                <th><i class="bi bi-calendar-date text-muted"></i> Fecha</th>
-                <th><i class="bi bi-tag text-muted"></i> Estado</th>
-                <th><i class="bi bi-robot text-muted"></i> Estado IA</th> {# NUEVA COLUMNA #}
-                <th><i class="bi bi-star-fill text-muted"></i> Puntaje IA</th> {# NUEVA COLUMNA #}
-                <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th> {# COLUMNA CONSOLIDADA #}
-            </tr>
-        </thead>
-        <tbody>
-            {% for postulacion in postulaciones %}
-            <tr>
-                <td>
-                    <div class="d-flex align-items-center">
-                    {% if postulacion.persona.foto_perfil %}
-                        <img src="{{ postulacion.persona.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
-                    {% else %}
-                        <i class="bi bi-person-circle me-2 fs-4 text-muted"></i>
-                    {% endif %}
-                    {{ postulacion.persona.nombre_completo }}
-                    </div>
-                </td>
-                <td>
-                    <small class="text-muted">
-                    <i class="bi bi-clock-fill text-secondary me-1"></i>
-                    {{ postulacion.fecha_postulacion|date:"d/m/Y" }}
-                    </small>
-                </td>
-                <td>
-                    {# Actualización del badge para 'estado' sin 'filtrado' #}
-                    <span class="badge bg-{% if postulacion.estado == 'pendiente' %}warning text-dark{% elif postulacion.estado == 'match' %}info{% elif postulacion.estado == 'contratado' %}success{% elif postulacion.estado == 'rechazado' %}danger{% elif postulacion.estado == 'finalizado' %}secondary{% else %}primary{% endif %}">
-                    {{ postulacion.get_estado_display }}
-                    </span>
-                </td>
-                {# NUEVA COLUMNA: Estado IA #}
-                <td>
-                    <span class="badge bg-{% if postulacion.estado_ia_analisis == 'aprobado_ia' %}success{% elif postulacion.estado_ia_analisis == 'rechazado_ia' %}danger{% elif postulacion.estado_ia_analisis == 'en_analisis' %}info{% elif postulacion.estado_ia_analisis == 'pendiente_ia' %}warning text-dark{% elif postulacion.estado_ia_analisis == 'error_analisis' %}secondary{% endif %}">
-                        {{ postulacion.get_estado_ia_analisis_display }}
-                    </span>
-                </td>
-                {# NUEVA COLUMNA: Puntaje IA con Tooltip #}
-                <td>
-                    {% if postulacion.puntaje_ia is not None %}
-                        {{ postulacion.puntaje_ia }}
-                        <i class="bi bi-question-circle ms-1 text-info"
-                           data-bs-toggle="tooltip" data-bs-placement="top"
-                           data-bs-html="true"
-                           title="{% if postulacion.razones_ia %}
-                                <strong>Fortalezas:</strong> {{ postulacion.razones_ia.fortalezas|default:"No especificado."|safe }}<br>
-                                <strong>Oportunidades de Mejora:</strong> {{ postulacion.razones_ia.oportunidades_mejora|default:"No especificado."|safe }}<br>
-                                <strong>Resumen:</strong> {{ postulacion.razones_ia.resumen_coincidencia|default:"No especificado."|safe }}
-                            {% else %}
-                                No hay razones disponibles.
-                            {% endif %}">
-                        </i>
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </td>
-                {# COLUMNA CONSOLIDADA: Acciones - SOLUCIONADO #}
-                <td>
-                    {# Botón Ver Perfil - SOLUCIONADO #}
-                    <a href="{% url 'ver_perfil_publico' postulacion.persona.usuario.id %}" 
-                       target="_blank" 
-                       class="btn btn-sm btn-outline-primary me-1 btn-ver-perfil"
-                       onclick="event.stopPropagation();"
-                       rel="noopener noreferrer">
-                        <i class="bi bi-eye me-1"></i> Ver Perfil
-                    </a>
-                    
-                    {# Botón de eliminar #}
-                    <button type="button"
-                            class="btn btn-sm btn-outline-danger me-1"
-                            data-bs-toggle="modal"
-                            data-bs-target="#modalConfirmarEliminar"
-                            data-postulacion-id="{{ postulacion.id }}"
-                            data-postulante-nombre="{{ postulacion.persona.nombre_completo }}"
-                            onclick="event.stopPropagation();">
-                        <i class="bi bi-trash me-1"></i> Eliminar
-                    </button>
-                    
-                    {# Botón de Match #}
-                    <a href="#"
-                       class="btn btn-sm btn-success"
-                       data-bs-toggle="modal"
-                       data-bs-target="#modalConfirmarMatch"
-                       data-nombre="{{ postulacion.persona.nombre_completo }}"
-                       data-telefono="{{ postulacion.persona.usuario.telefono }}"
-                       data-id="{{ postulacion.id }}"
-                       data-oferta="{{ oferta.nombre|default:"Sin descripción"|truncatewords:5 }}"
-                       onclick="event.stopPropagation();">
-                        <i class="bi bi-whatsapp"></i> Match
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    </div>
-    {% else %}
-        <div class="alert alert-info text-center">
-            <i class="bi bi-info-circle-fill me-2"></i> No hay postulantes para esta oferta.
+    {# --- TABLA 1: POSTULANTES PENDIENTES --- #}
+    <div class="card mb-5 shadow-sm">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-hourglass-split me-2"></i> Postulantes Pendientes</h4>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" id="filtroIaDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    Filtrar por IA: 
+                    {% if current_filtro_ia == 'aprobado_ia' %}Aprobados{% elif current_filtro_ia == 'rechazado_ia' %}Rechazados{% else %}Todos{% endif %}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="filtroIaDropdown">
+                    <li><a class="dropdown-item {% if current_filtro_ia == 'todas' %}active{% endif %}" href="?filtro_ia=todas">Todas las Pendientes</a></li>
+                    <li><a class="dropdown-item {% if current_filtro_ia == 'aprobado_ia' %}active{% endif %}" href="?filtro_ia=aprobado_ia">IA Aprobadas</a></li>
+                    <li><a class="dropdown-item {% if current_filtro_ia == 'rechazado_ia' %}active{% endif %}" href="?filtro_ia=rechazado_ia">IA Rechazadas</a></li>
+                </ul>
+            </div>
         </div>
-    {% endif %}
+        <div class="card-body p-0">
+            {% if postulaciones_pendientes %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-person-fill text-muted"></i> Postulante</th>
+                            <th><i class="bi bi-calendar-date text-muted"></i> Fecha</th>
+                            <th><i class="bi bi-tag text-muted"></i> Estado</th>
+                            <th><i class="bi bi-robot text-muted"></i> Estado IA</th>
+                            <th><i class="bi bi-star-fill text-muted"></i> Puntaje IA</th>
+                            <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for postulacion in postulaciones_pendientes %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                {% if postulacion.persona.foto_perfil %}
+                                    <img src="{{ postulacion.persona.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
+                                {% else %}
+                                    <i class="bi bi-person-circle me-2 fs-4 text-muted"></i>
+                                {% endif %}
+                                {{ postulacion.persona.nombre_completo }}
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                <i class="bi bi-clock-fill text-secondary me-1"></i>
+                                {{ postulacion.fecha_postulacion|date:"d/m/Y" }}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning text-dark">
+                                {{ postulacion.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if postulacion.estado_ia_analisis == 'aprobado_ia' %}success{% elif postulacion.estado_ia_analisis == 'rechazado_ia' %}danger{% elif postulacion.estado_ia_analisis == 'en_analisis' %}info{% elif postulacion.estado_ia_analisis == 'pendiente_ia' %}warning text-dark{% elif postulacion.estado_ia_analisis == 'error_analisis' %}secondary{% endif %}">
+                                    {{ postulacion.get_estado_ia_analisis_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if postulacion.puntaje_ia is not None %}
+                                    {{ postulacion.puntaje_ia }}
+                                    <i class="bi bi-question-circle ms-1 text-info tooltip-icon"
+                                        data-bs-toggle="tooltip" 
+                                        data-bs-placement="left"
+                                        data-bs-html="true"
+                                        title="{% if postulacion.razones_ia %}
+                                            <strong>Fortalezas:</strong><br>{{ postulacion.razones_ia.fortalezas|default:"No especificado."|safe }}<br><br>
+                                            <strong>Resumen:</strong><br>{{ postulacion.razones_ia.resumen_coincidencia|default:"No especificado."|safe }}
+                                        {% else %}
+                                            No hay razones disponibles.
+                                        {% endif %}">
+                                    </i>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'ver_perfil_publico' postulacion.persona.usuario.id %}" 
+                                    target="_blank" 
+                                    class="btn btn-sm btn-outline-primary me-1 btn-ver-perfil"
+                                    onclick="event.stopPropagation();"
+                                    rel="noopener noreferrer">
+                                    <i class="bi bi-eye me-1"></i> Perfil
+                                </a>
+                                <button type="button"
+                                        class="btn btn-sm btn-success me-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmarMatch"
+                                        data-nombre="{{ postulacion.persona.nombre_completo }}"
+                                        data-telefono="{{ postulacion.persona.usuario.telefono }}"
+                                        data-id="{{ postulacion.id }}"
+                                        data-oferta="{{ oferta.nombre|default:"Sin descripción"|truncatewords:5 }}"
+                                        onclick="event.stopPropagation();">
+                                        <i class="bi bi-whatsapp"></i> Match
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmarRechazar"
+                                        data-postulacion-id="{{ postulacion.id }}"
+                                        data-postulante-nombre="{{ postulacion.persona.nombre_completo }}"
+                                        onclick="event.stopPropagation();">
+                                        <i class="bi bi-x-circle me-1"></i> Rechazar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="alert alert-info text-center m-3">
+                    <i class="bi bi-info-circle-fill me-2"></i> No hay postulantes pendientes para esta oferta
+                    {% if current_filtro_ia != 'todas' %} con el filtro de IA seleccionado.{% else %}.{% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# --- TABLA 2: POSTULANTES EN MATCH --- #}
+    <div class="card mb-5 shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0"><i class="bi bi-chat-heart-fill me-2"></i> Postulantes en Match</h4>
+        </div>
+        <div class="card-body p-0">
+            {% if postulaciones_match %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-person-fill text-muted"></i> Postulante</th>
+                            <th><i class="bi bi-calendar-date text-muted"></i> Fecha Match</th>
+                            <th><i class="bi bi-tag text-muted"></i> Estado</th>
+                            <th><i class="bi bi-robot text-muted"></i> Estado IA</th>
+                            <th><i class="bi bi-star-fill text-muted"></i> Puntaje IA</th>
+                            <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for postulacion in postulaciones_match %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                {% if postulacion.persona.foto_perfil %}
+                                    <img src="{{ postulacion.persona.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
+                                {% else %}
+                                    <i class="bi bi-person-circle me-2 fs-4 text-muted"></i>
+                                {% endif %}
+                                {{ postulacion.persona.nombre_completo }}
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                <i class="bi bi-clock-fill text-secondary me-1"></i>
+                                {{ postulacion.fecha_actualizacion|date:"d/m/Y" }} {# Asumo que fecha_actualizacion registra el cambio a 'match' #}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">
+                                {{ postulacion.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if postulacion.estado_ia_analisis == 'aprobado_ia' %}success{% elif postulacion.estado_ia_analisis == 'rechazado_ia' %}danger{% elif postulacion.estado_ia_analisis == 'en_analisis' %}info{% elif postulacion.estado_ia_analisis == 'pendiente_ia' %}warning text-dark{% elif postulacion.estado_ia_analisis == 'error_analisis' %}secondary{% endif %}">
+                                    {{ postulacion.get_estado_ia_analisis_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if postulacion.puntaje_ia is not None %}
+                                    {{ postulacion.puntaje_ia }}
+                                    <i class="bi bi-question-circle ms-1 text-info tooltip-icon"
+                                        data-bs-toggle="tooltip" 
+                                        data-bs-placement="left"
+                                        data-bs-html="true"
+                                        title="{% if postulacion.razones_ia %}
+                                            <strong>Fortalezas:</strong><br>{{ postulacion.razones_ia.fortalezas|default:"No especificado."|safe }}<br><br>
+                                            <strong>Resumen:</strong><br>{{ postulacion.razones_ia.resumen_coincidencia|default:"No especificado."|safe }}
+                                        {% else %}
+                                            No hay razones disponibles.
+                                        {% endif %}">
+                                    </i>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'ver_perfil_publico' postulacion.persona.usuario.id %}" 
+                                    target="_blank" 
+                                    class="btn btn-sm btn-outline-primary me-1 btn-ver-perfil"
+                                    onclick="event.stopPropagation();"
+                                    rel="noopener noreferrer">
+                                    <i class="bi bi-eye me-1"></i> Perfil
+                                </a>
+                                {# Botón de Contactar por WhatsApp SIEMPRE para 'match' #}
+                                <a href="https://wa.me/{{ postulacion.persona.usuario.telefono|default:''|cut:'+'|cut:' '|cut:'-'|cut:'('|cut:')' }}?text={{ oferta.nombre|default:"Sin descripción"|truncatewords:5|urlencode }}%0AHola%20{{ postulacion.persona.nombre_completo|urlencode }},%20hemos%20hecho%20match%20contigo%20en%20MatchJob%20respecto%20a%20tu%20postulaci%C3%B3n%20para%20la%20oferta%20%22{{ oferta.nombre|urlencode }}%22.%20Nos%20gustar%C3%ADa%20contactarte%20para%20conversar%20m%C3%A1s%20sobre%20esta%20oportunidad."
+                                    target="_blank" 
+                                    class="btn btn-sm btn-success me-1"
+                                    onclick="event.stopPropagation();"
+                                    rel="noopener noreferrer">
+                                    <i class="bi bi-whatsapp me-1"></i> Contactar
+                                </a>
+                                {# Botón de Contratar #}
+                                <button type="button"
+                                        class="btn btn-sm btn-primary me-1"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmarContratar"
+                                        data-postulacion-id="{{ postulacion.id }}"
+                                        data-postulante-nombre="{{ postulacion.persona.nombre_completo }}"
+                                        data-oferta-nombre="{{ oferta.nombre }}"
+                                        onclick="event.stopPropagation();">
+                                        <i class="bi bi-person-check-fill me-1"></i> Contratar
+                                </button>
+                                {# Botón de Rechazar #}
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmarRechazar"
+                                        data-postulacion-id="{{ postulacion.id }}"
+                                        data-postulante-nombre="{{ postulacion.persona.nombre_completo }}"
+                                        onclick="event.stopPropagation();">
+                                        <i class="bi bi-x-circle me-1"></i> Rechazar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="alert alert-info text-center m-3">
+                    <i class="bi bi-info-circle-fill me-2"></i> No hay postulantes en Match para esta oferta.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# --- TABLA 3: POSTULANTES CONTRATADOS --- #}
+    <div class="card mb-5 shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="bi bi-briefcase-fill me-2"></i> Postulantes Contratados</h4>
+        </div>
+        <div class="card-body p-0">
+            {% if postulaciones_contratadas %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="bi bi-person-fill text-muted"></i> Postulante</th>
+                            <th><i class="bi bi-calendar-date text-muted"></i> Fecha Contrato</th>
+                            <th><i class="bi bi-tag text-muted"></i> Estado</th>
+                            <th><i class="bi bi-robot text-muted"></i> Estado IA</th>
+                            <th><i class="bi bi-star-fill text-muted"></i> Puntaje IA</th>
+                            <th><i class="bi bi-gear-fill text-muted"></i> Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for postulacion in postulaciones_contratadas %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                {% if postulacion.persona.foto_perfil %}
+                                    <img src="{{ postulacion.persona.foto_perfil.url }}" class="rounded-circle me-2" width="30" height="30" alt="Foto postulante">
+                                {% else %}
+                                    <i class="bi bi-person-circle me-2 fs-4 text-muted"></i>
+                                {% endif %}
+                                {{ postulacion.persona.nombre_completo }}
+                                </div>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                <i class="bi bi-clock-fill text-secondary me-1"></i>
+                                {{ postulacion.fecha_actualizacion|date:"d/m/Y" }} {# Asumo que fecha_actualizacion registra el cambio a 'contratado' #}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">
+                                {{ postulacion.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if postulacion.estado_ia_analisis == 'aprobado_ia' %}success{% elif postulacion.estado_ia_analisis == 'rechazado_ia' %}danger{% elif postulacion.estado_ia_analisis == 'en_analisis' %}info{% elif postulacion.estado_ia_analisis == 'pendiente_ia' %}warning text-dark{% elif postulacion.estado_ia_analisis == 'error_analisis' %}secondary{% endif %}">
+                                    {{ postulacion.get_estado_ia_analisis_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if postulacion.puntaje_ia is not None %}
+                                    {{ postulacion.puntaje_ia }}
+                                    <i class="bi bi-question-circle ms-1 text-info tooltip-icon"
+                                        data-bs-toggle="tooltip" 
+                                        data-bs-placement="left"
+                                        data-bs-html="true"
+                                        title="{% if postulacion.razones_ia %}
+                                            <strong>Fortalezas:</strong><br>{{ postulacion.razones_ia.fortalezas|default:"No especificado."|safe }}<br><br>
+                                            <strong>Resumen:</strong><br>{{ postulacion.razones_ia.resumen_coincidencia|default:"No especificado."|safe }}
+                                        {% else %}
+                                            No hay razones disponibles.
+                                        {% endif %}">
+                                    </i>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'ver_perfil_publico' postulacion.persona.usuario.id %}" 
+                                    target="_blank" 
+                                    class="btn btn-sm btn-outline-primary me-1 btn-ver-perfil"
+                                    onclick="event.stopPropagation();"
+                                    rel="noopener noreferrer">
+                                    <i class="bi bi-eye me-1"></i> Perfil
+                                </a>
+                                {# Botón de Contactar por WhatsApp SIEMPRE para 'contratado' #}
+                                <a href="https://wa.me/{{ postulacion.persona.usuario.telefono|default:''|cut:'+'|cut:' '|cut:'-'|cut:'('|cut:')' }}?text={{ oferta.nombre|default:"Sin descripción"|truncatewords:5|urlencode }}%0AHola%20{{ postulacion.persona.nombre_completo|urlencode }},%20felicitaciones%20por%20tu%20contrataci%C3%B3n%20para%20la%20oferta%20%22{{ oferta.nombre|urlencode }}%22%20en%20MatchJob.%20Quiero%20coordinar%20los%20siguientes%20pasos."
+                                    target="_blank" 
+                                    class="btn btn-sm btn-success me-1"
+                                    onclick="event.stopPropagation();"
+                                    rel="noopener noreferrer">
+                                    <i class="bi bi-whatsapp me-1"></i> Contactar
+                                </a>
+                                {# Botón de Finalizar #}
+                                <button type="button"
+                                        class="btn btn-sm btn-warning text-dark"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalConfirmarFinalizar"
+                                        data-postulacion-id="{{ postulacion.id }}"
+                                        data-postulante-nombre="{{ postulacion.persona.nombre_completo }}"
+                                        data-oferta-nombre="{{ oferta.nombre }}"
+                                        onclick="event.stopPropagation();">
+                                        <i class="bi bi-flag-fill me-1"></i> Finalizar
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <div class="alert alert-info text-center m-3">
+                    <i class="bi bi-info-circle-fill me-2"></i> No hay postulantes contratados para esta oferta.
+                </div>
+            {% endif %}
+        </div>
+    </div>
 
     <div class="mt-4">
         <a href="{% url 'mis_ofertas' %}" class="btn btn-secondary">
@@ -129,6 +384,7 @@
         </a>
     </div>
 
+    {# MODALES (Mantener los modales existentes fuera de los bloques de tablas) #}
     {# MODAL EXISTENTE para Match #}
     <div class="modal fade" id="modalConfirmarMatch" tabindex="-1" aria-labelledby="modalConfirmarMatchLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -141,47 +397,120 @@
                 </div>
                 <div class="modal-body text-center py-4">
                     <i class="bi bi-person-check text-primary" style="font-size: 3rem;"></i>
-
                     <p class="mt-3 fs-5">¿Deseas hacer <strong>match</strong> con <span id="matchNombre" class="text-primary fw-bold"></span> y contactarlo vía <i class="bi bi-whatsapp text-success"></i> WhatsApp?</p>
+                    <div id="matchLoading" class="d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Procesando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Actualizando estado...</p>
+                    </div>
                 </div>
                 <div class="modal-footer justify-content-center border-0 pb-4">
                     <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle me-1"></i> Cancelar
                     </button>
-                    <a id="btnWhatsapp" href="#" target="_blank" class="btn btn-success px-4">
+                    <button id="btnWhatsapp" type="button" class="btn btn-success px-4">
                         <i class="bi bi-whatsapp me-1"></i> Contactar
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    {# NUEVO MODAL para Eliminar Postulante #}
-    <div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" aria-labelledby="modalConfirmarEliminarLabel" aria-hidden="true">
+    {# MODAL para RECHAZAR Postulante #}
+    <div class="modal fade" id="modalConfirmarRechazar" tabindex="-1" aria-labelledby="modalConfirmarRechazarLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header bg-danger text-white rounded-top-4">
-                    <h5 class="modal-title" id="modalConfirmarEliminarLabel">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Confirmar Eliminación
+                    <h5 class="modal-title" id="modalConfirmarRechazarLabel">
+                        <i class="bi bi-x-octagon-fill me-2"></i> Confirmar Rechazo
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body text-center py-4">
-                    <i class="bi bi-trash text-danger" style="font-size: 3rem;"></i>
-                    <p class="mt-3 fs-5">¿Estás seguro de que quieres eliminar la postulación de <strong id="eliminarPostulanteNombre"></strong>?</p>
-                    <p class="text-muted">Esta acción es irreversible y eliminará todos los datos relacionados con esta postulación.</p>
+                    <i class="bi bi-person-x-fill text-danger" style="font-size: 3rem;"></i>
+                    <p class="mt-3 fs-5">¿Estás seguro de que quieres <strong>rechazar</strong> la postulación de <strong id="rechazarPostulanteNombre"></strong>?</p>
+                    <p class="text-muted">El estado de la postulación cambiará a "Rechazado".</p>
+                    <div id="rechazarLoading" class="d-none">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Procesando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Actualizando estado...</p>
+                    </div>
                 </div>
                 <div class="modal-footer justify-content-center border-0 pb-4">
                     <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle me-1"></i> Cancelar
                     </button>
-                    {# Formulario para enviar la solicitud de eliminación #}
-                    <form id="formEliminarPostulacion" method="post" action="">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-danger px-4">
-                            <i class="bi bi-trash-fill me-1"></i> Eliminar Postulación
-                        </button>
-                    </form>
+                    <button id="btnRechazarPostulacion" type="button" class="btn btn-danger px-4">
+                        <i class="bi bi-x-circle-fill me-1"></i> Rechazar Postulación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# MODAL para CONTRATAR Postulante #}
+    <div class="modal fade" id="modalConfirmarContratar" tabindex="-1" aria-labelledby="modalConfirmarContratarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-primary text-white rounded-top-4">
+                    <h5 class="modal-title" id="modalConfirmarContratarLabel">
+                        <i class="bi bi-person-check-fill me-2"></i> Confirmar Contratación
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-handshake-fill text-primary" style="font-size: 3rem;"></i>
+                    <p class="mt-3 fs-5">¿Deseas <strong>contratar</strong> a <strong id="contratarPostulanteNombre"></strong> para la oferta <strong id="contratarOfertaNombre"></strong>?</p>
+                    <p class="text-muted">El estado de la postulación cambiará a "Contratado" y se enviarán notificaciones.</p>
+                    <div id="contratarLoading" class="d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Procesando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Actualizando estado y enviando correos...</p>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center border-0 pb-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                    </button>
+                    <button id="btnContratarPostulacion" type="button" class="btn btn-primary px-4">
+                        <i class="bi bi-person-check-fill me-1"></i> Contratar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# MODAL para FINALIZAR Postulación #}
+    <div class="modal fade" id="modalConfirmarFinalizar" tabindex="-1" aria-labelledby="modalConfirmarFinalizarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-warning text-dark rounded-top-4">
+                    <h5 class="modal-title" id="modalConfirmarFinalizarLabel">
+                        <i class="bi bi-flag-fill me-2"></i> Confirmar Finalización
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <i class="bi bi-patch-check-fill text-warning" style="font-size: 3rem;"></i>
+                    <p class="mt-3 fs-5">¿Deseas <strong>finalizar</strong> la postulación de <strong id="finalizarPostulanteNombre"></strong> para la oferta <strong id="finalizarOfertaNombre"></strong>?</p>
+                    <p class="text-muted">El estado de la postulación cambiará a "Finalizado".</p>
+                    <div id="finalizarLoading" class="d-none">
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Procesando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Actualizando estado...</p>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center border-0 pb-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                    </button>
+                    <button id="btnFinalizarPostulacion" type="button" class="btn btn-warning text-dark px-4">
+                        <i class="bi bi-flag-fill me-1"></i> Finalizar
+                    </button>
                 </div>
             </div>
         </div>
@@ -192,7 +521,60 @@
 {% block extra_js %}
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // --- Lógica del Modal de Match (ya existía) ---
+        let currentPostulacionId = null;
+        let currentWhatsappUrl = null;
+        
+        // Función para cambiar el estado de la postulación
+        function cambiarEstadoPostulacion(postulacionId, nuevoEstado, successCallback, errorCallback, loadingElementId, buttonElementId) {
+            // Mostrar loading
+            document.getElementById(loadingElementId).classList.remove('d-none');
+            const button = document.getElementById(buttonElementId);
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Procesando...';
+            }
+
+            fetch(`/postulaciones/${postulacionId}/cambiar-estado/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `nuevo_estado=${nuevoEstado}`
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    successCallback(data);
+                } else {
+                    errorCallback(data);
+                }
+            })
+            .catch(error => {
+                console.error('Error en la solicitud AJAX:', error);
+                alert('Error al procesar la solicitud. Por favor, intente de nuevo.');
+                errorCallback({ message: 'Error de conexión o servidor.' });
+            })
+            .finally(() => {
+                // Ocultar loading
+                document.getElementById(loadingElementId).classList.add('d-none');
+                if (button) {
+                    button.disabled = false;
+                    // Restaurar texto original del botón (o algo genérico si no lo sabes)
+                    if (buttonElementId === 'btnWhatsapp') button.innerHTML = '<i class="bi bi-whatsapp me-1"></i> Contactar'; // Este botón ahora solo es para el modal de Match, el otro es un enlace directo
+                    else if (buttonElementId === 'btnRechazarPostulacion') button.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i> Rechazar Postulación';
+                    else if (buttonElementId === 'btnContratarPostulacion') button.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Contratar';
+                    else if (buttonElementId === 'btnFinalizarPostulacion') button.innerHTML = '<i class="bi bi-flag-fill me-1"></i> Finalizar';
+                }
+            });
+        }
+
+        // --- Lógica del Modal de Match ---
         var matchModal = document.getElementById('modalConfirmarMatch');
         matchModal.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
@@ -201,52 +583,175 @@
             var postulacionId = button.getAttribute('data-id');
             var tituloOferta = button.getAttribute('data-oferta');
 
-            var nombreSpan = matchModal.querySelector('#matchNombre');
-            var whatsappBtn = matchModal.querySelector('#btnWhatsapp');
+            currentPostulacionId = postulacionId; // Guardar para usar en el click del botón
 
+            var nombreSpan = matchModal.querySelector('#matchNombre');
             nombreSpan.textContent = nombre;
 
-            var telefonoConPrefijo = telefono.startsWith('+') ? telefono : `+56${telefono}`;
-            var mensaje = `Hola ${nombre}, hemos hecho match contigo en MatchJob respecto a tu postulación #${postulacionId} para la oferta "${tituloOferta}". Nos gustaría contactarte para conversar más sobre esta oportunidad.`;
+            // Asegurarse de que el teléfono tenga el prefijo de país si no lo tiene
+            // Esto es crucial para WhatsApp, si ya viene con +56, no lo agrega
+            // Remueve cualquier caracter no numérico para la URL de WhatsApp
+            let cleanedTelefono = telefono ? telefono.replace(/\D/g, '') : '';
+            if (cleanedTelefono && !cleanedTelefono.startsWith('56') && cleanedTelefono.length === 9) { // Asumiendo números de 9 dígitos sin prefijo para Chile
+                 cleanedTelefono = `56${cleanedTelefono}`;
+            } else if (cleanedTelefono && cleanedTelefono.startsWith('56') && cleanedTelefono.length === 11) { // Si ya tiene 56 y es de 11 digitos
+                // Ya esta bien
+            } else if (cleanedTelefono && !cleanedTelefono.startsWith('56') && cleanedTelefono.length === 11 && (cleanedTelefono.startsWith('9'))) { // Si es 9 digitos y empieza con 9
+                cleanedTelefono = `56${cleanedTelefono}`;
+            }
 
-            whatsappBtn.href = `https://wa.me/${telefonoConPrefijo.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`;
+            var mensaje = `Hola ${nombre}, hemos hecho match contigo en MatchJob respecto a tu postulación #${postulacionId} para la oferta "${tituloOferta}". Nos gustaría contactarte para conversar más sobre esta oportunidad.`;
+            currentWhatsappUrl = `https://wa.me/${cleanedTelefono}?text=${encodeURIComponent(mensaje)}`;
         });
 
-        // --- Lógica del Nuevo Modal para Eliminar Postulante ---
-        var eliminarModal = document.getElementById('modalConfirmarEliminar');
-        eliminarModal.addEventListener('show.bs.modal', function (event) {
+        document.getElementById('btnWhatsapp').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            if (!currentPostulacionId) {
+                console.error('No hay postulación seleccionada para Match.');
+                return;
+            }
+
+            cambiarEstadoPostulacion(
+                currentPostulacionId,
+                'match',
+                function(data) { // successCallback
+                    window.open(currentWhatsappUrl, '_blank');
+                    var modal = bootstrap.Modal.getInstance(matchModal);
+                    modal.hide();
+                    location.reload(); // Recargar la página para reflejar el cambio de estado
+                },
+                function(data) { // errorCallback
+                    alert('Error al actualizar el estado a Match: ' + (data.message || 'Error desconocido'));
+                },
+                'matchLoading', // ID del elemento de loading
+                'btnWhatsapp' // ID del botón
+            );
+        });
+
+        // --- Lógica del Modal para RECHAZAR Postulante ---
+        let currentRechazarPostulacionId = null;
+        var rechazarModal = document.getElementById('modalConfirmarRechazar');
+        rechazarModal.addEventListener('show.bs.modal', function (event) {
             var button = event.relatedTarget;
             var postulacionId = button.getAttribute('data-postulacion-id');
             var postulanteNombre = button.getAttribute('data-postulante-nombre');
 
-            var nombreSpan = eliminarModal.querySelector('#eliminarPostulanteNombre');
-            var form = eliminarModal.querySelector('#formEliminarPostulacion');
+            currentRechazarPostulacionId = postulacionId;
 
+            var nombreSpan = rechazarModal.querySelector('#rechazarPostulanteNombre');
             nombreSpan.textContent = postulanteNombre;
-            form.action = `/postulaciones/${postulacionId}/eliminar/`;
         });
 
-        // --- SOLUCIÓN MEJORADA: Manejo robusto de botones Ver Perfil ---
-        document.querySelectorAll('.btn-ver-perfil').forEach(function(button) {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const url = this.getAttribute('href');
-                
-                // Verificar que la URL es válida
-                if (url && url !== '#') {
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                } else {
-                    console.error('URL inválida para Ver Perfil');
-                }
-            });
+        document.getElementById('btnRechazarPostulacion').addEventListener('click', function(e) {
+            e.preventDefault();
+
+            if (!currentRechazarPostulacionId) {
+                console.error('No hay postulación seleccionada para Rechazar.');
+                return;
+            }
+
+            cambiarEstadoPostulacion(
+                currentRechazarPostulacionId,
+                'rechazado',
+                function(data) { // successCallback
+                    var modal = bootstrap.Modal.getInstance(rechazarModal);
+                    modal.hide();
+                    location.reload(); // Recargar la página para reflejar el cambio de estado
+                },
+                function(data) { // errorCallback
+                    alert('Error al rechazar la postulación: ' + (data.message || 'Error desconocido'));
+                },
+                'rechazarLoading', // ID del elemento de loading
+                'btnRechazarPostulacion' // ID del botón
+            );
         });
 
-        // --- Inicializar todos los Bootstrap Tooltips ---
+        // --- Lógica del Modal para CONTRATAR Postulante ---
+        let currentContratarPostulacionId = null;
+        var contratarModal = document.getElementById('modalConfirmarContratar');
+        contratarModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var postulacionId = button.getAttribute('data-postulacion-id');
+            var postulanteNombre = button.getAttribute('data-postulante-nombre');
+            var ofertaNombre = button.getAttribute('data-oferta-nombre');
+
+            currentContratarPostulacionId = postulacionId;
+
+            contratarModal.querySelector('#contratarPostulanteNombre').textContent = postulanteNombre;
+            contratarModal.querySelector('#contratarOfertaNombre').textContent = ofertaNombre;
+        });
+
+        document.getElementById('btnContratarPostulacion').addEventListener('click', function(e) {
+            e.preventDefault();
+
+            if (!currentContratarPostulacionId) {
+                console.error('No hay postulación seleccionada para Contratar.');
+                return;
+            }
+
+            cambiarEstadoPostulacion(
+                currentContratarPostulacionId,
+                'contratado',
+                function(data) { // successCallback
+                    var modal = bootstrap.Modal.getInstance(contratarModal);
+                    modal.hide();
+                    location.reload(); // Recargar la página para reflejar el cambio de estado
+                },
+                function(data) { // errorCallback
+                    alert('Error al contratar al postulante: ' + (data.message || 'Error desconocido'));
+                },
+                'contratarLoading', // ID del elemento de loading
+                'btnContratarPostulacion' // ID del botón
+            );
+        });
+
+        // --- Lógica del Modal para FINALIZAR Postulación ---
+        let currentFinalizarPostulacionId = null;
+        var finalizarModal = document.getElementById('modalConfirmarFinalizar');
+        finalizarModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var postulacionId = button.getAttribute('data-postulacion-id');
+            var postulanteNombre = button.getAttribute('data-postulante-nombre');
+            var ofertaNombre = button.getAttribute('data-oferta-nombre');
+
+            currentFinalizarPostulacionId = postulacionId;
+
+            finalizarModal.querySelector('#finalizarPostulanteNombre').textContent = postulanteNombre;
+            finalizarModal.querySelector('#finalizarOfertaNombre').textContent = ofertaNombre;
+        });
+
+        document.getElementById('btnFinalizarPostulacion').addEventListener('click', function(e) {
+            e.preventDefault();
+
+            if (!currentFinalizarPostulacionId) {
+                console.error('No hay postulación seleccionada para Finalizar.');
+                return;
+            }
+
+            cambiarEstadoPostulacion(
+                currentFinalizarPostulacionId,
+                'finalizado',
+                function(data) { // successCallback
+                    var modal = bootstrap.Modal.getInstance(finalizarModal);
+                    modal.hide();
+                    location.reload(); // Recargar la página para reflejar el cambio de estado
+                },
+                function(data) { // errorCallback
+                    alert('Error al finalizar la postulación: ' + (data.message || 'Error desconocido'));
+                },
+                'finalizarLoading', // ID del elemento de loading
+                'btnFinalizarPostulacion' // ID del botón
+            );
+        });
+
+        // --- Inicializar todos los Bootstrap Tooltips con configuración mejorada ---
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                container: 'body',   // Para evitar problemas de posicionamiento
+                boundary: 'viewport'   // Para mantener el tooltip dentro del viewport
+            });
         });
     });
     </script>
