@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Obtener la API Key
-SIMPLEAPI_API_KEY = '6647-W930-6391-1081-4347'
+SIMPLEAPI_API_KEY = os.getenv('SIMPLEAPI_API_KEY')
 
 if not SIMPLEAPI_API_KEY:
     print("Error: SIMPLEAPI_API_KEY no encontrada en el archivo .env")

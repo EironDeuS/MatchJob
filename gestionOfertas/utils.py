@@ -121,7 +121,7 @@ def validar_rut_empresa(rut):
         logger.debug(f"Usando API Key (primeros 5 caracteres): {api_key[:5]}...")
 
         # Aumentar el tiempo de espera (timeout) a 60 segundos
-        response = requests.get(url_completa, headers=headers, timeout=15) 
+        response = requests.get(url_completa, headers=headers, timeout=60) 
         response.raise_for_status()  # Levanta HTTPError para códigos de error 4xx/5xx
 
         data = response.json()

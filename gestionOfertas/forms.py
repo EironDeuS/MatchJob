@@ -535,35 +535,23 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
 
         # Validaciones para Empresa (lógica del SII sin cambios)
         elif tipo_usuario == 'empresa':
-            required_fields_empresa = {
-                'nombre_empresa': 'Nombre de la Empresa',
-                'razon_social': 'Razón Social',
-                'giro': 'Giro Comercial'
-            }
-            for field_name, label_name in required_fields_empresa.items():
-                if not cleaned_data.get(field_name):
-                    self.add_error(field_name, f"{label_name} es requerido para empresas.")
-
+            # Validar el RUT y extraer datos desde la API
             if username_rut: 
                 resultado = validar_rut_empresa(username_rut) 
                 if resultado['valida']:
                     api_data = resultado['datos']
                     api_razon_social = api_data.get('razonSocial')
                     if api_razon_social:
-                        # Si el usuario no proporcionó una razón social, usa la de la API
-                        if not cleaned_data.get('razon_social'):
-                            cleaned_data['razon_social'] = api_razon_social
-                        # Si el usuario no proporcionó un nombre de empresa, usa la razón social de la API
-                        if not cleaned_data.get('nombre_empresa'):
-                            cleaned_data['nombre_empresa'] = api_razon_social 
+                        cleaned_data['razon_social'] = api_razon_social
+                        cleaned_data['nombre_empresa'] = api_razon_social 
                     
                     api_actividades = api_data.get('actividadesEconomicas')
                     if api_actividades and len(api_actividades) > 0:
                         first_giro_desc = api_actividades[0].get('descripcion')
-                        if first_giro_desc and not cleaned_data.get('giro'):
-                            cleaned_data['giro'] = first_giro_desc
+                        cleaned_data['giro'] = first_giro_desc
                 else:
                     self.add_error('username', f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+
         
         return cleaned_data
 
