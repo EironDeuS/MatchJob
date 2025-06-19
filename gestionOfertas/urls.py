@@ -7,6 +7,10 @@ from django.contrib.auth import views as auth_views
 from . import views
 from django.conf import settings # <--- ¡Asegúrate de que esta línea esté aquí!
 from django.conf.urls.static import static # <--- ¡Asegúrate de que esta línea esté aquí!
+from django.contrib import admin
+from django.urls import path, include
+from gestionOfertas.tasks import analizar_postulacion_ia_task_handler
+from django.views.decorators.csrf import csrf_exempt 
 
 
 
@@ -43,6 +47,8 @@ urlpatterns = [
     path('perfil/subir-muestra/', views.subir_muestra_trabajo, name='subir_muestra_trabajo'),
     path('muestra/eliminar/<int:muestra_id>/', views.eliminar_muestra_trabajo, name='eliminar_muestra_trabajo'),
     path('api/document-data-receiver/', views.receive_document_data, name='document_data_receiver'),
+    path('tasks/analizar_ia/', csrf_exempt(analizar_postulacion_ia_task_handler), name='analizar_ia_task_endpoint'),
+     path('postulaciones/<int:pk>/eliminar/', views.eliminar_postulacion, name='eliminar_postulacion'),
     
 
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),

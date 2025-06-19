@@ -6,6 +6,9 @@ from django.contrib.messages import constants as messages
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+import ssl
+import os
+from google.auth import default
 
 # --- BASE DIRECTORY ---
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -82,7 +85,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles', # Asegúrate de que staticfiles está aquí
     'gestionOfertas',
     'widget_tweaks',
-    'storages', # Agregado para django-storages
+    'storages',
 ]
 
 # --- MIDDLEWARE ---
@@ -317,16 +320,51 @@ UMBRAL_IA_APROBADO_NORMAL = 70.00
 UMBRAL_IA_APROBADO_URGENTE = 55.00 # Más permisivo
 
 
-# Celery Configuration
-# ¡ESTO ES LO QUE DEBE CAMBIAR!
-# Aquí, le indicamos a Celery que obtenga la URL de la variable de entorno 'REDIS_URL'.
-# 'redis://localhost:6379/0' es solo un valor por defecto para cuando corres localmente
-# y REDIS_URL no está definida (ej. si no usas dotenv o no la has configurado localmente).
-CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'America/Santiago'
-CELERY_ENABLE_UTC = True
+# REDIS_COMMON_URL = "rediss://:377f3208-99dd-4c7a-a593-7881a916f70c@10.220.97.147:6378/0"
+
+# CACHES = {
+#     "default": {
+#         "BACKEND": "django_redis.cache.RedisCache",
+#         "LOCATION": REDIS_COMMON_URL,
+#         "OPTIONS": {
+#             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+#             "IGNORE_EXCEPTIONS": True,
+#             "CONNECTION_ARGS": {
+#                 "ssl_cert_reqs": ssl.CERT_NONE,
+#                 "ssl_check_hostname": False,
+#             },
+#         }
+#     }
+# }
+
+# # --- Celery Configuration ---
+# # Celery necesita configuración SSL separada
+# CELERY_BROKER_URL = "rediss://:377f3208-99dd-4c7a-a593-7881a916f70c@10.220.97.147:6378/0"
+# CELERY_RESULT_BACKEND = "rediss://:377f3208-99dd-4c7a-a593-7881a916f70c@10.220.97.147:6378/0"
+
+# # Configuración SSL para Celery
+# CELERY_REDIS_BACKEND_USE_SSL = {
+#     'ssl_cert_reqs': ssl.CERT_NONE,
+#     'ssl_check_hostname': False,
+# }
+# CELERY_BROKER_USE_SSL = {
+#     'ssl_cert_reqs': ssl.CERT_NONE,
+#     'ssl_check_hostname': False,
+# }
+
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_SERIALIZER = 'json'
+# CELERY_TIMEZONE = 'America/Santiago'
+# CELERY_ENABLE_UTC = True
+
+
+# Configuración de Google Cloud
+GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'matchjob-458200')
+GCP_LOCATION = os.getenv('GCP_LOCATION', 'southamerica-east1') # <--- Asegúrate de que coincida con la cola
+GCP_QUEUE_NAME = os.getenv('GCP_QUEUE_NAME', 'default')
+SERVICE_URL = os.getenv('SERVICE_URL', 'https://matchjob-service-159154155877.southamerica-west1.run.app')
+
+
+

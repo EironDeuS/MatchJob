@@ -64,9 +64,7 @@ from django.conf import settings
 import googlemaps
 from django.db import transaction
 from .forms import OfertaTrabajoForm
-# Importa la tarea de Celery desde tu tasks.py
-from .tasks import process_postulacion_evaluation 
-
+from gestionOfertas.tasks import encolar_analisis_ia
 
 
 
@@ -463,7 +461,30 @@ def inicio(request):
     
     return render(request, 'gestionOfertas/Inicio.html', context)
 
+@login_required
+@require_POST
+def eliminar_postulacion(request, pk): # Asegúrate de que el parámetro sea 'pk' si así lo tienes en urls.py
+    with transaction.atomic():
+        try:
+            postulacion = get_object_or_404(Postulacion, pk=pk)
 
+            # CORRECCIÓN AQUÍ:
+            # Si postulacion.oferta.creador ya es el objeto Usuario/User,
+            # lo comparas directamente con request.user.
+            if request.user != postulacion.oferta.creador and not request.user.is_staff:
+                messages.error(request, "No tienes permiso para eliminar esta postulación.")
+                return redirect('miperfil') # O la URL de redirección adecuada.
+
+            postulacion.delete()
+            messages.success(request, "La postulación ha sido eliminada correctamente.")
+
+        except Postulacion.DoesNotExist:
+            messages.error(request, "La postulación no existe.")
+        except Exception as e:
+            messages.error(request, f"Ocurrió un error inesperado al eliminar la postulación: {e}")
+            logging.getLogger(__name__).exception("Error al eliminar postulación")
+
+    return redirect('miperfil') # Redirecciona después de la eliminación.
 
 @login_required
 def crear_oferta(request):
@@ -921,7 +942,6 @@ def mi_perfil(request):
             persona=perfil
         ).select_related('oferta', 'oferta__creador')
 
-    postulaciones_filtradas = todas_las_postulaciones.filter(estado='filtrado').select_related('oferta')
 
     muestras_trabajo = MuestraTrabajo.objects.filter(usuario=usuario)
     muestras_agrupadas = agrupar_muestras(list(muestras_trabajo), 3)
@@ -935,8 +955,6 @@ def mi_perfil(request):
         'tiene_ofertas': ofertas_creadas.exists(),
         'todas_las_postulaciones': todas_las_postulaciones,
         'tiene_todas_las_postulaciones': todas_las_postulaciones.exists(),
-        'postulaciones_filtradas': postulaciones_filtradas,
-        'tiene_postulaciones_filtradas': postulaciones_filtradas.exists(),
         'valoraciones_recibidas': usuario.valoraciones_recibidas
                                         .select_related('emisor')
                                         .order_by('-fecha_creacion')[:3],
@@ -977,7 +995,7 @@ def cambiar_estado_postulacion(request, postulacion_id):
 
             estado_original = postulacion.estado
             nuevo_estado = request.POST.get('nuevo_estado')
-            estados_validos = ['pendiente', 'filtrado', 'match', 'contratado', 'rechazado', 'finalizado']
+            estados_validos = ['pendiente', 'match', 'contratado', 'rechazado', 'finalizado']
 
             if nuevo_estado not in estados_validos:
                 messages.error(request, "Estado no válido.")
@@ -1284,101 +1302,6 @@ def detalle_oferta(request, oferta_id):
 
 from django.utils import timezone
 
-# @login_required
-# def realizar_postulacion(request, oferta_id):
-#     """
-#     Vista para que un usuario de tipo Persona Natural pueda postularse a una oferta de trabajo.
-#     """
-#     oferta = get_object_or_404(OfertaTrabajo, pk=oferta_id)
-    
-#     try:
-#         persona = request.user.personanatural
-#     except PersonaNatural.DoesNotExist:
-#         messages.error(request, "Solo los usuarios de tipo Persona Natural pueden postular a ofertas.")
-#         return redirect('detalle_oferta', oferta_id=oferta_id)
-#     except AttributeError:
-#         messages.error(request, "Tu tipo de cuenta no puede postular a ofertas de empleo.")
-#         return redirect('detalle_oferta', oferta_id=oferta_id) # O la URL apropiada
-
-#     if oferta.creador == request.user:
-#         messages.error(request, "No puedes postularte a una oferta que tú mismo has creado.")
-#         return redirect('detalle_oferta', oferta_id=oferta_id)
-    
-#     if not oferta.esta_activa:
-#         messages.error(request, "No es posible postular a una oferta inactiva.")
-#         return redirect('detalle_oferta', oferta_id=oferta_id)
-    
-#     if oferta.fecha_cierre and oferta.fecha_cierre < timezone.now().date():
-#         messages.error(request, "No es posible postular a una oferta vencida.")
-#         return redirect('detalle_oferta', oferta_id=oferta_id)
-    
-#     if Postulacion.objects.filter(persona=persona, oferta=oferta).exists():
-#         messages.warning(request, "Ya has postulado a esta oferta anteriormente.")
-#         return redirect('detalle_oferta', oferta_id=oferta_id)
-    
-#     try:
-#         # Creamos la postulación con el estado inicial de "pendiente_ia"
-#         postulacion = Postulacion(
-#             persona=persona,
-#             oferta=oferta,
-#             estado='pendiente_ia', # Estado inicial de la postulación
-#             estado_ia_analisis='pendiente_ia' # Estado específico del análisis IA
-#         )
-#         postulacion.save() # Guarda la postulación en la base de datos
-
-#         # --- ¡AQUÍ ES DONDE SE LLAMA A LA TAREA ASÍNCRONA DE CELERY! ---
-#         # Enviamos el ID de la postulación para que la tarea la cargue y procese.
-#         process_postulacion_evaluation.delay(postulacion.id)
-        
-#         # --- Lógica de envío de correo de confirmación (puede seguir siendo síncrona o hacerse también asíncrona) ---
-#         # Si el envío de correo también toma mucho tiempo, considera moverlo a otra tarea Celery.
-#         # Por ahora, lo mantenemos aquí como estaba, asumiendo que no es crítico para la respuesta inmediata al usuario.
-        
-#         nombre_creador = oferta.creador.username
-        
-#         # Asegúrate de que 'tipo_usuario' exista en tu modelo Usuario o adapta la lógica
-#         if hasattr(oferta.creador, 'tipo_usuario') and oferta.creador.tipo_usuario == 'persona':
-#             try:
-#                 creador_persona = oferta.creador.personanatural
-#                 nombre_creador = f"{creador_persona.nombres} {creador_persona.apellidos}".strip() if creador_persona.nombres or creador_persona.apellidos else oferta.creador.username
-#             except PersonaNatural.DoesNotExist:
-#                 pass
-#         elif hasattr(oferta.creador, 'tipo_usuario') and oferta.creador.tipo_usuario == 'empresa':
-#             try:
-#                 # Asumo que tu modelo Empresa tiene un campo 'nombre'
-#                 nombre_creador = oferta.creador.empresa_perfil.nombre # Usar related_name 'empresa_perfil' si es OneToOneField
-#             except Empresa.DoesNotExist:
-#                 pass
-        
-#         context = {
-#             'nombre_postulante': f"{persona.nombres} {persona.apellidos}".strip() if persona.nombres or persona.apellidos else request.user.username,
-#             'oferta': oferta,
-#             'nombre_creador': nombre_creador,
-#             'url_perfil': request.build_absolute_uri(reverse('/perfil')),  # Ajusta 'perfil' a tu nombre de URL real
-#             'year': timezone.now().year,
-#             'company_name': getattr(settings, 'SITE_NAME', 'MatchJob'), # Usar el nombre de tu sitio
-#             'logo_url': request.build_absolute_uri(settings.STATIC_URL + 'img/logo.png') if hasattr(settings, 'STATIC_URL') else None,
-#         }
-        
-#         html_content = render_to_string('gestionOferta/emails/confirmacion_postulacion.html', context) # ¡Revisa la ruta del template!
-#         text_content = strip_tags(html_content)
-        
-#         subject = f"Confirmación de postulación: {oferta.nombre}"
-#         from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@matchjob.com') # ¡Cambia a tu dominio!
-#         to_email = request.user.correo
-        
-#         msg = EmailMultiAlternatives(subject, text_content, from_email, [to_email])
-#         msg.attach_alternative(html_content, "text/html")
-#         msg.send()
-        
-#         messages.success(request, "¡Tu postulación ha sido enviada con éxito y está siendo evaluada por nuestra IA! Hemos enviado un correo de confirmación.")
-#         # Redirigimos a una página de confirmación, o a las postulaciones del usuario
-#         return redirect('mis_postulaciones_persona') # Asegúrate de que esta URL exista
-    
-#     except Exception as e:
-#         messages.error(request, f"Ha ocurrido un error al procesar tu postulación: {str(e)}")
-#         # Si hay un error, redirigir de vuelta a la oferta o a una página de error
-#         return redirect('detalle_oferta', oferta_id=oferta_id)
 
 @login_required
 def realizar_postulacion(request, oferta_id):
@@ -1424,15 +1347,18 @@ def realizar_postulacion(request, oferta_id):
     # Creamos la postulación
     try:
         postulacion = Postulacion(persona=persona, oferta=oferta)
-        # --- AQUÍ EMPIEZAN LOS CAMBIOS ---
-        # Asignar el estado inicial de análisis de la IA
-        postulacion.estado_ia_analisis = 'pendiente_ia' 
         postulacion.save()
-        
-        # Disparar la tarea de evaluación de la IA en segundo plano
-        process_postulacion_evaluation.delay(postulacion.id) # <--- ESTA ES LA LÍNEA QUE BUSCAS
-        # --- AQUÍ TERMINAN LOS CAMBIOS ---
-        
+
+        try:
+            encolar_analisis_ia(postulacion.id)
+            # Actualiza el estado_ia_analisis para indicar que está en cola
+            postulacion.estado_ia_analisis = 'pendiente_ia' # Asegúrate de que este es el estado correcto para "en cola"
+            postulacion.save()
+            messages.success(request, 'Te has postulado a la oferta. El análisis de IA está en proceso.')
+        except Exception as e:
+            print(f"Error al encolar la tarea de análisis IA: {e}")
+            messages.error(request, 'Error al encolar el análisis IA.')
+
         # Obtenemos el nombre del creador según su tipo de usuario
         nombre_creador = oferta.creador.username
         
@@ -1623,7 +1549,7 @@ def ver_perfil_publico(request, usuario_id):
         usuario = Usuario.objects.get(id=usuario_id)
     except Usuario.DoesNotExist:
         messages.error(request, "El usuario solicitado no existe.")
-        return redirect('home')
+        return redirect('inicio')
 
     if request.user.id == usuario.id:
         return redirect('miperfil')
@@ -1863,3 +1789,38 @@ def receive_document_data(request):
     except Exception as e:
         logger.exception("Error inesperado en receive_document_data:") 
         return JsonResponse({'status': 'error', 'message': f'Error interno del servidor: {e}'}, status=500)
+
+
+import redis
+import socket
+from django.http import HttpResponse
+
+def test_redis_connection(request):
+    try:
+        # Test básico de socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)
+        result = sock.connect_ex(('10.220.97.147', 6378))
+        sock.close()
+        
+        if result == 0:
+            socket_status = "Socket connection: OK"
+        else:
+            socket_status = f"Socket connection failed: {result}"
+        
+        # Test de Redis
+        r = redis.Redis(
+            host='10.220.97.147',
+            port=6378,
+            password='377f3208-99dd-4c7a-a593-7881a916f70c',
+            socket_connect_timeout=10,
+            socket_timeout=10
+        )
+        redis_result = r.ping()
+        redis_status = f"Redis ping: {redis_result}"
+        
+    except Exception as e:
+        socket_status = f"Socket error: {e}"
+        redis_status = f"Redis error: {e}"
+    
+    return HttpResponse(f"{socket_status}<br>{redis_status}")

@@ -542,7 +542,6 @@ class Postulacion(models.Model):
     # Tus estados existentes
     ESTADOS = [
         ('pendiente', _('Pendiente')),
-        ('filtrado', _('Filtrado')),
         ('match', _('Match')),
         ('contratado', _('Contratado')),
         ('rechazado', _('Rechazado')),

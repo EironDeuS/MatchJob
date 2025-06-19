@@ -292,6 +292,106 @@ def calculate_distance(lat1, lon1, lat2, lon2):
         logger.error(f"Excepción al calcular distancia: {e}", exc_info=True)
         return None
 
+def queue_postulacion_analysis(postulacion_instance, delay_seconds=0):
+    """
+    Función para encolar el análisis de IA de una postulación.
+    
+    Args:
+        postulacion_instance: Instancia de Postulacion
+        delay_seconds: Segundos de retraso antes de ejecutar la tarea (opcional)
+    
+    Returns:
+        dict: Resultado del encolado
+    """
+    if not postulacion_instance or not isinstance(postulacion_instance, Postulacion):
+        return {'status': 'error', 'message': 'Instancia de Postulacion inválida para encolado.'}
+    
+    try:
+        # Actualizar estado a pendiente antes de encolar
+        postulacion_instance.estado_ia_analisis = 'pendiente'
+        postulacion_instance.razon_estado_ia = "Análisis IA encolado para procesamiento asíncrono"
+        postulacion_instance.save(update_fields=['estado_ia_analisis', 'razon_estado_ia'])
+        
+        # Importar la tarea aquí para evitar importaciones circulares
+        from .tasks import analizar_postulacion_ia_task
+        
+        # Encolar la tarea
+        if delay_seconds > 0:
+            task_result = analizar_postulacion_ia_task.delay(
+                postulacion_instance.id,
+                countdown=delay_seconds
+            )
+        else:
+            task_result = analizar_postulacion_ia_task.delay(postulacion_instance.id)
+        
+        logger.info(f"Análisis IA encolado para postulación ID {postulacion_instance.id}")
+        
+        return {
+            'status': 'queued',
+            'message': 'Análisis IA encolado exitosamente',
+            'task_id': str(task_result) if hasattr(task_result, '__str__') else 'unknown'
+        }
+        
+    except Exception as e:
+        logger.error(f"Error al encolar análisis IA para postulación ID {postulacion_instance.id}: {e}", exc_info=True)
+        
+        # Revertir estado en caso de error
+        try:
+            postulacion_instance.estado_ia_analisis = 'error_analisis'
+            postulacion_instance.razon_estado_ia = f"Error al encolar análisis IA: {str(e)}"
+            postulacion_instance.save(update_fields=['estado_ia_analisis', 'razon_estado_ia'])
+        except:
+            pass
+        
+        return {'status': 'error', 'message': f'Error al encolar análisis IA: {str(e)}'}
+
+def queue_batch_postulacion_analysis(postulacion_ids, delay_seconds=0):
+    """
+    Función para encolar análisis de múltiples postulaciones en lote.
+    
+    Args:
+        postulacion_ids: Lista de IDs de postulaciones
+        delay_seconds: Segundos de retraso antes de ejecutar la tarea (opcional)
+    
+    Returns:
+        dict: Resultado del encolado
+    """
+    if not postulacion_ids or not isinstance(postulacion_ids, list):
+        return {'status': 'error', 'message': 'Lista de IDs de postulaciones inválida.'}
+    
+    try:
+        # Actualizar estado de todas las postulaciones a pendiente
+        postulaciones = Postulacion.objects.filter(id__in=postulacion_ids)
+        postulaciones.update(
+            estado_ia_analisis='pendiente',
+            razon_estado_ia='Análisis IA encolado para procesamiento en lote'
+        )
+        
+        # Importar la tarea aquí para evitar importaciones circulares
+        from .tasks import procesar_lote_postulaciones_task
+        
+        # Encolar la tarea en lote
+        if delay_seconds > 0:
+            task_result = procesar_lote_postulaciones_task.delay(
+                postulacion_ids,
+                countdown=delay_seconds
+            )
+        else:
+            task_result = procesar_lote_postulaciones_task.delay(postulacion_ids)
+        
+        logger.info(f"Análisis IA en lote encolado para {len(postulacion_ids)} postulaciones")
+        
+        return {
+            'status': 'queued',
+            'message': f'Análisis IA en lote encolado exitosamente para {len(postulacion_ids)} postulaciones',
+            'task_id': str(task_result) if hasattr(task_result, '__str__') else 'unknown',
+            'count': len(postulacion_ids)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error al encolar análisis IA en lote: {e}", exc_info=True)
+        return {'status': 'error', 'message': f'Error al encolar análisis IA en lote: {str(e)}'}
+    
 
 def evaluate_postulacion_with_gemini(postulacion_instance):
     """
@@ -300,7 +400,8 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
     Calcula un puntaje de 0-100 y almacena razones.
     """
     if not postulacion_instance or not isinstance(postulacion_instance, Postulacion):
-        return {'status': 'error', 'message': 'Instancia de Postulacion inválida para evaluación.'}
+        # Esta función ahora devuelve un diccionario con 'status' para el handler
+        return {'status': 'error_analisis', 'message': 'Instancia de Postulacion inválida para evaluación.', 'puntaje': None, 'razones': {}}
 
     # Acceder a los modelos relacionados
     persona = postulacion_instance.persona
@@ -313,6 +414,8 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
     razones_ia = {}
     
     # Establecer estado inicial del análisis IA
+    # Esto ya se hizo en tasks.py antes de llamar a esta función, pero lo mantenemos para robustez
+    # y porque esta es la función que lo "pone en marcha" si se llama directamente.
     postulacion_instance.estado_ia_analisis = 'en_analisis'
     postulacion_instance.save(update_fields=['estado_ia_analisis']) # Guardar el estado inicial
 
@@ -324,17 +427,29 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
         distance_km = calculate_distance(user_lat, user_lon, oferta.latitud, oferta.longitud)
 
         if distance_km is not None:
-            if distance_km > UMBRAL_RECHAZO_DISTANCIA_KM: # Usamos el nuevo umbral de 300 km
-                # Si hay rechazo automático por distancia, se actualizan los campos y se retorna
-                postulacion_instance.estado = 'rechazado'
+            if distance_km > UMBRAL_RECHAZO_DISTANCIA_KM:
+                # Si hay rechazo automático por distancia, se actualizan los campos de IA y se retorna.
+                # NO se modifica postulacion_instance.estado
                 postulacion_instance.rechazo_automatico_distancia = True
                 postulacion_instance.razones_ia['rechazo_distancia'] = f"Distancia ({distance_km:.2f} km) excede el límite de {UMBRAL_RECHAZO_DISTANCIA_KM} km."
                 postulacion_instance.puntaje_ia = 0
                 postulacion_instance.estado_ia_analisis = 'rechazado_ia'
                 postulacion_instance.razon_estado_ia = f"Rechazo automático: Distancia ({distance_km:.2f} km) excede el límite de {UMBRAL_RECHAZO_DISTANCIA_KM} km."
-                postulacion_instance.save()
+                postulacion_instance.save(update_fields=[
+                    'rechazo_automatico_distancia',
+                    'razones_ia',
+                    'puntaje_ia',
+                    'estado_ia_analisis',
+                    'razon_estado_ia'
+                ])
                 logger.info(f"Postulación ID {postulacion_instance.id} rechazada automáticamente por distancia: {distance_km:.2f} km.")
-                return {'status': 'rejected', 'message': 'Rechazado automáticamente por distancia.', 'score': 0}
+                # El return debe coincidir con el formato que espera tasks.py
+                return {
+                    'status': 'rechazado_ia',
+                    'message': 'Rechazado automáticamente por distancia.',
+                    'puntaje': 0,
+                    'razones': postulacion_instance.razones_ia # Devuelve las razones actualizadas
+                }
             else:
                 razones_ia['distancia_km'] = f"{distance_km:.2f} km"
         else:
@@ -345,6 +460,7 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
         razones_ia['distancia_error'] = "Coordenadas incompletas para cálculo de distancia."
 
     # --- 2. Recopilar toda la información para la IA ---
+    # ... (Esta parte sigue siendo exactamente igual) ...
     person_info = {
         "nombres": persona.nombres,
         "apellidos": persona.apellidos,
@@ -352,8 +468,8 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
         "email_perfil": persona.usuario.correo,
         "telefono_perfil": persona.usuario.telefono,
         "direccion_perfil": persona.usuario.direccion,
-        "latitud_perfil": user_lat, # Usar latitud del usuario
-        "longitud_perfil": user_lon, # Usar longitud del usuario
+        "latitud_perfil": user_lat,
+        "longitud_perfil": user_lon,
         "fecha_nacimiento_perfil": str(persona.fecha_nacimiento) if persona.fecha_nacimiento else None,
         "nacionalidad": persona.nacionalidad,
     }
@@ -377,7 +493,7 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
         "latitud_oferta": oferta.latitud,
         "longitud_oferta": oferta.longitud,
         "es_servicio": oferta.es_servicio,
-        "urgente": oferta.urgente, # Incluir si la oferta es urgente
+        "urgente": oferta.urgente,
         "categoria": oferta.categoria.nombre_categoria if oferta.categoria else "Sin Categoria",
         "fecha_cierre": str(oferta.fecha_cierre) if oferta.fecha_cierre else "No especificada"
     }
@@ -390,7 +506,6 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
         "validaciones_previas": razones_ia
     }
 
-    # Ajustar el prompt para que la IA sepa sobre la urgencia y los tipos de trabajo
     prompt = (
         f"Eres un experto en reclutamiento y análisis de perfiles para trabajos esporádicos y de largo plazo "
         f"(como bartender, garzón, eventos, carpintería, etc.). Tu tarea es evaluar la idoneidad de un candidato "
@@ -454,42 +569,54 @@ def evaluate_postulacion_with_gemini(postulacion_instance):
                 postulacion_instance.razones_ia.update(new_razones)
 
             # Lógica para determinar estado_ia_analisis y razon_estado_ia
+            # NO SE MODIFICA postulacion_instance.estado AQUÍ
             if certificado and certificado.processing_status == EstadoDocumento.REJECTED:
                 postulacion_instance.estado_ia_analisis = 'rechazado_ia'
                 postulacion_instance.razon_estado_ia = f"Certificado de antecedentes rechazado: {certificado.rejection_reason}"
-                postulacion_instance.estado = 'rechazado' # También rechaza la postulación general
-            elif new_puntaje is not None and new_puntaje < umbral_aprobacion: # Usar el umbral dinámico
+                # REMOVIDO: postulacion_instance.estado = 'rechazado'
+            elif new_puntaje is not None and new_puntaje < umbral_aprobacion:
                 postulacion_instance.estado_ia_analisis = 'rechazado_ia'
                 postulacion_instance.razon_estado_ia = f"Puntaje de idoneidad IA muy bajo ({new_puntaje}) para esta oferta (umbral: {umbral_aprobacion})."
-                postulacion_instance.estado = 'rechazado' # También rechaza la postulación general
-            elif new_puntaje is not None and new_puntaje >= umbral_aprobacion: # Usar el umbral dinámico
+                # REMOVIDO: postulacion_instance.estado = 'rechazado'
+            elif new_puntaje is not None and new_puntaje >= umbral_aprobacion:
                 postulacion_instance.estado_ia_analisis = 'aprobado_ia'
                 postulacion_instance.razon_estado_ia = "Candidato apto según criterios de la IA."
-                # Puedes considerar cambiar el estado general a 'match' o 'preseleccionado' aquí si lo deseas.
-                # Por ahora, lo mantenemos como 'revisado' si no hay un rechazo explícito.
-                postulacion_instance.estado = 'revisado' # O un estado más avanzado como 'match' o 'preseleccionado'
+                # REMOVIDO: postulacion_instance.estado = 'revisado'
             else: # Si el puntaje es None o hubo algún problema que no sea un error de JSON
                 postulacion_instance.estado_ia_analisis = 'error_analisis'
                 postulacion_instance.razon_estado_ia = "El análisis IA no pudo determinar un puntaje válido."
-                postulacion_instance.estado = 'error' # Estado general de la postulación a 'error'
+                # REMOVIDO: postulacion_instance.estado = 'error'
 
-            postulacion_instance.save(update_fields=['puntaje_ia', 'razones_ia', 'estado_ia_analisis', 'razon_estado_ia', 'estado', 'rechazo_automatico_distancia'])
+            # Guardamos solo los campos de IA y el de rechazo automático por distancia
+            postulacion_instance.save(update_fields=[
+                'puntaje_ia',
+                'razones_ia',
+                'estado_ia_analisis',
+                'razon_estado_ia',
+                'rechazo_automatico_distancia' # Mantenemos este, ya que es parte de la lógica de rechazo IA
+            ])
             logger.info(f"Postulación de {persona.usuario.username} a {oferta.nombre} (ID: {postulacion_instance.id}) evaluada con IA. Puntaje: {new_puntaje}, Estado IA: {postulacion_instance.estado_ia_analisis}, Umbral Usado: {umbral_aprobacion}.")
 
-        return {'status': 'success', 'score': new_puntaje, 'reasons': new_razones, 'message': 'Postulación evaluada exitosamente.'}
+        # Este return es lo que tasks.py espera para su lógica de logs y respuesta HTTP
+        return {
+            'status': postulacion_instance.estado_ia_analisis, # Asegura que el status devuelto es el que se guardó
+            'puntaje': new_puntaje,
+            'razones': new_razones,
+            'message': postulacion_instance.razon_estado_ia # Devuelve la razón que se guardó
+        }
 
     except json.JSONDecodeError as e:
         postulacion_instance.estado_ia_analisis = 'error_analisis'
         postulacion_instance.razon_estado_ia = f"Error de formato JSON en la respuesta de la IA: {e}"
-        postulacion_instance.estado = 'error' # Estado general de la postulación a 'error'
-        postulacion_instance.save(update_fields=['estado_ia_analisis', 'razon_estado_ia', 'estado'])
+        # REMOVIDO: postulacion_instance.estado = 'error'
+        postulacion_instance.save(update_fields=['estado_ia_analisis', 'razon_estado_ia']) # Guardar solo campos IA
         logger.error(f"Error al decodificar JSON de Gemini para Postulación ID {postulacion_instance.id}: {e}\nRespuesta recibida: {response_text[:500]}", exc_info=True)
-        return {'status': 'error', 'message': f'Error al procesar Postulación con IA (JSON inválido): {e}'}
+        return {'status': 'error_analisis', 'message': f'Error al procesar Postulación con IA (JSON inválido): {e}', 'puntaje': None, 'razones': {}}
     except Exception as e:
         postulacion_instance.estado_ia_analisis = 'error_analisis'
         postulacion_instance.razon_estado_ia = f"Error inesperado durante el procesamiento de la Postulación: {e}"
-        postulacion_instance.estado = 'error' # Estado general de la postulación a 'error'
-        postulacion_instance.save(update_fields=['estado_ia_analisis', 'razon_estado_ia', 'estado'])
+        # REMOVIDO: postulacion_instance.estado = 'error'
+        postulacion_instance.save(update_fields=['estado_ia_analisis', 'razon_estado_ia']) # Guardar solo campos IA
         logger.error(f"Error inesperado al evaluar Postulación con Gemini (Postulación ID: {postulacion_instance.id}): {e}", exc_info=True)
-        return {'status': 'error', 'message': f'Error al procesar Postulación con IA: {e}'}
-    
+        return {'status': 'error_analisis', 'message': f'Error al procesar Postulación con IA: {e}', 'puntaje': None, 'razones': {}}
+
