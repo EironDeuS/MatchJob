@@ -92,48 +92,43 @@ def notificar_oferta_urgente(oferta):
 def validar_rut_empresa(rut):
     """
     Consulta el RUT en SimpleAPI (v2) y retorna si es una empresa activa válida.
-
-    Args:
-        rut (str): RUT de la empresa (puede venir con o sin puntos y guion).
-
-    Returns:
-        dict: {'valida': True/False, 'datos': {...} o 'mensaje': str}
+    Se espera que el RUT ya venga en formato 'XXXXXXXX-Y' (sin puntos, con guion).
     """
     api_key = settings.SIMPLEAPI_API_KEY
 
-    # Limpiar el RUT para enviarlo en el path de la URL (sin puntos ni guion)
-    rut_limpio = rut.replace('.', '').replace('-', '')
+    # Según la documentación de SimpleAPI v2, el RUT en la URL DEBE incluir el guion.
+    # El 'rut' que llega a esta función ya viene con el guion desde el formulario.
+    rut_para_api = rut.strip() # Usamos .strip() por precaución, pero lo importante es mantener el guion.
     
-    # Nueva URL base del endpoint de SimpleAPI (v2)
     URL_BASE_V2 = "https://rut.simpleapi.cl/v2" 
     
     headers = {
-        # El valor del header 'Authorization' debe ser solo la API Key, sin 'Bearer '.
         "Authorization": api_key, 
         "Content-Type": "application/json" 
     }
 
-    # Construir la URL completa con el RUT en el path
-    url_completa = f"{URL_BASE_V2}/{rut_limpio}"
+    # La URL se construye CON el guion, tal como el ejemplo de la documentación.
+    url_completa = f"{URL_BASE_V2}/{rut_para_api}"
+
+    # ******** AQUÍ ESTÁN LOS PRINT() ADICIONALES PARA DEPURACIÓN ********
+    print(f"DEBUG_PRINT: RUT recibido en validar_rut_empresa: '{rut}'")
+    print(f"DEBUG_PRINT: RUT para la API (después de strip): '{rut_para_api}'")
+    print(f"DEBUG_PRINT: URL completa generada para SimpleAPI: '{url_completa}'")
+    # *******************************************************************
 
     try:
         logger.debug(f"Intentando conectar a: {url_completa}")
         logger.debug(f"Usando API Key (primeros 5 caracteres): {api_key[:5]}...")
 
-        # Aumentar el tiempo de espera (timeout) a 60 segundos
         response = requests.get(url_completa, headers=headers, timeout=60) 
-        response.raise_for_status()  # Levanta HTTPError para códigos de error 4xx/5xx
+        response.raise_for_status()
 
         data = response.json()
 
-        # Lógica de validación de la respuesta para 200 OK (según docs v2)
-        # Si la API v2 devuelve 200 OK y contiene el rut y la razonSocial, asumimos validez.
         if data and data.get('rut') and data.get('razonSocial'):
             return {'valida': True, 'datos': data}
         else:
-            # Esto se ejecutaría si hay un 200 OK pero el JSON es vacío o no tiene los campos esperados
             return {'valida': False, 'mensaje': f"RUT encontrado, pero respuesta de SimpleAPI incompleta o inesperada.", 'datos': data}
-
 
     except requests.exceptions.HTTPError as http_err:
         error_message = response.text or str(http_err) 
@@ -156,18 +151,17 @@ def validar_rut_empresa(rut):
         return {'valida': False, 'mensaje': 'Error de conexión con SimpleAPI. Verifique su conexión a internet o proxy.'}
     except requests.exceptions.Timeout as timeout_err:
         logger.error(f"Timeout al conectar con SimpleAPI para RUT {rut}: La API no respondió a tiempo ({timeout_err}).")
-        # Ya no hay simulación, este es un error real si se produce.
         return {'valida': False, 'mensaje': 'La validación del RUT con SimpleAPI excedió el tiempo de espera. La API tarda en responder.'}
     except requests.exceptions.RequestException as req_err:
         logger.error(f"Error general de request con SimpleAPI para RUT {rut}: {req_err}")
         return {'valida': False, 'mensaje': f'Error inesperado al comunicarse con SimpleAPI: {req_err}'}
-    except ValueError as json_err: # Si la respuesta no es un JSON válido
+    except ValueError as json_err:
         logger.error(f"Error al decodificar JSON de SimpleAPI para RUT {rut}: {json_err} - Respuesta cruda: {response.text}")
         return {'valida': False, 'mensaje': 'Respuesta inválida de SimpleAPI.'}
     except Exception as e:
         logger.exception(f"Error inesperado en validar_rut_empresa para RUT {rut}: {e}") 
         return {'valida': False, 'mensaje': 'Ocurrió un error inesperado durante la validación.'}
-
+    
 def calculate_dv(rut_body):
     """
     Calcula el dígito verificador de un RUT (algoritmo Módulo 11).

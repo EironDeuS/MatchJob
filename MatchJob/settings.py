@@ -16,8 +16,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Cargar variables de entorno del archivo .env (para desarrollo local)
 load_dotenv()
 
-SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
-#SIMPLEAPI_API_KEY='6189-N660-6391-3468-3737'
+# SIMPLEAPI_API_KEY = os.getenv("SIMPLEAPI_API_KEY")
+SIMPLEAPI_API_KEY='6189-N660-6391-3468-3737'
 
 # --- MESSAGE TAGS (Django Messages Framework) ---
 MESSAGE_TAGS = {

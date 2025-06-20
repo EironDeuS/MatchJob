@@ -1498,6 +1498,65 @@ def editar_perfil(request):
     }
     return render(request, 'gestionOfertas/editar_perfil.html', context)
 
+# @login_required
+# def editar_perfil_empresa(request):
+#     usuario = request.user
+#     empresa = get_object_or_404(Empresa, usuario=usuario)
+
+#     logger.info(f"DEBUG_GEOLOC: Tipo de usuario.latitud: {type(usuario.latitud)}")
+#     logger.info(f"DEBUG_GEOLOC: Valor directo de usuario.latitud: {usuario.latitud}")
+#     logger.info(f"DEBUG_GEOLOC: Tipo de usuario.longitud: {type(usuario.longitud)}")
+#     logger.info(f"DEBUG_GEOLOC: Valor directo de usuario.longitud: {usuario.longitud}")
+
+#     initial_lat = usuario.latitud if usuario.latitud is not None else None
+#     initial_lng = usuario.longitud if usuario.longitud is not None else None
+#     initial_address = usuario.direccion if usuario.direccion is not None else ''
+
+#     logger.info(f"DEBUG_CONTEXT_PREP: Latitud en contexto (pre-render): {initial_lat}")
+#     logger.info(f"DEBUG_CONTEXT_PREP: Longitud en contexto (pre-render): {initial_lng}")
+#     logger.info(f"DEBUG_CONTEXT_PREP: Dirección en contexto: {initial_address}")
+
+#     if request.method == 'POST':
+#         usuario_form = UsuarioPerfilForm(request.POST, instance=usuario)
+#         empresa_form = EmpresaPerfilForm(request.POST, request.FILES, instance=empresa)
+
+#         logger.info(f"POST request for company user: {usuario.username}")
+#         logger.info(f"UsuarioForm valid: {usuario_form.is_valid()}, errors: {usuario_form.errors}")
+#         logger.info(f"EmpresaForm valid: {empresa_form.is_valid()}, errors: {empresa_form.errors}")
+
+#         if usuario_form.is_valid() and empresa_form.is_valid():
+#             try:
+#                 with transaction.atomic():
+#                     usuario_form.save()
+#                     empresa_form.save()
+
+#                     # Lógica para documentos de empresa (si los hay)
+#                     # Por ejemplo, certificados de constitución, etc.
+                    
+#                     messages.success(request, 'Perfil de empresa actualizado correctamente.')
+#                     return redirect('perfil_empresa')  # Ajusta según tu URL
+
+#             except Exception as e:
+#                 messages.error(request, f'Ocurrió un error al guardar el perfil de la empresa: {e}')
+#                 logger.exception("Error al guardar perfil de empresa.")
+#         else:
+#             messages.error(request, 'Por favor, corrige los errores en el formulario.')
+
+#     else:  # GET request
+#         usuario_form = UsuarioPerfilForm(instance=usuario)
+#         empresa_form = EmpresaPerfilForm(instance=empresa)
+
+#     context = {
+#         'usuario_form': usuario_form,
+#         'empresa_form': empresa_form,
+#         'google_map_api_key': settings.GOOGLE_MAPS_API_KEY,
+#         'initial_lat': initial_lat,
+#         'initial_lng': initial_lng,
+#         'initial_address': initial_address,
+#         'MEDIA_URL': default_storage.base_url if hasattr(default_storage, 'base_url') else '/media/'
+#     }
+#     return render(request, 'gestionOfertas/editar_perfil_empresa.html', context)
+
 def base(request):
     return render(request, 'gestionOfertas/base.html')
 

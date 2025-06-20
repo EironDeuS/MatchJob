@@ -359,6 +359,226 @@ class PersonaNaturalPerfilForm(CVValidationMixin, CertificadoValidationMixin, fo
     
 # --- RegistroForm: Cambios para añadir el campo de certificado ---
 # RegistroForm hereda de forms.Form, NO de forms.ModelForm
+# class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form): 
+#     # --- Campos del Modelo Usuario ---
+#     tipo_usuario = forms.ChoiceField(
+#         choices=[c for c in Usuario.TIPO_USUARIO_CHOICES if c[0] != 'admin'],
+#         required=True,
+#         widget=forms.Select(attrs={'onchange': 'toggleUsuarioFields()', 'class': 'form-select'}),
+#         label="Tipo de Usuario"
+#     )
+
+#     username = forms.CharField( # RUT
+#         label="RUT (con guión, sin puntos)",
+#         max_length=12,
+#         required=True,
+#         widget=forms.TextInput(attrs={'placeholder': '12345678-9', 'class': 'form-control'})
+#     )
+#     correo = forms.EmailField(
+#         label="Correo electrónico",
+#         required=True,
+#         widget=forms.EmailInput(attrs={'placeholder': 'tu@ejemplo.com', 'class': 'form-control'})
+#     )
+#     telefono = forms.CharField(
+#         label="Teléfono",
+#         max_length=20,
+#         required=False,
+#         widget=forms.TextInput(attrs={'placeholder': '+569 XXXXXXXX', 'class': 'form-control'})
+#     )
+    
+#     # Campo para el autocompletado de la dirección
+#     ubicacion_display = forms.CharField(
+#         label=_('Dirección'), # Nuevo label
+#         required=False, # Puede ser opcional en el registro si no se define una ubicación
+#         widget=forms.TextInput(attrs={
+#             'class': 'form-control',
+#             'id': 'id_ubicacion_display', # ID específico para el registro
+#             'placeholder': _('Ej: Av. Libertador Bernardo O\'Higgins 340, Santiago')
+#         })
+#     )
+#     # Campos ocultos para la dirección formateada, latitud y longitud
+#     direccion = forms.CharField( # Este campo se llenará automáticamente por JS
+#         widget=forms.HiddenInput(),
+#         required=False # Es opcional en el modelo, también aquí
+#     )
+#     latitud = forms.FloatField( # Este campo se llenará automáticamente por JS
+#         widget=forms.HiddenInput(),
+#         required=False # Es opcional en el modelo
+#     )
+#     longitud = forms.FloatField( # Este campo se llenará automáticamente por JS
+#         widget=forms.HiddenInput(),
+#         required=False # Es opcional en el modelo
+#     )
+
+
+#     password = forms.CharField(
+#         label="Contraseña",
+#         required=True,
+#         widget=forms.PasswordInput(attrs={'placeholder': 'Mínimo 8 caracteres', 'class': 'form-control'})
+#     )
+#     confirm_password = forms.CharField(
+#         label="Confirmar contraseña",
+#         required=True,
+#         widget=forms.PasswordInput(attrs={'placeholder': 'Repite la contraseña', 'class': 'form-control'})
+#     )
+
+#     # --- Campos del Perfil PersonaNatural ---
+#     nombres = forms.CharField(
+#         label="Nombres",
+#         max_length=100,
+#         required=False,
+#         widget=forms.TextInput(attrs={'class': 'form-control'})
+#     )
+#     apellidos = forms.CharField(
+#         label="Apellidos",
+#         max_length=100,
+#         required=False,
+#         widget=forms.TextInput(attrs={'class': 'form-control'})
+#     )
+#     fecha_nacimiento = forms.DateField(
+#         label="Fecha de Nacimiento",
+#         required=False,
+#         widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'})
+#     )
+#     nacionalidad = forms.CharField(
+#         label="Nacionalidad",
+#         max_length=50,
+#         initial='Chilena',
+#         required=False,
+#         widget=forms.TextInput(attrs={'class': 'form-control'})
+#     )
+
+#     # --- Campos del Perfil Empresa ---
+#     nombre_empresa = forms.CharField(
+#         label="Nombre de la Empresa",
+#         max_length=100,
+#         required=False, 
+#         widget=forms.TextInput(attrs={'class': 'form-control'})
+#     )
+#     razon_social = forms.CharField(
+#         label="Razón Social",
+#         max_length=100,
+#         required=False, 
+#         widget=forms.TextInput(attrs={'class': 'form-control'})
+#     )
+#     giro = forms.CharField(
+#         label="Giro Comercial",
+#         max_length=100,
+#         required=False, 
+#         widget=forms.TextInput(attrs={'class': 'form-control'})
+#     )
+
+#     # --- CAMPOS DE SUBIDA DE ARCHIVOS ---
+#     certificado_pdf = forms.FileField(
+#         label="Subir Certificado de Antecedentes (PDF)",
+#         required=False, # Opcional al registrarse
+#         widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'application/pdf'}),
+#         help_text="Opcional. El certificado se verificará y se procesará automáticamente."
+#     )
+    
+#     cv_archivo = forms.FileField(
+#         label="Subir Currículum Vitae (PDF)",
+#         required=False, # Opcional al registrarse
+#         widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'application/pdf'}),
+#         help_text="Opcional. El CV se procesará automáticamente para extraer tus datos."
+#     )
+
+#     # --- Métodos clean (validación de campos individuales) ---
+#     def clean_username(self):
+#         username = self.cleaned_data.get('username')
+#         if Usuario.objects.filter(username=username).exists():
+#             raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
+        
+#         try:
+#             rut_formatted = validate_rut_format(username)
+#             return clean_rut(rut_formatted)
+#         except ValidationError as e:
+#             raise forms.ValidationError(e.message)
+
+#     def clean_correo(self):
+#         correo = self.cleaned_data.get('correo')
+#         if Usuario.objects.filter(correo=correo).exists():
+#             raise ValidationError("Este correo electrónico ya está registrado.")
+#         return correo
+
+#     # --- Método clean general (validación de múltiples campos y lógica de API) ---
+#     def clean(self):
+#         cleaned_data = super().clean()
+#         password = cleaned_data.get("password")
+#         confirm_password = cleaned_data.get("confirm_password") 
+
+#         if password and confirm_password and password != confirm_password:
+#             self.add_error('confirm_password', "Las contraseñas no coinciden.")
+
+#         tipo_usuario = cleaned_data.get('tipo_usuario')
+#         username_rut = cleaned_data.get('username') # Ya validado y formateado por clean_username
+
+#         # Validar campos de ubicación si se proporcionó una dirección de display
+#         ubicacion_display = cleaned_data.get('ubicacion_display')
+#         latitud = cleaned_data.get('latitud')
+#         longitud = cleaned_data.get('longitud')
+
+#         if ubicacion_display and not (latitud and longitud):
+#             self.add_error('ubicacion_display', _('Por favor, selecciona una ubicación válida del autocompletado o arrastra el marcador en el mapa.'))
+        
+#         # Validaciones para Persona Natural
+#         if tipo_usuario == 'persona': 
+#             required_fields_persona = {
+#                 'nombres': 'Nombres',
+#                 'apellidos': 'Apellidos',
+#                 'fecha_nacimiento': 'Fecha de Nacimiento',
+#                 'nacionalidad': 'Nacionalidad'
+#             }
+#             for field_name, label_name in required_fields_persona.items():
+#                 if not cleaned_data.get(field_name):
+#                     self.add_error(field_name, f"{label_name} es requerido para personas naturales.")
+
+#         # Validaciones para Empresa (lógica del SII sin cambios)
+#         elif tipo_usuario == 'empresa':
+#             # Validar el RUT y extraer datos desde la API
+#             if username_rut: 
+#                 resultado = validar_rut_empresa(username_rut) 
+#                 if resultado['valida']:
+#                     api_data = resultado['datos']
+#                     api_razon_social = api_data.get('razonSocial')
+#                     if api_razon_social:
+#                         cleaned_data['razon_social'] = api_razon_social
+#                         cleaned_data['nombre_empresa'] = api_razon_social 
+                    
+#                     api_actividades = api_data.get('actividadesEconomicas')
+#                     if api_actividades and len(api_actividades) > 0:
+#                         first_giro_desc = api_actividades[0].get('descripcion')
+#                         cleaned_data['giro'] = first_giro_desc
+#                 else:
+#                     self.add_error('username', f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
+
+        
+#         return cleaned_data
+
+#     # --- MÉTODO ESENCIAL: save para crear la instancia de Usuario ---
+#     def save(self, commit=True):
+#         """
+#         Crea y guarda una instancia de Usuario basada en los datos validados del formulario.
+#         Esta función solo se encarga del objeto Usuario.
+#         Los perfiles (PersonaNatural/Empresa) y los archivos adjuntos se gestionan en la vista.
+#         """
+#         user = Usuario(
+#             username=self.cleaned_data['username'],
+#             correo=self.cleaned_data['correo'],
+#             telefono=self.cleaned_data.get('telefono'),
+#             direccion=self.cleaned_data.get('direccion'), # <-- Guardar la dirección del formulario
+#             latitud=self.cleaned_data.get('latitud'),     # <-- Guardar la latitud del formulario
+#             longitud=self.cleaned_data.get('longitud'),   # <-- Guardar la longitud del formulario
+#             tipo_usuario=self.cleaned_data['tipo_usuario'],
+#             is_active=True # Se activa al registrarse
+#         )
+#         user.set_password(self.cleaned_data['password'])
+        
+#         if commit:
+#             user.save()
+        
+#         return user
+
 class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form): 
     # --- Campos del Modelo Usuario ---
     tipo_usuario = forms.ChoiceField(
@@ -388,28 +608,27 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
     
     # Campo para el autocompletado de la dirección
     ubicacion_display = forms.CharField(
-        label=_('Dirección'), # Nuevo label
-        required=False, # Puede ser opcional en el registro si no se define una ubicación
+        label=_('Dirección'),
+        required=False,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'id': 'id_ubicacion_display', # ID específico para el registro
+            'id': 'id_ubicacion_display',
             'placeholder': _('Ej: Av. Libertador Bernardo O\'Higgins 340, Santiago')
         })
     )
     # Campos ocultos para la dirección formateada, latitud y longitud
-    direccion = forms.CharField( # Este campo se llenará automáticamente por JS
+    direccion = forms.CharField(
         widget=forms.HiddenInput(),
-        required=False # Es opcional en el modelo, también aquí
+        required=False
     )
-    latitud = forms.FloatField( # Este campo se llenará automáticamente por JS
+    latitud = forms.FloatField(
         widget=forms.HiddenInput(),
-        required=False # Es opcional en el modelo
+        required=False
     )
-    longitud = forms.FloatField( # Este campo se llenará automáticamente por JS
+    longitud = forms.FloatField(
         widget=forms.HiddenInput(),
-        required=False # Es opcional en el modelo
+        required=False
     )
-
 
     password = forms.CharField(
         label="Contraseña",
@@ -471,14 +690,14 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
     # --- CAMPOS DE SUBIDA DE ARCHIVOS ---
     certificado_pdf = forms.FileField(
         label="Subir Certificado de Antecedentes (PDF)",
-        required=False, # Opcional al registrarse
+        required=False,
         widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'application/pdf'}),
         help_text="Opcional. El certificado se verificará y se procesará automáticamente."
     )
     
     cv_archivo = forms.FileField(
         label="Subir Currículum Vitae (PDF)",
-        required=False, # Opcional al registrarse
+        required=False,
         widget=forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'application/pdf'}),
         help_text="Opcional. El CV se procesará automáticamente para extraer tus datos."
     )
@@ -486,14 +705,18 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
     # --- Métodos clean (validación de campos individuales) ---
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        if Usuario.objects.filter(username=username).exists():
-            raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
-        
+        if not username: # Si el campo está vacío, la validación `required=True` del CharField ya lo maneja
+            raise ValidationError("El RUT no puede estar vacío.")
+
+        # Sólo valida el formato. La validación del DV se hace en clean()
         try:
             rut_formatted = validate_rut_format(username)
-            return clean_rut(rut_formatted)
+            # Verifica unicidad AQUI, una vez que el formato es correcto
+            if Usuario.objects.filter(username=rut_formatted).exists():
+                raise ValidationError("Este RUT o nombre de usuario ya está registrado.")
+            return rut_formatted
         except ValidationError as e:
-            raise forms.ValidationError(e.message)
+            raise forms.ValidationError(e.message) # Re-lanza el error para que Django lo maneje
 
     def clean_correo(self):
         correo = self.cleaned_data.get('correo')
@@ -511,7 +734,7 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
             self.add_error('confirm_password', "Las contraseñas no coinciden.")
 
         tipo_usuario = cleaned_data.get('tipo_usuario')
-        username_rut = cleaned_data.get('username') # Ya validado y formateado por clean_username
+        username_rut = cleaned_data.get('username') # Ya validado el formato por clean_username
 
         # Validar campos de ubicación si se proporcionó una dirección de display
         ubicacion_display = cleaned_data.get('ubicacion_display')
@@ -521,8 +744,16 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
         if ubicacion_display and not (latitud and longitud):
             self.add_error('ubicacion_display', _('Por favor, selecciona una ubicación válida del autocompletado o arrastra el marcador en el mapa.'))
         
-        # Validaciones para Persona Natural
+        # Validaciones específicas según el tipo de usuario
         if tipo_usuario == 'persona': 
+            # 1. Validar el Dígito Verificador para Persona Natural
+            if username_rut:
+                try:
+                    # Aquí llamamos a clean_rut para validar el DV
+                    clean_rut(username_rut) 
+                except ValidationError as e:
+                    self.add_error('username', e.message)
+
             required_fields_persona = {
                 'nombres': 'Nombres',
                 'apellidos': 'Apellidos',
@@ -535,7 +766,7 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
 
         # Validaciones para Empresa (lógica del SII sin cambios)
         elif tipo_usuario == 'empresa':
-            # Validar el RUT y extraer datos desde la API
+            # 1. Validar el RUT y extraer datos desde la API (SimpleAPI ya valida el formato y el DV internamente)
             if username_rut: 
                 resultado = validar_rut_empresa(username_rut) 
                 if resultado['valida']:
@@ -550,8 +781,8 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
                         first_giro_desc = api_actividades[0].get('descripcion')
                         cleaned_data['giro'] = first_giro_desc
                 else:
+                    # Añadir el error al campo 'username' para que se muestre correctamente
                     self.add_error('username', f"❌ El RUT ingresado no es válido como empresa: {resultado.get('mensaje')}")
-
         
         return cleaned_data
 
@@ -566,11 +797,11 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
             username=self.cleaned_data['username'],
             correo=self.cleaned_data['correo'],
             telefono=self.cleaned_data.get('telefono'),
-            direccion=self.cleaned_data.get('direccion'), # <-- Guardar la dirección del formulario
-            latitud=self.cleaned_data.get('latitud'),     # <-- Guardar la latitud del formulario
-            longitud=self.cleaned_data.get('longitud'),   # <-- Guardar la longitud del formulario
+            direccion=self.cleaned_data.get('direccion'),
+            latitud=self.cleaned_data.get('latitud'),
+            longitud=self.cleaned_data.get('longitud'),
             tipo_usuario=self.cleaned_data['tipo_usuario'],
-            is_active=True # Se activa al registrarse
+            is_active=True
         )
         user.set_password(self.cleaned_data['password'])
         
@@ -578,7 +809,6 @@ class RegistroForm(CVValidationMixin, CertificadoValidationMixin, forms.Form):
             user.save()
         
         return user
-
 
 class UsuarioCreationForm(forms.ModelForm):
     """Formulario para crear usuarios DESDE EL ADMIN (o similar)."""
