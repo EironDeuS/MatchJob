@@ -335,19 +335,25 @@ from .models import OfertaTrabajo, Categoria
 def ofertas_urgentes_view(request):
     hoy = timezone.now().date()
 
-    # Base queryset: solo ofertas urgentes, activas y dentro del plazo
-    queryset = OfertaTrabajo.objects.filter(
+    # Base queryset con todas las ofertas urgentes activas y dentro de fecha
+    base_queryset = OfertaTrabajo.objects.filter(
         urgente=True,
         esta_activa=True
     ).filter(
         Q(fecha_cierre__gte=hoy) | Q(fecha_cierre__isnull=True)
     ).select_related('creador', 'empresa', 'categoria')
 
-    # Filtros GET
+    # Clonar base para el conteo total sin filtros aplicados
+    total_ofertas_urgentes = base_queryset.count()
+    empresas_count = base_queryset.values('empresa').distinct().count()
+
+    # Aplicar filtros GET
     q = request.GET.get('q', '')
     categoria_id = request.GET.get('categoria')
     tipo_contrato = request.GET.get('tipo_contrato')
     tipo_oferta = request.GET.get('tipo_oferta')
+
+    queryset = base_queryset
 
     if q:
         queryset = queryset.filter(
@@ -384,11 +390,8 @@ def ofertas_urgentes_view(request):
         'ofertas': page_obj,
         'categorias': Categoria.objects.all(),
         'tipos_contrato': OfertaTrabajo.TIPO_CONTRATO_CHOICES,
-        'total_ofertas_urgentes': OfertaTrabajo.objects.filter(
-            urgente=True,
-            esta_activa=True,
-            fecha_cierre__gte=hoy
-        ).count(),
+        'total_ofertas_urgentes': total_ofertas_urgentes,
+        'empresas_count': empresas_count,
         'current_search': q,
         'current_categoria': categoria_id or '',
         'current_tipo_contrato': tipo_contrato or '',
@@ -396,8 +399,6 @@ def ofertas_urgentes_view(request):
     }
 
     return render(request, 'gestionOfertas/ofertas_urgentes.html', context)
-
-
 
 
 def inicio(request):
