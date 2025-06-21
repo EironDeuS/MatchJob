@@ -50,6 +50,7 @@ urlpatterns = [
     path('tasks/analizar_ia/', csrf_exempt(analizar_postulacion_ia_task_handler), name='analizar_ia_task_endpoint'),
     path('postulaciones/<int:postulacion_id>/cambiar-estado/', views.cambiar_estado_postulacion, name='cambiar_estado_postulacion'),
     path('ofertas/<int:oferta_id>/postulantes/', views.ver_postulantes_oferta, name='postulantes_oferta'),
+    path('perfil/editar/empresa/', views.editar_perfil_empresa, name='editar_perfil_empresa'),
     
 
     # path('ofertas/<int:pk>/editar/', views.editar_oferta, name='editar_oferta'),

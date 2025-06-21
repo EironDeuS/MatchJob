@@ -1,0 +1,280 @@
+{% extends 'gestionOfertas/base.html' %}
+{% load l10n %}
+{% load static %}
+
+{% block title %}Editar Perfil de Empresa - MatchJob{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light py-3">
+                    <h2 class="text-center mb-0">Editar Perfil de Empresa</h2>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="mb-4">
+                            <h5 class="mb-3">Información de la Empresa</h5>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nombre de la empresa</label>
+                                <input type="text" class="form-control" value="{{ empresa_form.nombre_empresa.value }}" disabled>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Razón social</label>
+                                <input type="text" class="form-control" value="{{ empresa_form.razon_social.value }}" disabled>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Giro comercial</label>
+                                <input type="text" class="form-control" value="{{ empresa_form.giro.value }}" disabled>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ empresa_form.pagina_web.id_for_label }}" class="form-label">{{ empresa_form.pagina_web.label }}</label>
+                                {{ empresa_form.pagina_web }}
+                                {% if empresa_form.pagina_web.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in empresa_form.pagina_web.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ empresa_form.redes_sociales.id_for_label }}" class="form-label">{{ empresa_form.redes_sociales.label }}</label>
+                                {{ empresa_form.redes_sociales }}
+                                {% if empresa_form.redes_sociales.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in empresa_form.redes_sociales.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h5 class="mb-3">Información de Contacto</h5>
+
+                            <div class="mb-3">
+                                <label for="{{ usuario_form.correo.id_for_label }}" class="form-label">{{ usuario_form.correo.label }}</label>
+                                {{ usuario_form.correo }}
+                                {% if usuario_form.correo.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in usuario_form.correo.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ usuario_form.telefono.id_for_label }}" class="form-label">{{ usuario_form.telefono.label }}</label>
+                                {{ usuario_form.telefono }}
+                                {% if usuario_form.telefono.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in usuario_form.telefono.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ usuario_form.ubicacion_display.id_for_label }}" class="form-label">{{ usuario_form.ubicacion_display.label }} (busca en el mapa)</label>
+                                {{ usuario_form.ubicacion_display }}
+                                <small class="form-text text-muted">Empieza a escribir para autocompletar o selecciona un punto en el mapa.</small>
+                            </div>
+
+                            <div id="map" style="height: 400px; width: 100%; border-radius: 8px; margin-bottom: 1rem;"></div>
+
+                            <div style="display: none;">
+                                {{ usuario_form.direccion }}
+                                {{ usuario_form.latitud }}
+                                {{ usuario_form.longitud }}
+                            </div>
+
+                            {% for field in usuario_form %}
+                                {% if field.errors %}
+                                    <div class="text-danger small mt-1">{{ field.errors }}</div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-success btn-lg py-2">
+                                <i class="bi bi-check-circle me-2"></i>Guardar Cambios
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+{% load l10n %}
+<script>
+{{ block.super }}
+let map;
+let marker;
+let autocomplete;
+let geocoder;
+
+function parseCoordinate(value, defaultValue) {
+    const stringValue = String(value).trim();
+    if (stringValue === '' || stringValue === 'null' || stringValue === 'None') {
+        return defaultValue;
+    }
+    const parsed = parseFloat(stringValue);
+    return isNaN(parsed) ? defaultValue : parsed;
+}
+
+{% localize off %}
+const initialLat = parseCoordinate("{{ initial_lat|unlocalize|default:'' }}", -33.4489);
+const initialLng = parseCoordinate("{{ initial_lng|unlocalize|default:'' }}", -70.6693);
+{% endlocalize %}
+const initialAddress = "{{ initial_address|escapejs }}";
+
+function initMap() {
+    if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+        handleMapError();
+        return;
+    }
+    geocoder = new google.maps.Geocoder();
+
+    const mapOptions = {
+        center: { lat: initialLat, lng: initialLng },
+        zoom: 15,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        streetViewControl: false
+    };
+
+    try {
+        map = new google.maps.Map(document.getElementById("map"), mapOptions);
+        marker = new google.maps.Marker({
+            position: { lat: initialLat, lng: initialLng },
+            map: map,
+            draggable: true,
+            title: "Arrastra para seleccionar tu ubicación"
+        });
+        initializeFormFields();
+        setupEventListeners();
+    } catch (error) {
+        handleMapError();
+    }
+}
+
+function initializeFormFields() {
+    const ubicacionDisplayInput = document.getElementById('id_ubicacion_display');
+    const latInput = document.getElementById('id_latitud');
+    const lngInput = document.getElementById('id_longitud');
+    const direccionInput = document.getElementById('id_direccion');
+
+    if (ubicacionDisplayInput && initialAddress) {
+        ubicacionDisplayInput.value = initialAddress;
+    }
+    if (latInput) latInput.value = initialLat;
+    if (lngInput) lngInput.value = initialLng;
+    if (direccionInput) direccionInput.value = initialAddress;
+}
+
+function setupEventListeners() {
+    marker.addListener('dragend', function () {
+        const newLat = marker.getPosition().lat();
+        const newLng = marker.getPosition().lng();
+        reverseGeocode(newLat, newLng);
+    });
+
+    const input = document.getElementById('id_ubicacion_display');
+    if (input) {
+        autocomplete = new google.maps.places.Autocomplete(input, {
+            componentRestrictions: { 'country': ['cl'] },
+            fields: ['geometry.location', 'formatted_address', 'name']
+        });
+
+        autocomplete.addListener('place_changed', function () {
+            const place = autocomplete.getPlace();
+            if (!place.geometry) {
+                clearLocationFields();
+                return;
+            }
+            const lat = place.geometry.location.lat();
+            const lng = place.geometry.location.lng();
+            const formattedAddress = place.formatted_address;
+            updateMapAndFields(lat, lng, formattedAddress);
+        });
+    }
+}
+
+function updateMapAndFields(lat, lng, formattedAddress) {
+    const latLng = new google.maps.LatLng(lat, lng);
+    map.setCenter(latLng);
+    marker.setPosition(latLng);
+
+    document.getElementById('id_latitud').value = lat;
+    document.getElementById('id_longitud').value = lng;
+    document.getElementById('id_direccion').value = formattedAddress;
+    document.getElementById('id_ubicacion_display').value = formattedAddress;
+}
+
+function clearLocationFields() {
+    document.getElementById('id_latitud').value = '';
+    document.getElementById('id_longitud').value = '';
+    document.getElementById('id_direccion').value = '';
+    document.getElementById('id_ubicacion_display').value = '';
+}
+
+function reverseGeocode(lat, lng) {
+    const latLng = { lat: lat, lng: lng };
+    geocoder.geocode({ 'location': latLng }, function (results, status) {
+        if (status === 'OK' && results[0]) {
+            const formattedAddress = results[0].formatted_address;
+            updateMapAndFields(lat, lng, formattedAddress);
+        } else {
+            document.getElementById('id_latitud').value = lat;
+            document.getElementById('id_longitud').value = lng;
+        }
+    });
+}
+
+function handleMapError() {
+    const mapContainer = document.getElementById('map');
+    if (mapContainer) {
+        mapContainer.innerHTML = '<div class="alert alert-warning">No se pudo cargar el mapa. Verifica tu conexión a internet o la configuración de la API.</div>';
+    }
+}
+
+window.gm_authFailure = function () {
+    handleMapError();
+};
+window.handleMapError = handleMapError;
+window.initMap = initMap;
+</script>
+
+{% if google_map_api_key %}
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_map_api_key }}&libraries=places&language=es&region=CL&callback=initMap"
+    onerror="window.handleMapError()">
+</script>
+{% else %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapContainer = document.getElementById('map');
+        if (mapContainer) {
+            mapContainer.innerHTML = '<div class="alert alert-warning">Google Maps API Key no configurada</div>';
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
